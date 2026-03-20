@@ -13,9 +13,9 @@ Users and AI agents can interact with all Atlassian Cloud products from the comm
 | Attribute | Value |
 |-----------|-------|
 | Version | 0.1.0 |
-| Status | Foundation complete |
+| Status | Spec engine complete |
 | Last Updated | 2026-03-21 |
-| Phase | 1 complete, ready for Phase 2 |
+| Phase | 2 complete, ready for Phase 3 |
 
 ## Requirements
 
@@ -23,12 +23,12 @@ Users and AI agents can interact with all Atlassian Cloud products from the comm
 
 **Dynamic Command Engine**
 - [ ] Two-phase CLI parsing: extract product → load spec → build command tree → execute
-- [ ] OpenAPI 3.0.1 spec parser for Jira, Jira Software, Confluence, Service Management
-- [ ] Swagger 2.0 spec parser for BitBucket (or 2.0→3.0 conversion layer)
+- [x] OpenAPI 3.0.1 spec parser for Jira, Jira Software, Confluence, Service Management — Phase 2
+- [x] Swagger 2.0 spec parser for BitBucket (direct-to-ApiSpec conversion) — Phase 2
 - [ ] Runtime command tree generation from specs (tags → command groups, operationId → commands)
 - [ ] Generic HTTP executor with URL template substitution, parameter validation
-- [ ] Spec caching with 24h TTL and manual refresh (`shrug cache refresh`)
-- [ ] Pre-bundled fallback specs in binary for offline/first-run
+- [x] Spec caching with 24h TTL — Phase 2 (manual refresh command deferred to Phase 3)
+- [x] Pre-bundled fallback specs in binary for offline/first-run — Phase 2
 
 **Authentication & Profiles**
 - [ ] API token + email auth (Basic Auth) — primary method
@@ -331,4 +331,4 @@ Users and AI agents can interact with all Atlassian Cloud products from the comm
 
 ---
 *PROJECT.md — Updated when requirements or context change*
-*Last updated: 2026-03-21 after Phase 1*
+*Last updated: 2026-03-21 after Phase 2*
