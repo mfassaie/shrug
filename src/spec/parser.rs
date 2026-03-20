@@ -216,7 +216,10 @@ fn parse_parameters(params: &Value) -> Vec<Parameter> {
 
 /// Merge path-level and operation-level parameters.
 /// Operation-level parameters override path-level by name.
-fn merge_parameters(path_params: &[Parameter], op_params: &[Parameter]) -> Vec<Parameter> {
+pub(crate) fn merge_parameters(
+    path_params: &[Parameter],
+    op_params: &[Parameter],
+) -> Vec<Parameter> {
     let mut merged: Vec<Parameter> = path_params.to_vec();
 
     for op_param in op_params {
@@ -230,7 +233,7 @@ fn merge_parameters(path_params: &[Parameter], op_params: &[Parameter]) -> Vec<P
     merged
 }
 
-fn parse_method(s: &str) -> Option<HttpMethod> {
+pub(crate) fn parse_method(s: &str) -> Option<HttpMethod> {
     match s {
         "get" => Some(HttpMethod::Get),
         "post" => Some(HttpMethod::Post),
@@ -241,7 +244,7 @@ fn parse_method(s: &str) -> Option<HttpMethod> {
     }
 }
 
-fn parse_parameter_location(s: &str) -> Option<ParameterLocation> {
+pub(crate) fn parse_parameter_location(s: &str) -> Option<ParameterLocation> {
     match s {
         "path" => Some(ParameterLocation::Path),
         "query" => Some(ParameterLocation::Query),

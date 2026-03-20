@@ -15,7 +15,7 @@ Phases: 1 of 8 complete
 | Phase | Name | Plans | Status | Completed |
 |-------|------|-------|--------|-----------|
 | 1 | Project Foundation | 3 | ✅ Complete | 2026-03-21 |
-| 2 | OpenAPI Spec Engine | 4 | Not started | - |
+| 2 | OpenAPI Spec Engine | 4 | In progress | - |
 | 3 | Dynamic Command Tree | 2 | Not started | - |
 | 4 | Authentication & Profiles | 3 | Not started | - |
 | 5 | Generic HTTP Executor | 4 | Not started | - |
