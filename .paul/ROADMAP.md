@@ -17,7 +17,7 @@ Phases: 3 of 8 complete
 | 1 | Project Foundation | 3 | ✅ Complete | 2026-03-21 |
 | 2 | OpenAPI Spec Engine | 4 | ✅ Complete | 2026-03-21 |
 | 3 | Dynamic Command Tree | 2 | ✅ Complete | 2026-03-21 |
-| 4 | Authentication & Profiles | 3 | Not started | - |
+| 4 | Authentication & Profiles | 3 | Planning | - |
 | 5 | Generic HTTP Executor | 4 | Not started | - |
 | 6 | Output & Formatting | 2 | Not started | - |
 | 7 | Helper Commands & ADF | 3 | Not started | - |

@@ -1,6 +1,8 @@
 use clap::{Parser, Subcommand, ValueEnum};
 use serde::{Deserialize, Serialize};
 
+use crate::auth::profile::AuthType;
+
 #[derive(Parser)]
 #[command(name = "shrug", version, about = "A dynamic CLI for Atlassian Cloud")]
 pub struct Cli {
@@ -79,15 +81,15 @@ pub enum Commands {
         #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
         args: Vec<String>,
     },
-    /// Authentication management
+    /// Authentication management (set-token, status)
     Auth {
-        #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
-        args: Vec<String>,
+        #[command(subcommand)]
+        command: AuthCommands,
     },
-    /// Profile management
+    /// Profile management (create, list, show, delete, use)
     Profile {
-        #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
-        args: Vec<String>,
+        #[command(subcommand)]
+        command: ProfileCommands,
     },
     /// Cache management
     Cache {
@@ -98,5 +100,68 @@ pub enum Commands {
     Completions {
         #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
         args: Vec<String>,
+    },
+}
+
+#[derive(Subcommand)]
+pub enum ProfileCommands {
+    /// Create a new profile
+    Create {
+        /// Profile name (lowercase, alphanumeric, hyphens)
+        #[arg(long)]
+        name: String,
+
+        /// Atlassian site URL (e.g., mysite.atlassian.net)
+        #[arg(long)]
+        site: String,
+
+        /// Email address for authentication
+        #[arg(long)]
+        email: String,
+
+        /// Authentication type
+        #[arg(long, value_enum, default_value_t = AuthType::BasicAuth)]
+        auth_type: AuthType,
+    },
+
+    /// List all profiles
+    List,
+
+    /// Show details of a profile
+    Show {
+        /// Profile name
+        #[arg(long)]
+        name: String,
+    },
+
+    /// Delete a profile
+    Delete {
+        /// Profile name
+        #[arg(long)]
+        name: String,
+    },
+
+    /// Set a profile as the default
+    Use {
+        /// Profile name to set as default
+        #[arg(long)]
+        name: String,
+    },
+}
+
+#[derive(Subcommand)]
+pub enum AuthCommands {
+    /// Store an API token for a profile
+    SetToken {
+        /// Profile name (uses default if not specified)
+        #[arg(long)]
+        profile: Option<String>,
+    },
+
+    /// Show credential status for a profile
+    Status {
+        /// Profile name (uses default if not specified)
+        #[arg(long)]
+        profile: Option<String>,
     },
 }

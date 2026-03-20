@@ -28,6 +28,9 @@ pub enum ShrugError {
 
     #[error("Usage error: {0}")]
     UsageError(String),
+
+    #[error("Profile error: {0}")]
+    ProfileError(String),
 }
 
 impl ShrugError {
@@ -42,6 +45,7 @@ impl ShrugError {
             ShrugError::ConfigError(_) => exit_codes::GENERAL_ERROR,
             ShrugError::SpecError(_) => exit_codes::GENERAL_ERROR,
             ShrugError::UsageError(_) => exit_codes::USAGE_ERROR,
+            ShrugError::ProfileError(_) => exit_codes::GENERAL_ERROR,
         }
     }
 }
@@ -104,6 +108,12 @@ mod tests {
     }
 
     #[test]
+    fn profile_error_exit_code() {
+        let err = ShrugError::ProfileError("bad profile".into());
+        assert_eq!(err.exit_code(), exit_codes::GENERAL_ERROR);
+    }
+
+    #[test]
     fn display_messages_are_non_empty() {
         let errors: Vec<ShrugError> = vec![
             ShrugError::AuthError("test".into()),
@@ -119,6 +129,7 @@ mod tests {
             ShrugError::ConfigError("test".into()),
             ShrugError::SpecError("test".into()),
             ShrugError::UsageError("test".into()),
+            ShrugError::ProfileError("test".into()),
         ];
         for err in &errors {
             let msg = format!("{err}");

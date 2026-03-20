@@ -22,6 +22,12 @@ owo-colors = "4"
 enable-ansi-support = "0.2"
 ctrlc = "3"
 chrono = { version = "0.4", features = ["serde"] }
+keyring = "3"
+aes-gcm = "0.10"
+argon2 = "0.5"
+base64 = "0.22"
+rand = "0.8"
+rpassword = "7"
 
 [dev-dependencies]
 assert_cmd = "2"
