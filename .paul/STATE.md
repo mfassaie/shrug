@@ -52,7 +52,7 @@ None yet.
 None yet.
 
 ### Git State
-Last commit: d3ab516
+Last commit: 8504c08
 Branch: main
 Feature branches merged: none
 
@@ -61,12 +61,13 @@ Feature branches merged: none
 Last session: 2026-03-21
 Stopped at: Phase 3 complete, ready to plan Phase 4
 Next action: /paul:plan for Phase 4 (Authentication & Profiles)
-Resume file: .paul/ROADMAP.md
+Resume file: .paul/HANDOFF-2026-03-21-session4.md
 Resume context:
 - Phase 3 complete: product router, command tree display, rich error messages
 - 137 tests passing, clippy clean
-- Phase 4 scope: profiles, keychain, OAuth 2.0, env var auth
-- Note: 1 flaky test in config.rs (env var race in parallel — passes single-threaded)
+- Phase 4 scope: profiles (04-01), keychain (04-02), OAuth 2.0 (04-03)
+- User wants autonomous execution: plan → audit → apply → unify, no stopping
+- MSYS2 GCC needed on PATH: export PATH="/c/msys64/mingw64/bin:$HOME/.cargo/bin:$PATH"
 
 ---
 *STATE.md — Updated after every significant action*

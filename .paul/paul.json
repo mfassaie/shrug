@@ -7,8 +7,8 @@
     "status": "in_progress"
   },
   "phase": {
-    "number": 3,
-    "name": "03-dynamic-command-tree",
+    "number": 4,
+    "name": "04-authentication-profiles",
     "status": "not_started"
   },
   "loop": {
