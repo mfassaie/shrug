@@ -1,0 +1,32 @@
+{
+  "permissions": {
+    "defaultMode": "auto",
+    "allow": [
+      "Bash(find /home/falconer/Development/Falkonr/shrug -type f -not -path */.git/*)",
+      "Bash(git:*)",
+      "Bash(python3 .claude/hooks/carl-hook.py)",
+      "Bash(where python:*)",
+      "Bash(python .claude/hooks/carl-hook.py)",
+      "Bash(cargo:*)",
+      "Bash(rustup:*)",
+      "Bash(mkdir:*)",
+      "Bash(ls:*)",
+      "Bash(cat:*)",
+      "Bash(echo:*)",
+      "Bash(which:*)",
+      "Bash(rustc:*)",
+      "Skill(paul:*)",
+      "WebSearch",
+      "WebFetch(domain:clig.dev)",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:developer.atlassian.com)",
+      "WebFetch(domain:deepwiki.com)",
+      "WebFetch(domain:david.kolo.ski)",
+      "WebFetch(domain:support.atlassian.com)",
+      "WebFetch(domain:community.developer.atlassian.com)",
+      "WebFetch(domain:bettercli.org)",
+      "Skill(update-config)",
+      "Bash(python:*)"
+    ]
+  }
+}
