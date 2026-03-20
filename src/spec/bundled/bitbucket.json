@@ -1,0 +1,1 @@
+{"swagger":"2.0","info":{"title":"Bitbucket","version":"2.0"},"host":"api.bitbucket.org","basePath":"/2.0","schemes":["https"],"tags":[{"name":"repositories","description":"Repository operations"},{"name":"pullrequests","description":"Pull request operations"}],"paths":{}}

@@ -21,6 +21,7 @@ directories = "5"
 owo-colors = "4"
 enable-ansi-support = "0.2"
 ctrlc = "3"
+chrono = { version = "0.4", features = ["serde"] }
 
 [dev-dependencies]
 assert_cmd = "2"

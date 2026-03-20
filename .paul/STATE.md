@@ -11,13 +11,13 @@ See: .paul/PROJECT.md (updated 2026-03-21)
 
 Milestone: v0.1 MVP (v0.1.0)
 Phase: 2 of 8 (OpenAPI Spec Engine) — In Progress
-Plan: 02-01 complete (1 of 4 plans in phase)
+Plan: 02-03 complete (3 of 4 plans in phase)
 Status: Loop closed, ready for next PLAN
-Last activity: 2026-03-21 — Plan 02-01 UNIFY complete
+Last activity: 2026-03-21 — Plan 02-03 UNIFY complete
 
 Progress:
-- Milestone: [██░░░░░░░░] 16%
-- Phase 2: [██░░░░░░░░] 25%
+- Milestone: [███░░░░░░░] 22%
+- Phase 2: [███████░░░] 75%
 
 ## Loop Position
 
@@ -41,6 +41,8 @@ PLAN ──▶ APPLY ──▶ UNIFY
 | Non-panicking Ctrl+C handler (if-let, not expect) | Phase 1 | Prevents panic on handler setup failure |
 | Enterprise audit on 02-01: Applied 2 must-have, 1 strongly-recommended. Verdict: enterprise-ready after fixes | Phase 2 | Parser: parameter merge semantics, merge test, HttpMethod Display |
 | Purpose-built spec model — only CLI-needed fields, no full OpenAPI | Phase 2 | Keeps parser simple, extensible |
+| Enterprise audit on 02-02: Applied 2 must-have, 2 strongly-recommended. Verdict: enterprise-ready after fixes | Phase 2 | Swagger parser: formData merge, consumes inheritance, schemes array, basePath normalization |
+| Enterprise audit on 02-03: Applied 3 must-have, 2 strongly-recommended. Verdict: enterprise-ready after fixes | Phase 2 | Cache: version change detection, path traversal protection, constructor error handling |
 
 ### Deferred Issues
 None yet.
@@ -56,13 +58,13 @@ Feature branches merged: none
 ## Session Continuity
 
 Last session: 2026-03-21
-Stopped at: Plan 02-01 loop closed, ready for 02-02
-Next action: Run /paul:plan for plan 02-02 (Swagger 2.0 parser / conversion)
-Resume file: .paul/HANDOFF-2026-03-21-session2.md
+Stopped at: Plan 02-03 loop closed, ready for 02-04
+Next action: Run /paul:plan for plan 02-04 (Spec conformance test suite)
+Resume file: .paul/HANDOFF-2026-03-21-session3.md
 Resume context:
-- Plan 02-01 complete: OpenAPI 3.0.1 parser + data model (ApiSpec)
-- Phase 2 has 3 remaining plans: 02-02 (Swagger 2.0), 02-03 (caching), 02-04 (conformance tests)
-- 40 tests passing, clippy clean
+- Plan 02-03 complete: SpecCache + Product registry + SpecLoader + bundled specs + version detection
+- Phase 2 has 1 remaining plan: 02-04 (conformance tests)
+- 94 tests passing, clippy clean
 - MSYS2 GCC needed on PATH for builds: export PATH="/c/msys64/mingw64/bin:$HOME/.cargo/bin:$PATH"
 
 ---

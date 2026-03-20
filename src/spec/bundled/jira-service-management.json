@@ -1,0 +1,1 @@
+{"openapi":"3.0.1","info":{"title":"Jira Service Management","version":"1001.0.0-SNAPSHOT"},"servers":[{"url":"https://your-domain.atlassian.net"}],"tags":[{"name":"servicedesk","description":"Service desk operations"},{"name":"request","description":"Customer request operations"}],"paths":{}}
