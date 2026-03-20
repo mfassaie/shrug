@@ -10,21 +10,21 @@ See: .paul/PROJECT.md (updated 2026-03-21)
 ## Current Position
 
 Milestone: v0.1 MVP (v0.1.0)
-Phase: 2 of 8 (OpenAPI Spec Engine)
-Plan: Not started
-Status: Ready to plan
-Last activity: 2026-03-21 — Phase 1 complete, transitioned to Phase 2
+Phase: 2 of 8 (OpenAPI Spec Engine) — In Progress
+Plan: 02-01 complete (1 of 4 plans in phase)
+Status: Loop closed, ready for next PLAN
+Last activity: 2026-03-21 — Plan 02-01 UNIFY complete
 
 Progress:
-- Milestone: [█░░░░░░░░░] 12%
-- Phase 2: [░░░░░░░░░░] 0%
+- Milestone: [██░░░░░░░░] 16%
+- Phase 2: [██░░░░░░░░] 25%
 
 ## Loop Position
 
 Current loop state:
 ```
 PLAN ──▶ APPLY ──▶ UNIFY
-  ○        ○        ○     [Ready for next PLAN]
+  ✓        ✓        ✓     [Loop complete - ready for next PLAN]
 ```
 
 ## Accumulated Context
@@ -39,6 +39,8 @@ PLAN ──▶ APPLY ──▶ UNIFY
 | ShrugConfigPartial merge pattern for layered config | Phase 1 | Prevents silent value reset |
 | MSYS2 MinGW GCC for Rust GNU toolchain on Windows | Phase 1 | Dev environment setup |
 | Non-panicking Ctrl+C handler (if-let, not expect) | Phase 1 | Prevents panic on handler setup failure |
+| Enterprise audit on 02-01: Applied 2 must-have, 1 strongly-recommended. Verdict: enterprise-ready after fixes | Phase 2 | Parser: parameter merge semantics, merge test, HttpMethod Display |
+| Purpose-built spec model — only CLI-needed fields, no full OpenAPI | Phase 2 | Keeps parser simple, extensible |
 
 ### Deferred Issues
 None yet.
@@ -47,20 +49,21 @@ None yet.
 None yet.
 
 ### Git State
-Last commit: pending (phase commit about to be created)
+Last commit: 3a6aa92
 Branch: main
 Feature branches merged: none
 
 ## Session Continuity
 
 Last session: 2026-03-21
-Stopped at: Phase 1 complete, ready to plan Phase 2
-Next action: /paul:plan for Phase 2
-Resume file: .paul/ROADMAP.md
+Stopped at: Plan 02-01 loop closed, ready for 02-02
+Next action: Run /paul:plan for plan 02-02 (Swagger 2.0 parser / conversion)
+Resume file: .paul/HANDOFF-2026-03-21-session2.md
 Resume context:
-- Phase 1 complete: 3 plans, 25 tests, scaffold + config + logging
-- Phase 2: OpenAPI Spec Engine (4 plans: parser, swagger converter, caching, conformance tests)
-- MSYS2 GCC needed on PATH for builds
+- Plan 02-01 complete: OpenAPI 3.0.1 parser + data model (ApiSpec)
+- Phase 2 has 3 remaining plans: 02-02 (Swagger 2.0), 02-03 (caching), 02-04 (conformance tests)
+- 40 tests passing, clippy clean
+- MSYS2 GCC needed on PATH for builds: export PATH="/c/msys64/mingw64/bin:$HOME/.cargo/bin:$PATH"
 
 ---
 *STATE.md — Updated after every significant action*
