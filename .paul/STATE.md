@@ -5,19 +5,19 @@
 See: .paul/PROJECT.md (updated 2026-03-21)
 
 **Core value:** Users and AI agents can interact with Atlassian Cloud products from the command line without context-switching to a browser.
-**Current focus:** Phase 3 — Dynamic Command Tree
+**Current focus:** Phase 4 — Authentication & Profiles
 
 ## Current Position
 
 Milestone: v0.1 MVP (v0.1.0)
-Phase: 3 of 8 (Dynamic Command Tree) — Not started
+Phase: 4 of 8 (Authentication & Profiles) — Not started
 Plan: Not started
 Status: Ready to plan
-Last activity: 2026-03-21 — Phase 2 complete, transitioned to Phase 3
+Last activity: 2026-03-21 — Phase 3 complete, transitioned to Phase 4
 
 Progress:
-- Milestone: [███░░░░░░░] 25%
-- Phase 3: [░░░░░░░░░░] 0%
+- Milestone: [████░░░░░░] 38%
+- Phase 4: [░░░░░░░░░░] 0%
 
 ## Loop Position
 
@@ -52,21 +52,21 @@ None yet.
 None yet.
 
 ### Git State
-Last commit: 60d7726
+Last commit: d3ab516
 Branch: main
 Feature branches merged: none
 
 ## Session Continuity
 
 Last session: 2026-03-21
-Stopped at: Phase 2 complete, ready to plan Phase 3
-Next action: /paul:plan for Phase 3 (Dynamic Command Tree)
+Stopped at: Phase 3 complete, ready to plan Phase 4
+Next action: /paul:plan for Phase 4 (Authentication & Profiles)
 Resume file: .paul/ROADMAP.md
 Resume context:
-- Phase 2 complete: parsers (v3+v2), caching, registry, analysis, conformance tests
-- 119 tests passing, clippy clean
-- Phase 3 scope: product routing, command tree from specs, param→flag generation
-- MSYS2 GCC needed on PATH for builds: export PATH="/c/msys64/mingw64/bin:$HOME/.cargo/bin:$PATH"
+- Phase 3 complete: product router, command tree display, rich error messages
+- 137 tests passing, clippy clean
+- Phase 4 scope: profiles, keychain, OAuth 2.0, env var auth
+- Note: 1 flaky test in config.rs (env var race in parallel — passes single-threaded)
 
 ---
 *STATE.md — Updated after every significant action*
