@@ -5,26 +5,26 @@
 See: .paul/PROJECT.md (updated 2026-03-21)
 
 **Core value:** Users and AI agents can interact with Atlassian Cloud products from the command line without context-switching to a browser.
-**Current focus:** Phase 2 — OpenAPI Spec Engine
+**Current focus:** Phase 3 — Dynamic Command Tree
 
 ## Current Position
 
 Milestone: v0.1 MVP (v0.1.0)
-Phase: 2 of 8 (OpenAPI Spec Engine) — In Progress
-Plan: 02-03 complete (3 of 4 plans in phase)
-Status: Loop closed, ready for next PLAN
-Last activity: 2026-03-21 — Plan 02-03 UNIFY complete
+Phase: 3 of 8 (Dynamic Command Tree) — Not started
+Plan: Not started
+Status: Ready to plan
+Last activity: 2026-03-21 — Phase 2 complete, transitioned to Phase 3
 
 Progress:
-- Milestone: [███░░░░░░░] 22%
-- Phase 2: [███████░░░] 75%
+- Milestone: [███░░░░░░░] 25%
+- Phase 3: [░░░░░░░░░░] 0%
 
 ## Loop Position
 
 Current loop state:
 ```
 PLAN ──▶ APPLY ──▶ UNIFY
-  ✓        ✓        ✓     [Loop complete - ready for next PLAN]
+  ○        ○        ○     [Ready for first PLAN]
 ```
 
 ## Accumulated Context
@@ -43,6 +43,7 @@ PLAN ──▶ APPLY ──▶ UNIFY
 | Purpose-built spec model — only CLI-needed fields, no full OpenAPI | Phase 2 | Keeps parser simple, extensible |
 | Enterprise audit on 02-02: Applied 2 must-have, 2 strongly-recommended. Verdict: enterprise-ready after fixes | Phase 2 | Swagger parser: formData merge, consumes inheritance, schemes array, basePath normalization |
 | Enterprise audit on 02-03: Applied 3 must-have, 2 strongly-recommended. Verdict: enterprise-ready after fixes | Phase 2 | Cache: version change detection, path traversal protection, constructor error handling |
+| Enterprise audit on 02-04: Applied 1 must-have, 1 strongly-recommended. Verdict: enterprise-ready after fixes | Phase 2 | Analysis: path segment encoding, server URL variable templates |
 
 ### Deferred Issues
 None yet.
@@ -51,20 +52,20 @@ None yet.
 None yet.
 
 ### Git State
-Last commit: 3a6aa92
+Last commit: 60d7726
 Branch: main
 Feature branches merged: none
 
 ## Session Continuity
 
 Last session: 2026-03-21
-Stopped at: Plan 02-03 loop closed, ready for 02-04
-Next action: Run /paul:plan for plan 02-04 (Spec conformance test suite)
-Resume file: .paul/HANDOFF-2026-03-21-session3.md
+Stopped at: Phase 2 complete, ready to plan Phase 3
+Next action: /paul:plan for Phase 3 (Dynamic Command Tree)
+Resume file: .paul/ROADMAP.md
 Resume context:
-- Plan 02-03 complete: SpecCache + Product registry + SpecLoader + bundled specs + version detection
-- Phase 2 has 1 remaining plan: 02-04 (conformance tests)
-- 94 tests passing, clippy clean
+- Phase 2 complete: parsers (v3+v2), caching, registry, analysis, conformance tests
+- 119 tests passing, clippy clean
+- Phase 3 scope: product routing, command tree from specs, param→flag generation
 - MSYS2 GCC needed on PATH for builds: export PATH="/c/msys64/mingw64/bin:$HOME/.cargo/bin:$PATH"
 
 ---

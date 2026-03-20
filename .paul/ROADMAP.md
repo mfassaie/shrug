@@ -8,14 +8,14 @@ A dynamic CLI for Atlassian Cloud — commands generated at runtime from OpenAPI
 
 **v0.1 MVP** (v0.1.0)
 Status: In progress
-Phases: 1 of 8 complete
+Phases: 2 of 8 complete
 
 ## Phases
 
 | Phase | Name | Plans | Status | Completed |
 |-------|------|-------|--------|-----------|
 | 1 | Project Foundation | 3 | ✅ Complete | 2026-03-21 |
-| 2 | OpenAPI Spec Engine | 4 | In progress | - |
+| 2 | OpenAPI Spec Engine | 4 | ✅ Complete | 2026-03-21 |
 | 3 | Dynamic Command Tree | 2 | Not started | - |
 | 4 | Authentication & Profiles | 3 | Not started | - |
 | 5 | Generic HTTP Executor | 4 | Not started | - |
@@ -57,10 +57,10 @@ Phases: 1 of 8 complete
 - Spec conformance test suite (auto-generated from specs)
 
 **Plans:**
-- [ ] 02-01: OpenAPI 3.0.1 spec parser and data model
-- [ ] 02-02: Swagger 2.0 parser / conversion layer for BitBucket
-- [ ] 02-03: Spec caching (JSON, rkyv binary, bundled fallback, background refresh)
-- [ ] 02-04: Spec conformance test suite (auto-generated: URL building, param types, pagination detection per operation)
+- [x] 02-01: OpenAPI 3.0.1 spec parser and data model
+- [x] 02-02: Swagger 2.0 parser / conversion layer for BitBucket
+- [x] 02-03: Spec caching (JSON, bundled fallback, version detection)
+- [x] 02-04: Spec analysis & conformance test suite (URL building, pagination detection, param validation)
 
 ### Phase 3: Dynamic Command Tree
 

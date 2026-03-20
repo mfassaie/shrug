@@ -1,9 +1,11 @@
+pub mod analysis;
 pub mod cache;
 pub mod model;
 pub mod parser;
 pub mod registry;
 pub mod swagger;
 
+pub use analysis::{build_url, detect_pagination, PaginationStyle};
 pub use cache::SpecCache;
 pub use parser::parse_openapi_v3;
 pub use registry::{Product, SpecLoader};
