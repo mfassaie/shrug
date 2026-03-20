@@ -12,9 +12,10 @@ Users and AI agents can interact with all Atlassian Cloud products from the comm
 
 | Attribute | Value |
 |-----------|-------|
-| Version | 0.0.0 |
-| Status | Prototype |
+| Version | 0.1.0 |
+| Status | Foundation complete |
 | Last Updated | 2026-03-21 |
+| Phase | 1 complete, ready for Phase 2 |
 
 ## Requirements
 
@@ -54,13 +55,13 @@ Users and AI agents can interact with all Atlassian Cloud products from the comm
 - [ ] Auto-pagination with `--page-all` and `--limit`
 
 **Error Handling & Resilience**
-- [ ] Structured exit codes (0=ok, 2=usage, 3=auth, 4=not-found, 5=forbidden, 10=rate-limited, 11=network, 12=server)
+- [x] Structured exit codes (0=ok, 2=usage, 3=auth, 4=not-found, 5=forbidden, 10=rate-limited, 11=network, 12=server) — Phase 1
 - [ ] Rate limit handling: parse `Retry-After`, exponential backoff with jitter, max 4 retries
 - [ ] Actionable error messages (what happened → why → what to do)
 
 **Cross-Platform**
 - [ ] Windows, macOS, Linux support
-- [ ] Platform-correct config/cache paths via `directories` crate
+- [x] Platform-correct config/cache paths via `directories` crate — Phase 1
 - [ ] Static binary distribution (musl for Linux)
 
 ### Should Have
@@ -74,18 +75,18 @@ Users and AI agents can interact with all Atlassian Cloud products from the comm
 - [ ] User lookup by display name → accountId resolution
 
 **Configuration**
-- [ ] TOML config with layered precedence (flags → env → project → user → defaults)
-- [ ] Project-level config (`.shrug.toml` in cwd/git root)
-- [ ] Configurable defaults: output format, page size, default project
+- [x] TOML config with layered precedence (flags → env → project → user → defaults) — Phase 1
+- [x] Project-level config (`.shrug.toml` in cwd/git root) — Phase 1
+- [x] Configurable defaults: output format, page size, default project — Phase 1
 
 **Shell Completions**
 - [ ] `shrug completions <shell>` for bash, zsh, fish, PowerShell
 - [ ] Dynamic completions for project keys, issue keys (cached, short TTL)
 
 **Logging & Debugging**
-- [ ] `-v` (info), `-vv` (debug), `--trace` (full request/response with masked secrets)
+- [x] `-v` (info), `-vv` (debug), `--trace` (full request/response with masked secrets) — Phase 1 (request logging placeholder, actual in Phase 5)
 - [ ] `--dry-run` to show request without sending
-- [ ] All debug output to stderr
+- [x] All debug output to stderr — Phase 1
 
 **Performance**
 - [ ] Binary spec cache with rkyv zero-copy deserialization (<30ms warm startup)
@@ -330,4 +331,4 @@ Users and AI agents can interact with all Atlassian Cloud products from the comm
 
 ---
 *PROJECT.md — Updated when requirements or context change*
-*Last updated: 2026-03-21*
+*Last updated: 2026-03-21 after Phase 1*

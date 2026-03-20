@@ -8,13 +8,13 @@ A dynamic CLI for Atlassian Cloud — commands generated at runtime from OpenAPI
 
 **v0.1 MVP** (v0.1.0)
 Status: In progress
-Phases: 0 of 8 complete
+Phases: 1 of 8 complete
 
 ## Phases
 
 | Phase | Name | Plans | Status | Completed |
 |-------|------|-------|--------|-----------|
-| 1 | Project Foundation | 3 | Not started | - |
+| 1 | Project Foundation | 3 | ✅ Complete | 2026-03-21 |
 | 2 | OpenAPI Spec Engine | 4 | Not started | - |
 | 3 | Dynamic Command Tree | 2 | Not started | - |
 | 4 | Authentication & Profiles | 3 | Not started | - |
@@ -38,9 +38,9 @@ Phases: 0 of 8 complete
 - CI scaffold (GitHub Actions: Linux/macOS/Windows)
 
 **Plans:**
-- [ ] 01-01: Cargo project scaffold, dependencies, and project structure
-- [ ] 01-02: Config system with TOML, layered precedence, and platform paths
-- [ ] 01-03: Error handling, exit codes, logging, and CI pipeline
+- [x] 01-01: Cargo project scaffold, dependencies, and project structure
+- [x] 01-02: Config system with TOML, layered precedence, and platform paths
+- [x] 01-03: Enhanced logging, Ctrl+C handling, and config debug dump
 
 ### Phase 2: OpenAPI Spec Engine
 
