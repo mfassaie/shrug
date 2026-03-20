@@ -1,6 +1,10 @@
+use std::env;
+
 use clap::Parser;
 
-use shrug::cli::{Cli, Commands};
+use shrug::auth::credentials::CredentialStore;
+use shrug::auth::profile::{Profile, ProfileStore};
+use shrug::cli::{AuthCommands, Cli, Commands, ProfileCommands};
 use shrug::cmd::{router, tree};
 use shrug::config::{self, ShrugConfig, ShrugPaths};
 use shrug::error::ShrugError;
@@ -37,24 +41,246 @@ fn handle_product(
     Ok(())
 }
 
+/// Resolve the active profile from the precedence chain:
+/// --profile flag > SHRUG_PROFILE env > config default_profile > .default file
+fn resolve_profile(
+    cli_profile: &Option<String>,
+    config: &ShrugConfig,
+    store: &ProfileStore,
+) -> Result<Option<Profile>, ShrugError> {
+    if let Some(name) = cli_profile {
+        let profile = store.get(name)?;
+        tracing::debug!(profile = ?profile.name, "Profile resolved from --profile flag");
+        return Ok(Some(profile));
+    }
+
+    if let Ok(name) = env::var("SHRUG_PROFILE") {
+        if !name.is_empty() {
+            let profile = store.get(&name)?;
+            tracing::debug!(profile = ?profile.name, "Profile resolved from SHRUG_PROFILE env");
+            return Ok(Some(profile));
+        }
+    }
+
+    if let Some(name) = &config.default_profile {
+        let profile = store.get(name)?;
+        tracing::debug!(profile = ?profile.name, "Profile resolved from config default_profile");
+        return Ok(Some(profile));
+    }
+
+    if let Some(profile) = store.get_default()? {
+        tracing::debug!(profile = ?profile.name, "Profile resolved from .default file");
+        return Ok(Some(profile));
+    }
+
+    tracing::debug!("No active profile resolved");
+    Ok(None)
+}
+
+/// Resolve profile name from explicit arg, or fall back to default.
+fn resolve_profile_name(
+    explicit: &Option<String>,
+    profile_store: &ProfileStore,
+) -> Result<String, ShrugError> {
+    if let Some(name) = explicit {
+        return Ok(name.clone());
+    }
+    match profile_store.get_default()? {
+        Some(p) => Ok(p.name),
+        None => Err(ShrugError::UsageError(
+            "No profile specified and no default profile set. Use --profile <name> or run: shrug profile use --name <name>".into(),
+        )),
+    }
+}
+
+fn handle_auth(
+    command: &AuthCommands,
+    profile_store: &ProfileStore,
+    cred_store: &CredentialStore,
+) -> Result<(), ShrugError> {
+    match command {
+        AuthCommands::SetToken { profile } => {
+            let name = resolve_profile_name(profile, profile_store)?;
+            // Verify profile exists
+            let _ = profile_store.get(&name)?;
+
+            let token = rpassword::prompt_password("API token: ")
+                .map_err(|e| ShrugError::AuthError(format!("Failed to read token: {}", e)))?;
+
+            if token.is_empty() {
+                return Err(ShrugError::AuthError("API token cannot be empty".into()));
+            }
+
+            // Try keychain first
+            if CredentialStore::store_keychain(&name, &token) {
+                println!("Token stored for profile '{}' (keychain).", name);
+            } else {
+                // Keychain unavailable — use encrypted file fallback
+                tracing::debug!("Keychain unavailable, falling back to encrypted file");
+                eprintln!("Keychain unavailable. Using encrypted file storage.");
+                let password =
+                    rpassword::prompt_password("Encryption password: ").map_err(|e| {
+                        ShrugError::AuthError(format!("Failed to read password: {}", e))
+                    })?;
+                if password.is_empty() {
+                    return Err(ShrugError::AuthError(
+                        "Encryption password cannot be empty".into(),
+                    ));
+                }
+                cred_store.store_encrypted(&name, &token, &password)?;
+                println!("Token stored for profile '{}' (encrypted file).", name);
+            }
+        }
+        AuthCommands::Status { profile } => {
+            let name = resolve_profile_name(profile, profile_store)?;
+            let _ = profile_store.get(&name)?;
+
+            match cred_store.credential_source(&name) {
+                Some(source) => println!("Profile '{}': token set ({})", name, source),
+                None => println!("Profile '{}': token not set", name),
+            }
+        }
+    }
+    Ok(())
+}
+
+fn handle_profile(
+    command: &ProfileCommands,
+    store: &ProfileStore,
+    cred_store: &CredentialStore,
+) -> Result<(), ShrugError> {
+    match command {
+        ProfileCommands::Create {
+            name,
+            site,
+            email,
+            auth_type,
+        } => {
+            let profile = Profile {
+                name: name.clone(),
+                site: site.clone(),
+                email: email.clone(),
+                auth_type: auth_type.clone(),
+            };
+            let was_first = store.create(&profile)?;
+            println!("Profile '{}' created.", name);
+            if was_first {
+                println!("Set as default profile.");
+            }
+        }
+        ProfileCommands::List => {
+            let profiles = store.list()?;
+            if profiles.is_empty() {
+                println!("No profiles configured. Create one with: shrug profile create --name <name> --site <site> --email <email>");
+                return Ok(());
+            }
+            let header = format!(
+                "{:<20} {:<40} {:<30} {}",
+                "NAME", "SITE", "EMAIL", "DEFAULT"
+            );
+            println!("{header}");
+            println!("{}", "-".repeat(95));
+            for p in &profiles {
+                let default_marker = if store.is_default(&p.name) { "*" } else { "" };
+                println!(
+                    "{:<20} {:<40} {:<30} {}",
+                    p.name, p.site, p.email, default_marker
+                );
+            }
+        }
+        ProfileCommands::Show { name } => {
+            let profile = store.get(name)?;
+            let is_default = store.is_default(name);
+            let token_status = match cred_store.has_credential(name) {
+                Ok(true) => "set",
+                _ => "not set",
+            };
+            println!("Name:      {}", profile.name);
+            println!("Site:      {}", profile.site);
+            println!("Email:     {}", profile.email);
+            println!("Auth type: {}", profile.auth_type);
+            println!("Default:   {}", if is_default { "yes" } else { "no" });
+            println!("Token:     {}", token_status);
+        }
+        ProfileCommands::Delete { name } => {
+            store.delete(name)?;
+            // Clean up credentials (non-blocking)
+            cred_store.delete(name);
+            println!("Profile '{}' deleted.", name);
+        }
+        ProfileCommands::Use { name } => {
+            store.set_default(name)?;
+            println!("Now using profile '{}'.", name);
+        }
+    }
+    Ok(())
+}
+
+fn get_paths() -> Result<ShrugPaths, ShrugError> {
+    ShrugPaths::new()
+        .ok_or_else(|| ShrugError::ProfileError("Could not determine config directory".into()))
+}
+
+fn get_profile_store(paths: &ShrugPaths) -> Result<ProfileStore, ShrugError> {
+    ProfileStore::new(paths.config_dir().join("profiles"))
+}
+
+fn get_credential_store(paths: &ShrugPaths) -> Result<CredentialStore, ShrugError> {
+    CredentialStore::new(paths.data_dir().to_path_buf())
+}
+
 fn run(config: &ShrugConfig, cli: &Cli) -> Result<(), ShrugError> {
     match &cli.command {
-        Some(Commands::Jira { args }) => handle_product(Product::Jira, args, config),
-        Some(Commands::JiraSoftware { args }) => {
-            handle_product(Product::JiraSoftware, args, config)
+        Some(Commands::Jira { args })
+        | Some(Commands::JiraSoftware { args })
+        | Some(Commands::Confluence { args })
+        | Some(Commands::Bitbucket { args })
+        | Some(Commands::Jsm { args }) => {
+            let product = match &cli.command {
+                Some(Commands::Jira { .. }) => Product::Jira,
+                Some(Commands::JiraSoftware { .. }) => Product::JiraSoftware,
+                Some(Commands::Confluence { .. }) => Product::Confluence,
+                Some(Commands::Bitbucket { .. }) => Product::BitBucket,
+                Some(Commands::Jsm { .. }) => Product::JiraServiceManagement,
+                _ => unreachable!(),
+            };
+
+            // Resolve active profile and credentials for product commands
+            let paths = get_paths()?;
+            let profile_store = get_profile_store(&paths)?;
+            let cred_store = get_credential_store(&paths)?;
+            let profile = resolve_profile(&cli.profile, config, &profile_store)?;
+
+            if let Some(ref p) = profile {
+                tracing::debug!(profile = %p.name, site = %p.site, "Active profile for request");
+
+                // Resolve credentials (env vars > keychain > encrypted file without password)
+                match cred_store.resolve(p, None) {
+                    Ok(Some(cred)) => {
+                        tracing::debug!(source = %cred.source, "Credential resolved");
+                    }
+                    Ok(None) => {
+                        tracing::debug!("No credentials found for profile");
+                    }
+                    Err(e) => {
+                        tracing::warn!("Credential resolution failed: {}", e);
+                    }
+                }
+            }
+
+            handle_product(product, args, config)
         }
-        Some(Commands::Confluence { args }) => handle_product(Product::Confluence, args, config),
-        Some(Commands::Bitbucket { args }) => handle_product(Product::BitBucket, args, config),
-        Some(Commands::Jsm { args }) => {
-            handle_product(Product::JiraServiceManagement, args, config)
+        Some(Commands::Auth { command }) => {
+            let paths = get_paths()?;
+            let profile_store = get_profile_store(&paths)?;
+            let cred_store = get_credential_store(&paths)?;
+            handle_auth(command, &profile_store, &cred_store)
         }
-        Some(Commands::Auth { .. }) => {
-            eprintln!("Auth: not yet implemented");
-            Ok(())
-        }
-        Some(Commands::Profile { .. }) => {
-            eprintln!("Profile: not yet implemented");
-            Ok(())
+        Some(Commands::Profile { command }) => {
+            let paths = get_paths()?;
+            let profile_store = get_profile_store(&paths)?;
+            let cred_store = get_credential_store(&paths)?;
+            handle_profile(command, &profile_store, &cred_store)
         }
         Some(Commands::Cache { .. }) => {
             eprintln!("Cache: not yet implemented");

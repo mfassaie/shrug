@@ -10,21 +10,21 @@ See: .paul/PROJECT.md (updated 2026-03-21)
 ## Current Position
 
 Milestone: v0.1 MVP (v0.1.0)
-Phase: 4 of 8 (Authentication & Profiles) — Not started
-Plan: Not started
-Status: Ready to plan
-Last activity: 2026-03-21 — Phase 3 complete, transitioned to Phase 4
+Phase: 4 of 8 (Authentication & Profiles) — In progress
+Plan: 04-02 complete
+Status: Loop closed, ready for next PLAN
+Last activity: 2026-03-21 — Unified plan 04-02, 2/3 plans complete in Phase 4
 
 Progress:
-- Milestone: [████░░░░░░] 38%
-- Phase 4: [░░░░░░░░░░] 0%
+- Milestone: [█████░░░░░] 46%
+- Phase 4: [██████░░░░] 67%
 
 ## Loop Position
 
 Current loop state:
 ```
 PLAN ──▶ APPLY ──▶ UNIFY
-  ○        ○        ○     [Ready for first PLAN]
+  ✓        ✓        ✓     [Loop complete — ready for next PLAN]
 ```
 
 ## Accumulated Context
@@ -44,6 +44,8 @@ PLAN ──▶ APPLY ──▶ UNIFY
 | Enterprise audit on 02-02: Applied 2 must-have, 2 strongly-recommended. Verdict: enterprise-ready after fixes | Phase 2 | Swagger parser: formData merge, consumes inheritance, schemes array, basePath normalization |
 | Enterprise audit on 02-03: Applied 3 must-have, 2 strongly-recommended. Verdict: enterprise-ready after fixes | Phase 2 | Cache: version change detection, path traversal protection, constructor error handling |
 | Enterprise audit on 02-04: Applied 1 must-have, 1 strongly-recommended. Verdict: enterprise-ready after fixes | Phase 2 | Analysis: path segment encoding, server URL variable templates |
+| Enterprise audit on 04-01: Applied 2 must-have, 2 strongly-recommended. Verdict: enterprise-ready after fixes | Phase 4 | Profile: .default file pattern, NotFound errors, atomic writes, resilient list() |
+| Enterprise audit on 04-02: Applied 1 must-have, 2 strongly-recommended. Verdict: enterprise-ready after fixes | Phase 4 | Credentials: prompts in CLI layer, has_credential returns Result, no keychain probe |
 
 ### Deferred Issues
 None yet.
@@ -59,13 +61,14 @@ Feature branches merged: none
 ## Session Continuity
 
 Last session: 2026-03-21
-Stopped at: Phase 3 complete, ready to plan Phase 4
-Next action: /paul:plan for Phase 4 (Authentication & Profiles)
-Resume file: .paul/HANDOFF-2026-03-21-session4.md
+Stopped at: Plan 04-02 loop closed, session paused
+Next action: /paul:plan for plan 04-03 (OAuth 2.0 flow, token refresh, setup wizard)
+Resume file: .paul/HANDOFF-2026-03-21-session5.md
 Resume context:
-- Phase 3 complete: product router, command tree display, rich error messages
-- 137 tests passing, clippy clean
-- Phase 4 scope: profiles (04-01), keychain (04-02), OAuth 2.0 (04-03)
+- Plans 04-01 and 04-02 complete: profiles + credential storage
+- 178 tests passing, clippy clean
+- Phase 4 progress: 2/3 plans complete
+- Next: 04-03 (OAuth 2.0 flow, token refresh, interactive setup wizard) — last plan in phase
 - User wants autonomous execution: plan → audit → apply → unify, no stopping
 - MSYS2 GCC needed on PATH: export PATH="/c/msys64/mingw64/bin:$HOME/.cargo/bin:$PATH"
 
