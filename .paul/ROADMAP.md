@@ -8,7 +8,7 @@ A dynamic CLI for Atlassian Cloud — commands generated at runtime from OpenAPI
 
 **v0.1 MVP** (v0.1.0)
 Status: In progress
-Phases: 2 of 8 complete
+Phases: 3 of 8 complete
 
 ## Phases
 
@@ -16,7 +16,7 @@ Phases: 2 of 8 complete
 |-------|------|-------|--------|-----------|
 | 1 | Project Foundation | 3 | ✅ Complete | 2026-03-21 |
 | 2 | OpenAPI Spec Engine | 4 | ✅ Complete | 2026-03-21 |
-| 3 | Dynamic Command Tree | 2 | Not started | - |
+| 3 | Dynamic Command Tree | 2 | ✅ Complete | 2026-03-21 |
 | 4 | Authentication & Profiles | 3 | Not started | - |
 | 5 | Generic HTTP Executor | 4 | Not started | - |
 | 6 | Output & Formatting | 2 | Not started | - |
@@ -75,8 +75,8 @@ Phases: 2 of 8 complete
 - Help text from spec descriptions
 
 **Plans:**
-- [ ] 03-01: Two-phase parsing and product routing
-- [ ] 03-02: Command tree builder (tags, operations, parameters, help)
+- [x] 03-01: Two-phase parsing and product routing
+- [x] 03-02: Command tree builder (tags, operations, parameters, help)
 
 ### Phase 4: Authentication & Profiles
 

@@ -1,28 +1,74 @@
 use clap::Parser;
 
 use shrug::cli::{Cli, Commands};
-use shrug::config::{self, ShrugConfig};
+use shrug::cmd::{router, tree};
+use shrug::config::{self, ShrugConfig, ShrugPaths};
 use shrug::error::ShrugError;
 use shrug::logging;
+use shrug::spec::registry::Product;
+use shrug::spec::SpecCache;
+use shrug::spec::SpecLoader;
 
 const SIGINT_EXIT: i32 = 130;
 
-fn run(_config: &ShrugConfig, cli: &Cli) -> Result<(), ShrugError> {
+fn handle_product(
+    product: Product,
+    args: &[String],
+    config: &ShrugConfig,
+) -> Result<(), ShrugError> {
+    let paths = ShrugPaths::new()
+        .ok_or_else(|| ShrugError::SpecError("Could not determine cache directory".into()))?;
+    let cache = SpecCache::new(paths.cache_dir().to_path_buf())?;
+    let loader = SpecLoader::new(cache, config.cache_ttl_hours);
+    let spec = loader.load(&product)?;
+
+    let resolved = router::route_product(&product, &spec, args)?;
+
+    // Display operation detail (actual HTTP execution in Phase 5)
+    eprintln!(
+        "{}",
+        tree::format_operation_detail(&resolved.operation, resolved.server_url.as_deref())
+    );
+    if !resolved.remaining_args.is_empty() {
+        eprintln!("\n  Args: {:?}", resolved.remaining_args);
+    }
+    eprintln!("\n  [Phase 5 will execute this API call]");
+
+    Ok(())
+}
+
+fn run(config: &ShrugConfig, cli: &Cli) -> Result<(), ShrugError> {
     match &cli.command {
-        Some(Commands::Jira { .. }) => eprintln!("Jira: not yet implemented"),
-        Some(Commands::JiraSoftware { .. }) => eprintln!("Jira Software: not yet implemented"),
-        Some(Commands::Confluence { .. }) => eprintln!("Confluence: not yet implemented"),
-        Some(Commands::Bitbucket { .. }) => eprintln!("Bitbucket: not yet implemented"),
-        Some(Commands::Jsm { .. }) => eprintln!("Jira Service Management: not yet implemented"),
-        Some(Commands::Auth { .. }) => eprintln!("Auth: not yet implemented"),
-        Some(Commands::Profile { .. }) => eprintln!("Profile: not yet implemented"),
-        Some(Commands::Cache { .. }) => eprintln!("Cache: not yet implemented"),
-        Some(Commands::Completions { .. }) => eprintln!("Completions: not yet implemented"),
+        Some(Commands::Jira { args }) => handle_product(Product::Jira, args, config),
+        Some(Commands::JiraSoftware { args }) => {
+            handle_product(Product::JiraSoftware, args, config)
+        }
+        Some(Commands::Confluence { args }) => handle_product(Product::Confluence, args, config),
+        Some(Commands::Bitbucket { args }) => handle_product(Product::BitBucket, args, config),
+        Some(Commands::Jsm { args }) => {
+            handle_product(Product::JiraServiceManagement, args, config)
+        }
+        Some(Commands::Auth { .. }) => {
+            eprintln!("Auth: not yet implemented");
+            Ok(())
+        }
+        Some(Commands::Profile { .. }) => {
+            eprintln!("Profile: not yet implemented");
+            Ok(())
+        }
+        Some(Commands::Cache { .. }) => {
+            eprintln!("Cache: not yet implemented");
+            Ok(())
+        }
+        Some(Commands::Completions { .. }) => {
+            eprintln!("Completions: not yet implemented");
+            Ok(())
+        }
         None => {
             eprintln!("Run `shrug --help` for usage information.");
+            Ok(())
         }
     }
-    Ok(())
 }
 
 fn main() {

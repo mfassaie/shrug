@@ -7,9 +7,9 @@
     "status": "in_progress"
   },
   "phase": {
-    "number": 2,
-    "name": "02-openapi-spec-engine",
-    "status": "in_progress"
+    "number": 3,
+    "name": "03-dynamic-command-tree",
+    "status": "not_started"
   },
   "loop": {
     "plan": null,
@@ -17,7 +17,7 @@
   },
   "timestamps": {
     "created_at": "2026-03-21T00:00:00Z",
-    "updated_at": "2026-03-21T08:25:00Z"
+    "updated_at": "2026-03-21T08:45:00Z"
   },
   "satellite": {
     "groom": true

@@ -13,19 +13,19 @@ Users and AI agents can interact with all Atlassian Cloud products from the comm
 | Attribute | Value |
 |-----------|-------|
 | Version | 0.1.0 |
-| Status | Spec engine complete |
+| Status | Command tree complete |
 | Last Updated | 2026-03-21 |
-| Phase | 2 complete, ready for Phase 3 |
+| Phase | 3 complete, ready for Phase 4 |
 
 ## Requirements
 
 ### Must Have (MVP)
 
 **Dynamic Command Engine**
-- [ ] Two-phase CLI parsing: extract product → load spec → build command tree → execute
+- [x] Two-phase CLI parsing: extract product → load spec → build command tree → execute — Phase 3
 - [x] OpenAPI 3.0.1 spec parser for Jira, Jira Software, Confluence, Service Management — Phase 2
 - [x] Swagger 2.0 spec parser for BitBucket (direct-to-ApiSpec conversion) — Phase 2
-- [ ] Runtime command tree generation from specs (tags → command groups, operationId → commands)
+- [x] Runtime command tree generation from specs (tags → command groups, operationId → commands) — Phase 3
 - [ ] Generic HTTP executor with URL template substitution, parameter validation
 - [x] Spec caching with 24h TTL — Phase 2 (manual refresh command deferred to Phase 3)
 - [x] Pre-bundled fallback specs in binary for offline/first-run — Phase 2
@@ -331,4 +331,4 @@ Users and AI agents can interact with all Atlassian Cloud products from the comm
 
 ---
 *PROJECT.md — Updated when requirements or context change*
-*Last updated: 2026-03-21 after Phase 2*
+*Last updated: 2026-03-21 after Phase 3*
