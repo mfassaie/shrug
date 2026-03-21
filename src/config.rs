@@ -328,6 +328,7 @@ mod tests {
 
     #[test]
     fn project_config_search_stops_at_git_root() {
+        let _guard = ENV_LOCK.lock().unwrap();
         let dir = tempfile::tempdir().unwrap();
         let git_dir = dir.path().join(".git");
         fs::create_dir(&git_dir).unwrap();
@@ -345,6 +346,7 @@ mod tests {
 
     #[test]
     fn project_config_found_in_git_root() {
+        let _guard = ENV_LOCK.lock().unwrap();
         let dir = tempfile::tempdir().unwrap();
         let git_dir = dir.path().join(".git");
         fs::create_dir(&git_dir).unwrap();
