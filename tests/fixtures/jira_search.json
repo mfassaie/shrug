@@ -1,0 +1,23 @@
+{
+  "startAt": 0,
+  "maxResults": 50,
+  "total": 2,
+  "issues": [
+    {
+      "id": "10001",
+      "key": "TEST-1",
+      "fields": {
+        "summary": "First issue",
+        "status": { "name": "Open" }
+      }
+    },
+    {
+      "id": "10002",
+      "key": "TEST-2",
+      "fields": {
+        "summary": "Second issue",
+        "status": { "name": "Done" }
+      }
+    }
+  ]
+}

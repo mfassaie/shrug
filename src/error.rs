@@ -48,6 +48,33 @@ impl ShrugError {
             ShrugError::ProfileError(_) => exit_codes::GENERAL_ERROR,
         }
     }
+
+    pub fn remediation(&self) -> &'static str {
+        match self {
+            ShrugError::AuthError(_) => {
+                "Check your API token or run `shrug auth setup` to reconfigure."
+            }
+            ShrugError::NotFound(_) => {
+                "Verify the resource ID/key. Use `shrug jira +search` to find items."
+            }
+            ShrugError::PermissionDenied(_) => {
+                "Check your Atlassian permissions for this resource."
+            }
+            ShrugError::RateLimited { .. } => {
+                "Wait and retry. Reduce request frequency or use --limit."
+            }
+            ShrugError::NetworkError(_) => "Check your internet connection and site URL.",
+            ShrugError::ServerError { .. } => "This is an Atlassian server issue. Retry later.",
+            ShrugError::ConfigError(_) => {
+                "Check your config file. Run `shrug --help` for defaults."
+            }
+            ShrugError::SpecError(_) => {
+                "Try clearing the cache: delete the cache directory and retry."
+            }
+            ShrugError::UsageError(_) => "Run `shrug --help` for usage information.",
+            ShrugError::ProfileError(_) => "Run `shrug profile list` to see available profiles.",
+        }
+    }
 }
 
 #[cfg(test)]
@@ -111,6 +138,39 @@ mod tests {
     fn profile_error_exit_code() {
         let err = ShrugError::ProfileError("bad profile".into());
         assert_eq!(err.exit_code(), exit_codes::GENERAL_ERROR);
+    }
+
+    #[test]
+    fn remediation_hints_are_non_empty() {
+        let errors: Vec<ShrugError> = vec![
+            ShrugError::AuthError("test".into()),
+            ShrugError::NotFound("test".into()),
+            ShrugError::PermissionDenied("test".into()),
+            ShrugError::RateLimited {
+                retry_after: Some(10),
+            },
+            ShrugError::ServerError {
+                status: 503,
+                message: "unavailable".into(),
+            },
+            ShrugError::ConfigError("test".into()),
+            ShrugError::SpecError("test".into()),
+            ShrugError::UsageError("test".into()),
+            ShrugError::ProfileError("test".into()),
+        ];
+        for err in &errors {
+            let hint = err.remediation();
+            assert!(
+                !hint.is_empty(),
+                "Remediation for {err:?} should not be empty"
+            );
+        }
+    }
+
+    #[test]
+    fn auth_error_remediation_mentions_setup() {
+        let err = ShrugError::AuthError("bad token".into());
+        assert!(err.remediation().contains("shrug auth setup"));
     }
 
     #[test]

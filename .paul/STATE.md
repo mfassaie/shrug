@@ -5,26 +5,26 @@
 See: .paul/PROJECT.md (updated 2026-03-21)
 
 **Core value:** Users and AI agents can interact with Atlassian Cloud products from the command line without context-switching to a browser.
-**Current focus:** Phase 8 — Distribution & Polish
+**Current focus:** v0.1 MVP complete — all 8 phases shipped
 
 ## Current Position
 
 Milestone: v0.1 MVP (v0.1.0)
-Phase: 8 of 8 (Distribution & Polish) — Not started
-Plan: Not started
-Status: Ready to plan
-Last activity: 2026-03-21 — Phase 7 complete, transitioned to Phase 8
+Phase: 8 of 8 (Distribution & Polish) — Complete
+Plan: 08-03 complete (3 of 3 plans)
+Status: Loop closed, phase complete
+Last activity: 2026-03-21 — Unified 08-03 (error remediation, first-run, E2E, benchmarks)
 
 Progress:
-- Milestone: [█████████░] 92%
-- Phase 8: [░░░░░░░░░░] 0%
+- Milestone: [██████████] 100%
+- Phase 8: [██████████] 100%
 
 ## Loop Position
 
 Current loop state:
 ```
 PLAN ──▶ APPLY ──▶ UNIFY
-  ○        ○        ○     [Ready for new PLAN]
+  ✓        ✓        ✓     [Loop complete — Phase 8 COMPLETE]
 ```
 
 ## Accumulated Context
@@ -56,6 +56,9 @@ PLAN ──▶ APPLY ──▶ UNIFY
 | Enterprise audit on 07-01: Applied 1 must-have, 2 strongly-recommended. Verdict: enterprise-ready after fixes | Phase 7 | JQL value escaping, nested JSON field traversal for --markdown, --markdown without --json warning |
 | Enterprise audit on 07-02: Applied 2 must-have, 2 strongly-recommended. Verdict: enterprise-ready after fixes | Phase 7 | Direct HTTP requests (not executor::execute()), operationId not-found guards, product validation, +transition dry-run |
 | Enterprise audit on 07-03: Applied 1 must-have, 1 strongly-recommended. Verdict: enterprise-ready after fixes | Phase 7 | Completions writer param for testability, atomic cache writes |
+| Enterprise audit on 08-01: Applied 1 must-have, 1 strongly-recommended. Verdict: enterprise-ready after fixes | Phase 8 | Linux musl toolchain installation, minimal workflow permissions |
+| Enterprise audit on 08-02: Applied 0 must-have, 1 strongly-recommended. Verdict: enterprise-ready after fixes | Phase 8 | 429 retry test #[ignore] for backoff delay |
+| Enterprise audit on 08-03: Applied 1 must-have, 2 strongly-recommended. Verdict: enterprise-ready after fixes | Phase 8 | First-run detection uses profile_store.list().is_empty(), benchmark eprintln!, E2E timeout |
 
 ### Deferred Issues
 None yet.
@@ -64,23 +67,16 @@ None yet.
 None yet.
 
 ### Git State
-Last commit: bc374e3
+Last commit: e55367d
 Branch: main
 Feature branches merged: none
 
 ## Session Continuity
 
-Last session: 2026-03-21 (session 9)
-Stopped at: Phase 7 complete, Phase 8 not started
-Next action: /paul:plan for 08-01 (cargo-dist release pipeline, Homebrew tap, Scoop manifest)
+Last session: 2026-03-21 (session 10)
+Stopped at: Phase 8 complete, v0.1 MVP milestone complete
+Next action: /paul:complete-milestone or start next milestone
 Resume file: .paul/ROADMAP.md
-Resume context:
-- Phase 7 complete: Markdown→ADF, JQL shorthand, helper commands, completions, resolution caches
-- 386 tests, all passing
-- Milestone progress: 7/8 phases (92%)
-- Phase 8 scope: cargo-dist, Homebrew, Scoop, mock tests, E2E smoke tests, benchmarks
-- User wants autonomous execution: plan → audit → apply → unify, no stopping
-- MSYS2 GCC needed on PATH: export PATH="/c/msys64/mingw64/bin:$HOME/.cargo/bin:$PATH"
 
 ---
 *STATE.md — Updated after every significant action*
