@@ -604,6 +604,10 @@ fn decrypt_token(blob: &EncryptedBlob, password: &str) -> Result<String, ShrugEr
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::sync::Mutex;
+
+    /// Env var tests must run serially to avoid race conditions.
+    static ENV_LOCK: Mutex<()> = Mutex::new(());
 
     fn make_store(dir: &tempfile::TempDir) -> CredentialStore {
         CredentialStore::new(dir.path().to_path_buf()).unwrap()
@@ -725,6 +729,7 @@ mod tests {
 
     #[test]
     fn resolve_env_vars_override() {
+        let _guard = ENV_LOCK.lock().unwrap();
         let dir = tempfile::tempdir().unwrap();
         let store = make_store(&dir);
         let profile = make_profile("test");
@@ -765,6 +770,7 @@ mod tests {
 
     #[test]
     fn resolve_env_skips_backend() {
+        let _guard = ENV_LOCK.lock().unwrap();
         let dir = tempfile::tempdir().unwrap();
         let store = make_store(&dir);
         let profile = make_profile("test");

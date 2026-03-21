@@ -1,6 +1,8 @@
 use std::collections::HashMap;
+use std::time::Duration;
 
 use base64::Engine;
+use rand::Rng;
 use reqwest::blocking::Client;
 
 use crate::auth::credentials::{AuthScheme, ResolvedCredential};
@@ -8,6 +10,10 @@ use crate::cmd::router::ResolvedCommand;
 use crate::error::ShrugError;
 use crate::spec::analysis;
 use crate::spec::model::{HttpMethod, Operation, ParameterLocation};
+
+const MAX_RETRIES: u32 = 4;
+const BACKOFF_BASE_SECS: f64 = 1.0;
+const RETRY_AFTER_CAP_SECS: u64 = 60;
 
 /// Parsed arguments ready for request construction.
 #[derive(Debug)]
@@ -173,7 +179,103 @@ fn strip_server_variables(url: &str) -> String {
     result
 }
 
-/// Execute an API call (or dry-run it).
+/// Result of a single HTTP send attempt.
+enum SendResult {
+    /// Request succeeded, body already printed to stdout.
+    Success,
+    /// Retryable error (429, 5xx, transient network). Contains retry-after hint if available.
+    Retryable {
+        error: ShrugError,
+        retry_after: Option<u64>,
+    },
+    /// Non-retryable error. Return immediately.
+    Fatal(ShrugError),
+}
+
+/// Send a single HTTP request and categorise the result.
+/// Does NOT retry — just sends and maps the response.
+fn send_request(
+    client: &Client,
+    method: reqwest::Method,
+    url: &str,
+    credential: Option<&ResolvedCredential>,
+    body: Option<&str>,
+    is_final_attempt: bool,
+) -> SendResult {
+    // Build request
+    let mut request = client.request(method, url);
+    request = apply_auth(request, credential);
+    request = request.header("Accept", "application/json");
+    if let Some(body_str) = body {
+        request = request
+            .header("Content-Type", "application/json")
+            .body(body_str.to_string());
+    }
+
+    // Send
+    let response = match request.send() {
+        Ok(r) => r,
+        Err(e) => {
+            // Classify network errors
+            if is_retryable_network_error(&e) {
+                return SendResult::Retryable {
+                    error: ShrugError::NetworkError(e),
+                    retry_after: None,
+                };
+            }
+            return SendResult::Fatal(ShrugError::NetworkError(e));
+        }
+    };
+
+    let status = response.status();
+
+    // Success
+    if status.is_success() {
+        if status == reqwest::StatusCode::NO_CONTENT {
+            return SendResult::Success;
+        }
+        match response.text() {
+            Ok(body_text) => {
+                println!("{}", body_text);
+                SendResult::Success
+            }
+            Err(e) => SendResult::Fatal(ShrugError::NetworkError(e)),
+        }
+    }
+    // Retryable HTTP errors
+    else if is_retryable_status(status.as_u16()) {
+        let retry_after = parse_retry_after(&response);
+
+        // Log body at debug level for intermediate attempts
+        if !is_final_attempt {
+            if let Ok(body_text) = response.text() {
+                if !body_text.is_empty() {
+                    tracing::debug!(status = status.as_u16(), body = %body_text, "Retryable error response");
+                }
+            }
+            let error = map_status_to_error(status.as_u16(), String::new());
+            return SendResult::Retryable {
+                error,
+                retry_after,
+            };
+        }
+
+        // Final attempt: include body in error
+        let error_body = response.text().unwrap_or_default();
+        let error = map_status_to_error(status.as_u16(), error_body);
+        SendResult::Retryable {
+            error,
+            retry_after,
+        }
+    }
+    // Non-retryable HTTP errors
+    else {
+        let error_body = response.text().unwrap_or_default();
+        SendResult::Fatal(map_status_to_error(status.as_u16(), error_body))
+    }
+}
+
+/// Execute an API call with retry logic (or dry-run it).
 pub fn execute(
     client: &Client,
     command: &ResolvedCommand,
@@ -203,73 +305,98 @@ pub fn execute(
         return Ok(());
     }
 
-    // Build request
     let method = to_reqwest_method(&command.operation.method);
-    let mut request = client.request(method, &full_url);
+    let max_attempts = MAX_RETRIES + 1; // 1 initial + 4 retries
+    let mut last_error = None;
 
-    // Auth header
-    request = apply_auth(request, credential);
+    for attempt in 0..max_attempts {
+        let is_final = attempt == max_attempts - 1;
 
-    // Headers
-    request = request.header("Accept", "application/json");
+        tracing::debug!(url = %full_url, method = %command.operation.method, attempt = attempt, "Sending request");
 
-    // Body
-    if let Some(ref body) = args.body {
-        request = request
-            .header("Content-Type", "application/json")
-            .body(body.clone());
-    }
+        match send_request(client, method.clone(), &full_url, credential, args.body.as_deref(), is_final) {
+            SendResult::Success => return Ok(()),
+            SendResult::Fatal(err) => return Err(err),
+            SendResult::Retryable { error, retry_after } => {
+                if is_final {
+                    tracing::warn!(attempts = max_attempts, "Request failed after all retry attempts");
+                    return Err(error);
+                }
 
-    // Send
-    tracing::debug!(url = %full_url, method = %command.operation.method, "Sending request");
-    let response = request.send()?;
-    let status = response.status();
+                let delay = calculate_delay(attempt, retry_after);
+                tracing::info!(
+                    delay_secs = delay.as_secs_f64(),
+                    attempt = attempt + 1,
+                    max_retries = MAX_RETRIES,
+                    "Retrying request"
+                );
 
-    // Handle response
-    if status.is_success() {
-        if status == reqwest::StatusCode::NO_CONTENT {
-            // 204: succeed silently
-            return Ok(());
+                std::thread::sleep(delay);
+                last_error = Some(error);
+            }
         }
-        let body = response.text()?;
-        println!("{}", body);
-        return Ok(());
     }
 
-    // Error responses: read body for diagnostics
-    let error_body = response.text().unwrap_or_default();
+    // Should not reach here, but handle defensively
+    Err(last_error.unwrap_or_else(|| ShrugError::NetworkError(
+        reqwest::blocking::Client::new().get("http://invalid").send().unwrap_err()
+    )))
+}
+
+/// Check if an HTTP status code is retryable.
+pub fn is_retryable_status(status: u16) -> bool {
+    matches!(status, 429 | 500 | 502 | 503 | 504)
+}
+
+/// Check if a network error is transient and worth retrying.
+pub fn is_retryable_network_error(err: &reqwest::Error) -> bool {
+    err.is_timeout() || err.is_connect()
+}
+
+/// Parse the Retry-After header from a response (integer seconds only).
+fn parse_retry_after(response: &reqwest::blocking::Response) -> Option<u64> {
+    response
+        .headers()
+        .get("retry-after")
+        .and_then(|v| v.to_str().ok())
+        .and_then(|s| s.trim().parse::<u64>().ok())
+        .map(|secs| secs.min(RETRY_AFTER_CAP_SECS))
+}
+
+/// Calculate retry delay with exponential backoff and jitter.
+pub fn calculate_delay(attempt: u32, retry_after: Option<u64>) -> Duration {
+    let base_secs = match retry_after {
+        Some(secs) => secs as f64,
+        None => BACKOFF_BASE_SECS * 2.0_f64.powi(attempt as i32),
+    };
+
+    // Add jitter: 0 to 50% of the base delay
+    let jitter = rand::thread_rng().gen_range(0.0..=(base_secs * 0.5));
+    Duration::from_secs_f64(base_secs + jitter)
+}
+
+/// Map an HTTP status code to the appropriate ShrugError.
+fn map_status_to_error(status: u16, error_body: String) -> ShrugError {
     let detail = if error_body.is_empty() {
         String::new()
     } else {
         format!(": {}", error_body)
     };
 
-    match status.as_u16() {
-        400 => Err(ShrugError::UsageError(format!(
-            "Bad request (HTTP 400){detail}"
-        ))),
-        401 => Err(ShrugError::AuthError(format!(
-            "Authentication failed (HTTP 401){detail}"
-        ))),
-        403 => Err(ShrugError::PermissionDenied(format!(
-            "Access denied (HTTP 403){detail}"
-        ))),
-        404 => Err(ShrugError::NotFound(format!(
-            "Not found (HTTP 404){detail}"
-        ))),
-        429 => {
-            // Try to parse Retry-After header from the error body context
-            // Note: we already consumed the response, so we rely on what Atlassian returns
-            Err(ShrugError::RateLimited { retry_after: None })
-        }
-        500..=599 => Err(ShrugError::ServerError {
-            status: status.as_u16(),
+    match status {
+        400 => ShrugError::UsageError(format!("Bad request (HTTP 400){detail}")),
+        401 => ShrugError::AuthError(format!("Authentication failed (HTTP 401){detail}")),
+        403 => ShrugError::PermissionDenied(format!("Access denied (HTTP 403){detail}")),
+        404 => ShrugError::NotFound(format!("Not found (HTTP 404){detail}")),
+        429 => ShrugError::RateLimited { retry_after: None },
+        500..=599 => ShrugError::ServerError {
+            status,
             message: format!("Server error{detail}"),
-        }),
-        _ => Err(ShrugError::ServerError {
-            status: status.as_u16(),
-            message: format!("HTTP {}{detail}", status.as_u16()),
-        }),
+        },
+        _ => ShrugError::ServerError {
+            status,
+            message: format!("HTTP {}{detail}", status),
+        },
     }
 }
 
@@ -744,5 +871,165 @@ mod tests {
         assert_eq!(to_reqwest_method(&HttpMethod::Put), reqwest::Method::PUT);
         assert_eq!(to_reqwest_method(&HttpMethod::Delete), reqwest::Method::DELETE);
         assert_eq!(to_reqwest_method(&HttpMethod::Patch), reqwest::Method::PATCH);
+    }
+
+    // === Retry logic tests ===
+
+    #[test]
+    fn is_retryable_status_429() {
+        assert!(is_retryable_status(429));
+    }
+
+    #[test]
+    fn is_retryable_status_500() {
+        assert!(is_retryable_status(500));
+    }
+
+    #[test]
+    fn is_retryable_status_502() {
+        assert!(is_retryable_status(502));
+    }
+
+    #[test]
+    fn is_retryable_status_503() {
+        assert!(is_retryable_status(503));
+    }
+
+    #[test]
+    fn is_retryable_status_504() {
+        assert!(is_retryable_status(504));
+    }
+
+    #[test]
+    fn is_not_retryable_400() {
+        assert!(!is_retryable_status(400));
+    }
+
+    #[test]
+    fn is_not_retryable_401() {
+        assert!(!is_retryable_status(401));
+    }
+
+    #[test]
+    fn is_not_retryable_403() {
+        assert!(!is_retryable_status(403));
+    }
+
+    #[test]
+    fn is_not_retryable_404() {
+        assert!(!is_retryable_status(404));
+    }
+
+    #[test]
+    fn is_not_retryable_201() {
+        assert!(!is_retryable_status(201));
+    }
+
+    // === Backoff calculation tests ===
+
+    #[test]
+    fn calculate_delay_attempt_0_around_1s() {
+        let delay = calculate_delay(0, None);
+        // Base is 1s, jitter adds 0-0.5s, so delay should be 1.0-1.5s
+        assert!(delay.as_secs_f64() >= 1.0, "Delay too short: {:?}", delay);
+        assert!(delay.as_secs_f64() <= 1.5, "Delay too long: {:?}", delay);
+    }
+
+    #[test]
+    fn calculate_delay_attempt_1_around_2s() {
+        let delay = calculate_delay(1, None);
+        // Base is 2s, jitter adds 0-1.0s
+        assert!(delay.as_secs_f64() >= 2.0, "Delay too short: {:?}", delay);
+        assert!(delay.as_secs_f64() <= 3.0, "Delay too long: {:?}", delay);
+    }
+
+    #[test]
+    fn calculate_delay_attempt_2_around_4s() {
+        let delay = calculate_delay(2, None);
+        assert!(delay.as_secs_f64() >= 4.0, "Delay too short: {:?}", delay);
+        assert!(delay.as_secs_f64() <= 6.0, "Delay too long: {:?}", delay);
+    }
+
+    #[test]
+    fn calculate_delay_attempt_3_around_8s() {
+        let delay = calculate_delay(3, None);
+        assert!(delay.as_secs_f64() >= 8.0, "Delay too short: {:?}", delay);
+        assert!(delay.as_secs_f64() <= 12.0, "Delay too long: {:?}", delay);
+    }
+
+    #[test]
+    fn calculate_delay_with_retry_after() {
+        let delay = calculate_delay(0, Some(5));
+        // Retry-After 5s + jitter 0-2.5s
+        assert!(delay.as_secs_f64() >= 5.0, "Delay too short: {:?}", delay);
+        assert!(delay.as_secs_f64() <= 7.5, "Delay too long: {:?}", delay);
+    }
+
+    #[test]
+    fn calculate_delay_retry_after_zero() {
+        let delay = calculate_delay(0, Some(0));
+        // 0s base + 0 jitter = 0s
+        assert!(delay.as_secs_f64() <= 0.01, "Zero retry-after should be ~0s: {:?}", delay);
+    }
+
+    // === map_status_to_error tests ===
+
+    #[test]
+    fn map_status_400_to_usage_error() {
+        let err = map_status_to_error(400, "invalid field".to_string());
+        let msg = format!("{}", err);
+        assert!(msg.contains("Bad request"), "{msg}");
+        assert!(msg.contains("invalid field"), "{msg}");
+    }
+
+    #[test]
+    fn map_status_401_to_auth_error() {
+        let err = map_status_to_error(401, String::new());
+        let msg = format!("{}", err);
+        assert!(msg.contains("Authentication failed"), "{msg}");
+    }
+
+    #[test]
+    fn map_status_429_to_rate_limited() {
+        let err = map_status_to_error(429, String::new());
+        assert!(matches!(err, ShrugError::RateLimited { .. }));
+    }
+
+    #[test]
+    fn map_status_503_to_server_error() {
+        let err = map_status_to_error(503, "maintenance".to_string());
+        match err {
+            ShrugError::ServerError { status, message } => {
+                assert_eq!(status, 503);
+                assert!(message.contains("maintenance"), "{message}");
+            }
+            _ => panic!("Expected ServerError, got {:?}", err),
+        }
+    }
+
+    #[test]
+    fn map_status_empty_body() {
+        let err = map_status_to_error(500, String::new());
+        match err {
+            ShrugError::ServerError { status, message } => {
+                assert_eq!(status, 500);
+                // Empty body should produce "Server error" without trailing detail
+                assert_eq!(message, "Server error");
+            }
+            _ => panic!("Expected ServerError, got {:?}", err),
+        }
+    }
+
+    // === Network error retryability ===
+    // Note: Creating actual reqwest network errors in unit tests is difficult
+    // because reqwest::Error constructors are private. We test the classification
+    // function exists and has the right signature. Integration tests would cover
+    // actual retry behaviour.
+
+    #[test]
+    fn constants_are_reasonable() {
+        assert_eq!(MAX_RETRIES, 4);
+        assert_eq!(RETRY_AFTER_CAP_SECS, 60);
+        assert!((BACKOFF_BASE_SECS - 1.0).abs() < f64::EPSILON);
     }
 }
