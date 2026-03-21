@@ -8,7 +8,7 @@ A dynamic CLI for Atlassian Cloud — commands generated at runtime from OpenAPI
 
 **v0.1 MVP** (v0.1.0)
 Status: In progress
-Phases: 5 of 8 complete
+Phases: 6 of 8 complete
 
 ## Phases
 
@@ -19,7 +19,7 @@ Phases: 5 of 8 complete
 | 3 | Dynamic Command Tree | 2 | ✅ Complete | 2026-03-21 |
 | 4 | Authentication & Profiles | 3 | ✅ Complete | 2026-03-21 |
 | 5 | Generic HTTP Executor | 4 | ✅ Complete | 2026-03-21 |
-| 6 | Output & Formatting | 2 | Not started | - |
+| 6 | Output & Formatting | 2 | ✅ Complete | 2026-03-21 |
 | 7 | Helper Commands & ADF | 3 | Not started | - |
 | 8 | Distribution & Polish | 3 | Not started | - |
 
@@ -132,8 +132,8 @@ Phases: 5 of 8 complete
 - ADF → terminal rendering
 
 **Plans:**
-- [ ] 06-01: Output formatters (table, JSON, YAML, CSV, plain) with TTY detection
-- [ ] 06-02: ADF terminal rendering, pager integration, and --fields selection
+- [x] 06-01: Output formatters (table, JSON, YAML, CSV, plain) with TTY detection
+- [x] 06-02: ADF terminal rendering, pager integration, and --fields selection
 
 ### Phase 7: Helper Commands & ADF
 
@@ -176,4 +176,4 @@ Phases: 5 of 8 complete
 
 ---
 *Roadmap created: 2026-03-21*
-*Last updated: 2026-03-21 after Phase 5*
+*Last updated: 2026-03-21 after Phase 6*

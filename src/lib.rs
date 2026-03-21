@@ -1,3 +1,4 @@
+pub mod adf;
 pub mod auth;
 pub mod cli;
 pub mod cmd;
@@ -6,5 +7,6 @@ pub mod error;
 pub mod executor;
 pub mod exit_codes;
 pub mod logging;
+pub mod output;
 pub mod quirks;
 pub mod spec;

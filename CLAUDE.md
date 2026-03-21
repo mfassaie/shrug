@@ -50,6 +50,8 @@ The codebase follows a modular structure. Each directory maps to a completed pha
   - `oauth.rs` — OAuth 2.0 with PKCE, token refresh, localhost callback
 - `src/executor.rs` — Generic HTTP executor with retries, pagination, quirk injection
 - `src/quirks.rs` — Static quirks registry for endpoint-specific headers (CSRF bypass)
+- `src/output.rs` — Output formatters (JSON, table, YAML, CSV, plain), TTY detection, pager, --fields
+- `src/adf.rs` — Atlassian Document Format terminal renderer (paragraph, heading, list, code, marks)
 
 ## Key Design Patterns
 

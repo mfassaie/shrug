@@ -5,12 +5,13 @@ use clap::Parser;
 use shrug::auth::credentials::{CredentialStore, ResolvedCredential};
 use shrug::auth::oauth;
 use shrug::auth::profile::{AuthType, Profile, ProfileStore};
-use shrug::cli::{AuthCommands, Cli, Commands, ProfileCommands};
+use shrug::cli::{AuthCommands, Cli, ColorChoice, Commands, OutputFormat, ProfileCommands};
 use shrug::cmd::router;
 use shrug::config::{self, ShrugConfig, ShrugPaths};
 use shrug::error::ShrugError;
 use shrug::executor;
 use shrug::logging;
+use shrug::output;
 use shrug::spec::registry::Product;
 use shrug::spec::SpecCache;
 use shrug::spec::SpecLoader;
@@ -28,6 +29,10 @@ fn handle_product(
     json_body: Option<&str>,
     page_all: bool,
     limit: Option<u32>,
+    output_format: &OutputFormat,
+    color: &ColorChoice,
+    fields: Option<&[String]>,
+    no_pager: bool,
 ) -> Result<(), ShrugError> {
     let paths = ShrugPaths::new()
         .ok_or_else(|| ShrugError::SpecError("Could not determine cache directory".into()))?;
@@ -43,7 +48,25 @@ fn handle_product(
         json_body.map(|s| s.to_string()),
     )?;
 
-    executor::execute(client, &product, &resolved, &parsed_args, credential, dry_run, page_all, limit)
+    let is_tty = is_terminal::is_terminal(std::io::stdout());
+    let effective_format = output::resolve_format(output_format, is_tty);
+    let color_enabled = output::should_use_color(color, is_tty);
+
+    executor::execute(
+        client,
+        &product,
+        &resolved,
+        &parsed_args,
+        credential,
+        dry_run,
+        page_all,
+        limit,
+        &effective_format,
+        is_tty,
+        color_enabled,
+        fields,
+        no_pager,
+    )
 }
 
 /// Resolve the active profile from the precedence chain:
@@ -461,6 +484,10 @@ fn run(config: &ShrugConfig, cli: &Cli) -> Result<(), ShrugError> {
 
             let client = executor::create_client()?;
 
+            let parsed_fields: Option<Vec<String>> = cli.fields.as_ref().map(|f| {
+                f.split(',').map(|s| s.trim().to_string()).collect()
+            });
+
             handle_product(
                 product,
                 args,
@@ -471,6 +498,10 @@ fn run(config: &ShrugConfig, cli: &Cli) -> Result<(), ShrugError> {
                 cli.json.as_deref(),
                 cli.page_all,
                 cli.limit,
+                &config.output_format,
+                &config.color,
+                parsed_fields.as_deref(),
+                cli.no_pager,
             )
         }
         Some(Commands::Auth { command }) => {
