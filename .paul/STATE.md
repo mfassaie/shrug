@@ -68,13 +68,14 @@ Feature branches merged: none
 ## Session Continuity
 
 Last session: 2026-03-21 (session 8)
-Stopped at: Phase 6 complete, transitioned to Phase 7
-Next action: /paul:plan for Phase 7 (Helper Commands & ADF)
-Resume file: .paul/ROADMAP.md
+Stopped at: Phase 6 complete, Phase 7 not started
+Next action: /paul:plan for 07-01 (Markdown → ADF converter and JQL shorthand flags)
+Resume file: .paul/HANDOFF-2026-03-21-session8.md
 Resume context:
-- Phase 6 complete: output formatters, --fields, pager, ADF rendering (321 tests)
+- Phases 5 and 6 completed this session (05-04 quirks, 06-01 formatters, 06-02 ADF/pager/fields)
+- 321 tests, all passing
 - Milestone progress: 6/8 phases (78%)
-- Phase 7 scope: Markdown → ADF, JQL shorthand, helper commands, shell completions
+- Phase 7 scope: Markdown → ADF, JQL shorthand, helper commands, shell completions (3 plans)
 - User wants autonomous execution: plan → audit → apply → unify, no stopping
 - MSYS2 GCC needed on PATH: export PATH="/c/msys64/mingw64/bin:$HOME/.cargo/bin:$PATH"
 
