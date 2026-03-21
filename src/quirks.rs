@@ -100,8 +100,8 @@ mod tests {
 
     #[test]
     fn registered_operation_ids_exist_in_bundled_specs() {
-        use crate::spec::registry::bundled_spec;
         use crate::spec::parse_spec;
+        use crate::spec::registry::bundled_spec;
 
         // All (Product, operationId) pairs in the registry
         let registered: &[(Product, &str)] = &[
@@ -128,10 +128,7 @@ mod tests {
                 continue;
             }
 
-            let found = spec
-                .operations
-                .iter()
-                .any(|op| op.operation_id == *op_id);
+            let found = spec.operations.iter().any(|op| op.operation_id == *op_id);
 
             assert!(
                 found,

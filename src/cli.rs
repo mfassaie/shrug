@@ -50,6 +50,38 @@ pub struct Cli {
     #[arg(long, global = true)]
     pub trace: bool,
 
+    /// Convert Markdown fields in --json body to ADF before sending
+    #[arg(long, global = true)]
+    pub markdown: bool,
+
+    /// Raw JQL query string (Jira/Jira Software only)
+    #[arg(long, global = true)]
+    pub jql: Option<String>,
+
+    /// JQL shorthand: filter by project key
+    #[arg(long, global = true)]
+    pub project: Option<String>,
+
+    /// JQL shorthand: filter by assignee ("me" for current user)
+    #[arg(long, global = true)]
+    pub assignee: Option<String>,
+
+    /// JQL shorthand: filter by status
+    #[arg(long, global = true)]
+    pub status: Option<String>,
+
+    /// JQL shorthand: filter by issue type
+    #[arg(long, global = true)]
+    pub issue_type: Option<String>,
+
+    /// JQL shorthand: filter by priority
+    #[arg(long, global = true)]
+    pub priority: Option<String>,
+
+    /// JQL shorthand: filter by label
+    #[arg(long, global = true)]
+    pub label: Option<String>,
+
     #[command(subcommand)]
     pub command: Option<Commands>,
 }
@@ -116,10 +148,10 @@ pub enum Commands {
         #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
         args: Vec<String>,
     },
-    /// Generate shell completions
+    /// Generate shell completions (bash, zsh, fish, powershell)
     Completions {
-        #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
-        args: Vec<String>,
+        /// Shell to generate completions for
+        shell: String,
     },
 }
 

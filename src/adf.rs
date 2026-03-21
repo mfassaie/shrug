@@ -228,7 +228,11 @@ fn render_text(node: &serde_json::Value, output: &mut String, color_enabled: boo
         if let Some(marks_arr) = marks {
             for mark in marks_arr {
                 if mark.get("type").and_then(|v| v.as_str()) == Some("link") {
-                    if let Some(href) = mark.get("attrs").and_then(|a| a.get("href")).and_then(|v| v.as_str()) {
+                    if let Some(href) = mark
+                        .get("attrs")
+                        .and_then(|a| a.get("href"))
+                        .and_then(|v| v.as_str())
+                    {
                         output.push_str(text);
                         output.push_str(" (");
                         output.push_str(href);
@@ -270,7 +274,11 @@ fn render_text(node: &serde_json::Value, output: &mut String, color_enabled: boo
             }
             "link" => {
                 has_link = true;
-                if let Some(href) = mark.get("attrs").and_then(|a| a.get("href")).and_then(|v| v.as_str()) {
+                if let Some(href) = mark
+                    .get("attrs")
+                    .and_then(|a| a.get("href"))
+                    .and_then(|v| v.as_str())
+                {
                     link_href = href.to_string();
                 }
             }

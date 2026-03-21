@@ -13,9 +13,9 @@ Users and AI agents can interact with all Atlassian Cloud products from the comm
 | Attribute | Value |
 |-----------|-------|
 | Version | 0.1.0 |
-| Status | Output formatting complete |
+| Status | Helper commands and completions complete |
 | Last Updated | 2026-03-21 |
-| Phase | 6 complete, ready for Phase 7 |
+| Phase | 7 complete, ready for Phase 8 |
 
 ## Requirements
 
@@ -48,9 +48,9 @@ Users and AI agents can interact with all Atlassian Cloud products from the comm
 - [x] `--fields` for column selection in table output — Phase 6
 
 **Atlassian Data Handling**
-- [ ] ADF (Atlassian Document Format) input: accept Markdown/plain text → convert to ADF
+- [x] ADF (Atlassian Document Format) input: accept Markdown/plain text → convert to ADF — Phase 7
 - [x] ADF output: render as plain text or ANSI-formatted terminal output — Phase 6
-- [ ] JQL support via `--jql` flag for raw queries
+- [x] JQL support via `--jql` flag for raw queries — Phase 7
 - [x] Unified pagination iterator (offset-based, cursor-based, link-based) — Phase 5
 - [x] Auto-pagination with `--page-all` and `--limit` — Phase 5
 
@@ -67,12 +67,12 @@ Users and AI agents can interact with all Atlassian Cloud products from the comm
 ### Should Have
 
 **Helper Commands (UX shortcuts)**
-- [ ] `shrug jira +create` — simplified issue creation with prompts
-- [ ] `shrug jira +search` — shorthand flags (`--project`, `--assignee me`, `--status`)
-- [ ] `shrug jira +transition` — resolve transition by name, not ID
+- [x] `shrug jira +create` — simplified issue creation with Markdown description — Phase 7
+- [x] `shrug jira +search` — shorthand flags (`--project`, `--assignee me`, `--status`) — Phase 7
+- [x] `shrug jira +transition` — resolve transition by name, not ID — Phase 7
 - [ ] `shrug confluence +create` — create page from Markdown file
-- [ ] Custom field name resolution (human name → customfield_ID via metadata cache)
-- [ ] User lookup by display name → accountId resolution
+- [x] Custom field name resolution (human name → customfield_ID via metadata cache) — Phase 7
+- [x] User lookup by display name → accountId resolution — Phase 7
 
 **Configuration**
 - [x] TOML config with layered precedence (flags → env → project → user → defaults) — Phase 1
@@ -80,7 +80,7 @@ Users and AI agents can interact with all Atlassian Cloud products from the comm
 - [x] Configurable defaults: output format, page size, default project — Phase 1
 
 **Shell Completions**
-- [ ] `shrug completions <shell>` for bash, zsh, fish, PowerShell
+- [x] `shrug completions <shell>` for bash, zsh, fish, PowerShell — Phase 7
 - [ ] Dynamic completions for project keys, issue keys (cached, short TTL)
 
 **Logging & Debugging**

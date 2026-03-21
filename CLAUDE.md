@@ -52,6 +52,11 @@ The codebase follows a modular structure. Each directory maps to a completed pha
 - `src/quirks.rs` — Static quirks registry for endpoint-specific headers (CSRF bypass)
 - `src/output.rs` — Output formatters (JSON, table, YAML, CSV, plain), TTY detection, pager, --fields
 - `src/adf.rs` — Atlassian Document Format terminal renderer (paragraph, heading, list, code, marks)
+- `src/markdown_to_adf.rs` — Markdown → ADF converter using pulldown-cmark (input direction)
+- `src/jql.rs` — JQL shorthand builder (--project, --assignee, --status → JQL query)
+- `src/helpers.rs` — Helper commands (+create, +search, +transition) with direct HTTP
+- `src/completions.rs` — Shell completion generator (bash, zsh, fish, PowerShell) via clap_complete
+- `src/resolve.rs` — Field name and user display name resolution with site-scoped TTL cache
 
 ## Key Design Patterns
 
