@@ -8,7 +8,7 @@ A dynamic CLI for Atlassian Cloud — commands generated at runtime from OpenAPI
 
 **v0.1 MVP** (v0.1.0)
 Status: In progress
-Phases: 3 of 8 complete
+Phases: 4 of 8 complete
 
 ## Phases
 
@@ -17,7 +17,7 @@ Phases: 3 of 8 complete
 | 1 | Project Foundation | 3 | ✅ Complete | 2026-03-21 |
 | 2 | OpenAPI Spec Engine | 4 | ✅ Complete | 2026-03-21 |
 | 3 | Dynamic Command Tree | 2 | ✅ Complete | 2026-03-21 |
-| 4 | Authentication & Profiles | 3 | Planning | - |
+| 4 | Authentication & Profiles | 3 | ✅ Complete | 2026-03-21 |
 | 5 | Generic HTTP Executor | 4 | Not started | - |
 | 6 | Output & Formatting | 2 | Not started | - |
 | 7 | Helper Commands & ADF | 3 | Not started | - |
@@ -93,9 +93,9 @@ Phases: 3 of 8 complete
 - Interactive setup wizard
 
 **Plans:**
-- [ ] 04-01: Profile management and config integration
-- [ ] 04-02: Keychain credential storage with encrypted file fallback
-- [ ] 04-03: OAuth 2.0 flow, token refresh, and interactive setup wizard
+- [x] 04-01: Profile management and config integration
+- [x] 04-02: Keychain credential storage with encrypted file fallback
+- [x] 04-03: OAuth 2.0 flow, token refresh, and interactive setup wizard
 
 ### Phase 5: Generic HTTP Executor
 
@@ -176,4 +176,4 @@ Phases: 3 of 8 complete
 
 ---
 *Roadmap created: 2026-03-21*
-*Last updated: 2026-03-21*
+*Last updated: 2026-03-21 after Phase 4*
