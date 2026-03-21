@@ -6,4 +6,5 @@ pub mod error;
 pub mod executor;
 pub mod exit_codes;
 pub mod logging;
+pub mod quirks;
 pub mod spec;

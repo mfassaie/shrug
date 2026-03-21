@@ -8,8 +8,10 @@ use reqwest::blocking::Client;
 use crate::auth::credentials::{AuthScheme, ResolvedCredential};
 use crate::cmd::router::ResolvedCommand;
 use crate::error::ShrugError;
+use crate::quirks;
 use crate::spec::analysis;
 use crate::spec::model::{HttpMethod, Operation, ParameterLocation};
+use crate::spec::registry::Product;
 
 const MAX_RETRIES: u32 = 4;
 const BACKOFF_BASE_SECS: f64 = 1.0;
@@ -202,6 +204,7 @@ fn send_request(
     credential: Option<&ResolvedCredential>,
     body: Option<&str>,
     is_final_attempt: bool,
+    extra_headers: &[(&str, &str)],
 ) -> SendResult {
     // Build request
     let mut request = client.request(method, url);
@@ -211,6 +214,11 @@ fn send_request(
         request = request
             .header("Content-Type", "application/json")
             .body(body_str.to_string());
+    }
+
+    // Apply quirk headers (after defaults, so they can override if needed)
+    for (key, value) in extra_headers {
+        request = request.header(*key, *value);
     }
 
     // Send
@@ -280,6 +288,7 @@ fn execute_with_retry(
     url: &str,
     credential: Option<&ResolvedCredential>,
     body: Option<&str>,
+    extra_headers: &[(&str, &str)],
 ) -> Result<Option<String>, ShrugError> {
     let max_attempts = MAX_RETRIES + 1;
     let mut last_error = None;
@@ -289,7 +298,7 @@ fn execute_with_retry(
 
         tracing::debug!(url = %url, attempt = attempt, "Sending request");
 
-        match send_request(client, method.clone(), url, credential, body, is_final) {
+        match send_request(client, method.clone(), url, credential, body, is_final, extra_headers) {
             SendResult::Success(response_body) => return Ok(response_body),
             SendResult::Fatal(err) => return Err(err),
             SendResult::Retryable { error, retry_after } => {
@@ -339,8 +348,10 @@ fn build_full_url(
 }
 
 /// Execute an API call with retry logic and optional pagination.
+#[allow(clippy::too_many_arguments)]
 pub fn execute(
     client: &Client,
+    product: &Product,
     command: &ResolvedCommand,
     args: &ParsedArgs,
     credential: Option<&ResolvedCredential>,
@@ -368,6 +379,20 @@ pub fn execute(
 
     let method = to_reqwest_method(&command.operation.method);
 
+    // Look up quirks for this operation
+    let quirk = quirks::get_quirk(product, &command.operation.operation_id);
+    let extra_headers: &[(&str, &str)] = match quirk {
+        Some(q) => {
+            tracing::debug!(
+                operation = %command.operation.operation_id,
+                quirk = q.description,
+                "Applying quirk"
+            );
+            q.extra_headers
+        }
+        None => &[],
+    };
+
     // Check if pagination is needed
     let pagination = if page_all {
         analysis::detect_pagination(&command.operation)
@@ -387,6 +412,7 @@ pub fn execute(
             args.body.as_deref(),
             &style,
             limit,
+            extra_headers,
         ),
         None => {
             // Single request (no pagination)
@@ -396,6 +422,7 @@ pub fn execute(
                 &full_url,
                 credential,
                 args.body.as_deref(),
+                extra_headers,
             )?;
             if let Some(body) = response_body {
                 println!("{}", body);
@@ -418,6 +445,7 @@ fn execute_paginated(
     body: Option<&str>,
     style: &analysis::PaginationStyle,
     limit: Option<u32>,
+    extra_headers: &[(&str, &str)],
 ) -> Result<(), ShrugError> {
     let mut total_results: u32 = 0;
     let mut page_count: u32 = 0;
@@ -460,6 +488,7 @@ fn execute_paginated(
             &full_url,
             credential,
             body,
+            extra_headers,
         )?;
 
         let body_text = match response_body {

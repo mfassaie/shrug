@@ -31,7 +31,7 @@ enterprise_plan_audit:
 
 ```yaml
 preferences:
-  auto_commit: false
+  auto_commit: true
   verbose_output: false
 ```
 
