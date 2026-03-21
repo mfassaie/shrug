@@ -30,6 +30,14 @@ pub struct Cli {
     #[arg(long, global = true)]
     pub json: Option<String>,
 
+    /// Fetch all pages of paginated results
+    #[arg(long, global = true)]
+    pub page_all: bool,
+
+    /// Maximum number of results to fetch (used with --page-all)
+    #[arg(long, global = true)]
+    pub limit: Option<u32>,
+
     /// Enable trace-level logging (full diagnostic output)
     #[arg(long, global = true)]
     pub trace: bool,

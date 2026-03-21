@@ -17,6 +17,7 @@ use shrug::spec::SpecLoader;
 
 const SIGINT_EXIT: i32 = 130;
 
+#[allow(clippy::too_many_arguments)]
 fn handle_product(
     product: Product,
     args: &[String],
@@ -25,6 +26,8 @@ fn handle_product(
     credential: Option<&ResolvedCredential>,
     dry_run: bool,
     json_body: Option<&str>,
+    page_all: bool,
+    limit: Option<u32>,
 ) -> Result<(), ShrugError> {
     let paths = ShrugPaths::new()
         .ok_or_else(|| ShrugError::SpecError("Could not determine cache directory".into()))?;
@@ -40,7 +43,7 @@ fn handle_product(
         json_body.map(|s| s.to_string()),
     )?;
 
-    executor::execute(client, &resolved, &parsed_args, credential, dry_run)
+    executor::execute(client, &resolved, &parsed_args, credential, dry_run, page_all, limit)
 }
 
 /// Resolve the active profile from the precedence chain:
@@ -466,6 +469,8 @@ fn run(config: &ShrugConfig, cli: &Cli) -> Result<(), ShrugError> {
                 credential.as_ref(),
                 cli.dry_run,
                 cli.json.as_deref(),
+                cli.page_all,
+                cli.limit,
             )
         }
         Some(Commands::Auth { command }) => {
