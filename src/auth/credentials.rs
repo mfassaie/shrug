@@ -4,7 +4,8 @@ use std::path::PathBuf;
 
 use serde::{Deserialize, Serialize};
 
-use crate::auth::profile::Profile;
+use crate::auth::oauth::{self, OAuthConfig, OAuthTokens};
+use crate::auth::profile::{AuthType, Profile};
 use crate::error::ShrugError;
 
 /// Source of a resolved credential.
@@ -28,13 +29,21 @@ impl std::fmt::Display for CredentialSource {
     }
 }
 
+/// Authentication scheme for HTTP requests.
+#[derive(Debug, Clone)]
+pub enum AuthScheme {
+    /// Basic Auth: email + API token
+    Basic { email: String, api_token: String },
+    /// Bearer token from OAuth 2.0
+    Bearer { access_token: String },
+}
+
 /// A fully resolved credential ready for use in HTTP requests.
 #[derive(Debug, Clone)]
 pub struct ResolvedCredential {
-    pub email: String,
-    pub api_token: String,
     pub site: String,
     pub source: CredentialSource,
+    pub scheme: AuthScheme,
 }
 
 /// Manages credential storage with keychain primary and encrypted file fallback.
@@ -60,6 +69,8 @@ impl CredentialStore {
         }
         Ok(Self { credentials_dir })
     }
+
+    // --- API Token Storage (Basic Auth) ---
 
     /// Store token in OS keychain. Returns true if stored, false if keychain unavailable.
     pub fn store_keychain(profile_name: &str, token: &str) -> bool {
@@ -125,85 +136,342 @@ impl CredentialStore {
         Ok(Some(token))
     }
 
-    /// Check if any credential exists (keychain or encrypted file).
+    // --- OAuth Token Storage ---
+
+    /// Store OAuth tokens via keychain (primary) or encrypted file (fallback).
+    /// NEVER stores plaintext token files to disk.
+    pub fn store_oauth_tokens(
+        &self,
+        profile_name: &str,
+        tokens: &OAuthTokens,
+    ) -> Result<(), ShrugError> {
+        let json = serde_json::to_string(tokens).map_err(|e| {
+            ShrugError::AuthError(format!("Failed to serialize OAuth tokens: {}", e))
+        })?;
+
+        // Try keychain first — verify with read-back to prevent silent data loss
+        if Self::store_keychain_entry("shrug-oauth", profile_name, &json) {
+            if Self::retrieve_keychain_entry("shrug-oauth", profile_name).is_some() {
+                tracing::debug!("OAuth tokens stored in keychain");
+                return Ok(());
+            }
+            tracing::debug!("Keychain store succeeded but verify-read failed, falling back");
+        }
+
+        // Fallback: encrypt and store as file
+        tracing::debug!("Keychain unavailable for OAuth tokens, using encrypted file");
+        let blob = encrypt_token(&json, &self.derive_oauth_file_key(profile_name))?;
+        let enc_json = serde_json::to_string_pretty(&blob).map_err(|e| {
+            ShrugError::AuthError(format!("Failed to serialize encrypted tokens: {}", e))
+        })?;
+
+        let path = self.oauth_token_file_path(profile_name);
+        let tmp = self
+            .credentials_dir
+            .join(format!("{}.oauth.enc.tmp", profile_name));
+
+        fs::write(&tmp, &enc_json).map_err(|e| {
+            ShrugError::AuthError(format!("Failed to write OAuth token file: {}", e))
+        })?;
+        fs::rename(&tmp, &path).map_err(|e| {
+            let _ = fs::remove_file(&tmp);
+            ShrugError::AuthError(format!("Failed to save OAuth token file: {}", e))
+        })?;
+
+        Ok(())
+    }
+
+    /// Retrieve OAuth tokens from keychain or encrypted file.
+    pub fn retrieve_oauth_tokens(
+        &self,
+        profile_name: &str,
+    ) -> Result<Option<OAuthTokens>, ShrugError> {
+        // Try keychain first
+        if let Some(json) = Self::retrieve_keychain_entry("shrug-oauth", profile_name) {
+            let tokens: OAuthTokens = serde_json::from_str(&json).map_err(|e| {
+                ShrugError::AuthError(format!("Corrupted OAuth tokens in keychain: {}", e))
+            })?;
+            return Ok(Some(tokens));
+        }
+
+        // Try encrypted file
+        let path = self.oauth_token_file_path(profile_name);
+        if path.exists() {
+            let enc_json = fs::read_to_string(&path).map_err(|e| {
+                ShrugError::AuthError(format!("Failed to read OAuth token file: {}", e))
+            })?;
+            let blob: EncryptedBlob = serde_json::from_str(&enc_json)
+                .map_err(|e| ShrugError::AuthError(format!("Corrupted OAuth token file: {}", e)))?;
+            let json = decrypt_token(&blob, &self.derive_oauth_file_key(profile_name))?;
+            let tokens: OAuthTokens = serde_json::from_str(&json)
+                .map_err(|e| ShrugError::AuthError(format!("Corrupted OAuth token data: {}", e)))?;
+            return Ok(Some(tokens));
+        }
+
+        Ok(None)
+    }
+
+    // --- OAuth Config Storage ---
+
+    /// Store OAuth config (client_id + client_secret) via keychain or encrypted file.
+    pub fn store_oauth_config(
+        &self,
+        profile_name: &str,
+        config: &OAuthConfig,
+    ) -> Result<(), ShrugError> {
+        let json = serde_json::to_string(config).map_err(|e| {
+            ShrugError::AuthError(format!("Failed to serialize OAuth config: {}", e))
+        })?;
+
+        // Try keychain first — verify with read-back; enables auto-refresh without password prompt
+        if Self::store_keychain_entry("shrug-oauth-config", profile_name, &json) {
+            if Self::retrieve_keychain_entry("shrug-oauth-config", profile_name).is_some() {
+                tracing::debug!("OAuth config stored in keychain");
+                return Ok(());
+            }
+            tracing::debug!("Keychain store succeeded but verify-read failed, falling back");
+        }
+
+        // Fallback: encrypt and store as file
+        tracing::debug!("Keychain unavailable for OAuth config, using encrypted file");
+        let blob = encrypt_token(&json, &self.derive_oauth_file_key(profile_name))?;
+        let enc_json = serde_json::to_string_pretty(&blob).map_err(|e| {
+            ShrugError::AuthError(format!("Failed to serialize encrypted config: {}", e))
+        })?;
+
+        let path = self.oauth_config_file_path(profile_name);
+        let tmp = self
+            .credentials_dir
+            .join(format!("{}.oauth-config.enc.tmp", profile_name));
+
+        fs::write(&tmp, &enc_json).map_err(|e| {
+            ShrugError::AuthError(format!("Failed to write OAuth config file: {}", e))
+        })?;
+        fs::rename(&tmp, &path).map_err(|e| {
+            let _ = fs::remove_file(&tmp);
+            ShrugError::AuthError(format!("Failed to save OAuth config file: {}", e))
+        })?;
+
+        Ok(())
+    }
+
+    /// Retrieve OAuth config from keychain or encrypted file.
+    pub fn retrieve_oauth_config(
+        &self,
+        profile_name: &str,
+    ) -> Result<Option<OAuthConfig>, ShrugError> {
+        // Try keychain first
+        if let Some(json) = Self::retrieve_keychain_entry("shrug-oauth-config", profile_name) {
+            let config: OAuthConfig = serde_json::from_str(&json).map_err(|e| {
+                ShrugError::AuthError(format!("Corrupted OAuth config in keychain: {}", e))
+            })?;
+            return Ok(Some(config));
+        }
+
+        // Try encrypted file
+        let path = self.oauth_config_file_path(profile_name);
+        if path.exists() {
+            let enc_json = fs::read_to_string(&path).map_err(|e| {
+                ShrugError::AuthError(format!("Failed to read OAuth config file: {}", e))
+            })?;
+            let blob: EncryptedBlob = serde_json::from_str(&enc_json).map_err(|e| {
+                ShrugError::AuthError(format!("Corrupted OAuth config file: {}", e))
+            })?;
+            let json = decrypt_token(&blob, &self.derive_oauth_file_key(profile_name))?;
+            let config: OAuthConfig = serde_json::from_str(&json).map_err(|e| {
+                ShrugError::AuthError(format!("Corrupted OAuth config data: {}", e))
+            })?;
+            return Ok(Some(config));
+        }
+
+        Ok(None)
+    }
+
+    // --- Credential Status ---
+
+    /// Check if any credential exists (keychain, encrypted file, or OAuth tokens).
     pub fn has_credential(&self, profile_name: &str) -> Result<bool, ShrugError> {
-        // Check keychain first
+        // Check API token keychain
         if Self::retrieve_keychain(profile_name).is_some() {
             return Ok(true);
         }
-        // Check encrypted file
-        Ok(self.enc_file_path(profile_name).exists())
+        // Check API token encrypted file
+        if self.enc_file_path(profile_name).exists() {
+            return Ok(true);
+        }
+        // Check OAuth tokens
+        if Self::retrieve_keychain_entry("shrug-oauth", profile_name).is_some() {
+            return Ok(true);
+        }
+        if self.oauth_token_file_path(profile_name).exists() {
+            return Ok(true);
+        }
+        Ok(false)
     }
 
     /// Get the source of a stored credential, if any.
     pub fn credential_source(&self, profile_name: &str) -> Option<CredentialSource> {
+        // API token sources
         if Self::retrieve_keychain(profile_name).is_some() {
             return Some(CredentialSource::Keychain);
         }
         if self.enc_file_path(profile_name).exists() {
             return Some(CredentialSource::EncryptedFile);
         }
+        // OAuth token sources
+        if Self::retrieve_keychain_entry("shrug-oauth", profile_name).is_some() {
+            return Some(CredentialSource::Keychain);
+        }
+        if self.oauth_token_file_path(profile_name).exists() {
+            return Some(CredentialSource::EncryptedFile);
+        }
         None
     }
 
-    /// Delete credential from both keychain and encrypted file.
+    /// Delete all credentials for a profile (keychain entries + encrypted files + OAuth).
     /// Silently ignores errors (credential may not exist in one or both).
     pub fn delete(&self, profile_name: &str) {
-        // Try keychain
+        // API token keychain
         if let Ok(entry) = keyring::Entry::new("shrug", profile_name) {
             let _ = entry.delete_credential();
         }
-        // Try encrypted file
+        // API token encrypted file
         let _ = fs::remove_file(self.enc_file_path(profile_name));
+
+        // OAuth tokens keychain + file
+        if let Ok(entry) = keyring::Entry::new("shrug-oauth", profile_name) {
+            let _ = entry.delete_credential();
+        }
+        let _ = fs::remove_file(self.oauth_token_file_path(profile_name));
+
+        // OAuth config keychain + file
+        if let Ok(entry) = keyring::Entry::new("shrug-oauth-config", profile_name) {
+            let _ = entry.delete_credential();
+        }
+        let _ = fs::remove_file(self.oauth_config_file_path(profile_name));
     }
 
-    /// Full credential resolution: env vars > keychain > encrypted file.
+    // --- Credential Resolution ---
+
+    /// Full credential resolution. Read-only — does NOT perform HTTP calls.
     ///
-    /// Pass `encryption_password` if the user has provided one for encrypted file access.
-    /// If None and only encrypted file credentials exist, returns None.
+    /// For BasicAuth: env vars > keychain > encrypted file.
+    /// For OAuth2: loads stored OAuth tokens and returns Bearer scheme.
+    ///
+    /// Call `ensure_fresh_tokens()` BEFORE this method for OAuth2 profiles.
     pub fn resolve(
         &self,
         profile: &Profile,
         encryption_password: Option<&str>,
     ) -> Result<Option<ResolvedCredential>, ShrugError> {
-        let email = env::var("SHRUG_EMAIL").unwrap_or_else(|_| profile.email.clone());
         let site = env::var("SHRUG_SITE").unwrap_or_else(|_| profile.site.clone());
 
-        // 1. Environment variable token
-        if let Ok(token) = env::var("SHRUG_API_TOKEN") {
-            if !token.is_empty() {
-                return Ok(Some(ResolvedCredential {
-                    email,
-                    api_token: token,
-                    site,
-                    source: CredentialSource::Environment,
-                }));
+        match profile.auth_type {
+            AuthType::OAuth2 => {
+                // OAuth2: load stored tokens (should be fresh — caller runs ensure_fresh_tokens first)
+                if let Some(tokens) = self.retrieve_oauth_tokens(&profile.name)? {
+                    return Ok(Some(ResolvedCredential {
+                        site,
+                        source: if Self::retrieve_keychain_entry("shrug-oauth", &profile.name)
+                            .is_some()
+                        {
+                            CredentialSource::Keychain
+                        } else {
+                            CredentialSource::EncryptedFile
+                        },
+                        scheme: AuthScheme::Bearer {
+                            access_token: tokens.access_token,
+                        },
+                    }));
+                }
+                Ok(None)
+            }
+            AuthType::BasicAuth => {
+                let email = env::var("SHRUG_EMAIL").unwrap_or_else(|_| profile.email.clone());
+
+                // 1. Environment variable token
+                if let Ok(token) = env::var("SHRUG_API_TOKEN") {
+                    if !token.is_empty() {
+                        return Ok(Some(ResolvedCredential {
+                            site,
+                            source: CredentialSource::Environment,
+                            scheme: AuthScheme::Basic {
+                                email,
+                                api_token: token,
+                            },
+                        }));
+                    }
+                }
+
+                // 2. Keychain
+                if let Some(token) = Self::retrieve_keychain(&profile.name) {
+                    return Ok(Some(ResolvedCredential {
+                        site,
+                        source: CredentialSource::Keychain,
+                        scheme: AuthScheme::Basic {
+                            email,
+                            api_token: token,
+                        },
+                    }));
+                }
+
+                // 3. Encrypted file (requires password)
+                if let Some(password) = encryption_password {
+                    if let Some(token) = self.retrieve_encrypted(&profile.name, password)? {
+                        return Ok(Some(ResolvedCredential {
+                            site,
+                            source: CredentialSource::EncryptedFile,
+                            scheme: AuthScheme::Basic {
+                                email,
+                                api_token: token,
+                            },
+                        }));
+                    }
+                }
+
+                Ok(None)
             }
         }
+    }
 
-        // 2. Keychain
-        if let Some(token) = Self::retrieve_keychain(&profile.name) {
-            return Ok(Some(ResolvedCredential {
-                email,
-                api_token: token,
-                site,
-                source: CredentialSource::Keychain,
-            }));
+    /// Ensure OAuth tokens are fresh before resolve(). Performs HTTP refresh if needed.
+    ///
+    /// Returns Ok(true) if tokens were refreshed, Ok(false) if no refresh needed.
+    /// Returns Err if refresh fails (caller should direct user to re-authorize).
+    pub fn ensure_fresh_tokens(&self, profile: &Profile) -> Result<bool, ShrugError> {
+        if profile.auth_type != AuthType::OAuth2 {
+            return Ok(false);
         }
 
-        // 3. Encrypted file (requires password)
-        if let Some(password) = encryption_password {
-            if let Some(token) = self.retrieve_encrypted(&profile.name, password)? {
-                return Ok(Some(ResolvedCredential {
-                    email,
-                    api_token: token,
-                    site,
-                    source: CredentialSource::EncryptedFile,
-                }));
+        let tokens = match self.retrieve_oauth_tokens(&profile.name)? {
+            Some(t) => t,
+            None => return Ok(false), // No tokens to refresh
+        };
+
+        if !tokens.is_expired() {
+            return Ok(false); // Still valid
+        }
+
+        tracing::info!(profile = %profile.name, "OAuth access token expired, refreshing");
+
+        let config = self.retrieve_oauth_config(&profile.name)?.ok_or_else(|| {
+            ShrugError::AuthError(format!(
+                "OAuth config not found for profile '{}'. Run `shrug auth setup` to configure.",
+                profile.name
+            ))
+        })?;
+
+        match oauth::refresh_tokens(&config, &tokens.refresh_token) {
+            Ok(new_tokens) => {
+                self.store_oauth_tokens(&profile.name, &new_tokens)?;
+                tracing::info!(profile = %profile.name, "OAuth tokens refreshed successfully");
+                Ok(true)
             }
+            Err(e) => Err(ShrugError::AuthError(format!(
+                "OAuth token expired and refresh failed: {}. Run `shrug auth login --profile {}` to re-authorize.",
+                e, profile.name
+            ))),
         }
-
-        Ok(None)
     }
 
     /// Check if an encrypted file exists for this profile (needs password to retrieve).
@@ -211,8 +479,43 @@ impl CredentialStore {
         self.enc_file_path(profile_name).exists()
     }
 
+    // --- Private helpers ---
+
     fn enc_file_path(&self, profile_name: &str) -> PathBuf {
         self.credentials_dir.join(format!("{}.enc", profile_name))
+    }
+
+    fn oauth_token_file_path(&self, profile_name: &str) -> PathBuf {
+        self.credentials_dir
+            .join(format!("{}.oauth.enc", profile_name))
+    }
+
+    fn oauth_config_file_path(&self, profile_name: &str) -> PathBuf {
+        self.credentials_dir
+            .join(format!("{}.oauth-config.enc", profile_name))
+    }
+
+    /// Store a value in keychain under a given service name.
+    fn store_keychain_entry(service: &str, profile_name: &str, value: &str) -> bool {
+        match keyring::Entry::new(service, profile_name) {
+            Ok(entry) => entry.set_password(value).is_ok(),
+            Err(_) => false,
+        }
+    }
+
+    /// Retrieve a value from keychain under a given service name.
+    fn retrieve_keychain_entry(service: &str, profile_name: &str) -> Option<String> {
+        keyring::Entry::new(service, profile_name)
+            .and_then(|e| e.get_password())
+            .ok()
+    }
+
+    /// Derive a deterministic encryption key for OAuth file fallback.
+    /// Uses the profile name + a fixed salt. This is a fallback when keychain is unavailable —
+    /// it provides encryption-at-rest but the key is derivable, so it's weaker than keychain.
+    /// For stronger security, users should ensure their OS keychain is available.
+    fn derive_oauth_file_key(&self, profile_name: &str) -> String {
+        format!("shrug-oauth-{}-fallback", profile_name)
     }
 }
 
@@ -312,6 +615,15 @@ mod tests {
             site: "https://test.atlassian.net".to_string(),
             email: "user@example.com".to_string(),
             auth_type: crate::auth::profile::AuthType::default(),
+        }
+    }
+
+    fn make_oauth_profile(name: &str) -> Profile {
+        Profile {
+            name: name.to_string(),
+            site: "https://test.atlassian.net".to_string(),
+            email: "user@example.com".to_string(),
+            auth_type: AuthType::OAuth2,
         }
     }
 
@@ -417,7 +729,6 @@ mod tests {
         let store = make_store(&dir);
         let profile = make_profile("test");
 
-        // Save/restore env vars
         let orig_token = env::var("SHRUG_API_TOKEN").ok();
         let orig_email = env::var("SHRUG_EMAIL").ok();
         let orig_site = env::var("SHRUG_SITE").ok();
@@ -428,7 +739,6 @@ mod tests {
 
         let result = store.resolve(&profile, None).unwrap().unwrap();
 
-        // Restore
         match orig_token {
             Some(v) => env::set_var("SHRUG_API_TOKEN", v),
             None => env::remove_var("SHRUG_API_TOKEN"),
@@ -442,8 +752,13 @@ mod tests {
             None => env::remove_var("SHRUG_SITE"),
         }
 
-        assert_eq!(result.api_token, "env-token-123");
-        assert_eq!(result.email, "env@example.com");
+        match &result.scheme {
+            AuthScheme::Basic { email, api_token } => {
+                assert_eq!(api_token, "env-token-123");
+                assert_eq!(email, "env@example.com");
+            }
+            _ => panic!("Expected Basic scheme"),
+        }
         assert_eq!(result.site, "https://env.atlassian.net");
         assert_eq!(result.source, CredentialSource::Environment);
     }
@@ -454,10 +769,8 @@ mod tests {
         let store = make_store(&dir);
         let profile = make_profile("test");
 
-        // Store encrypted credential
         store.store_encrypted("test", "file-token", "pass").unwrap();
 
-        // Set env var — should take precedence
         let orig = env::var("SHRUG_API_TOKEN").ok();
         env::set_var("SHRUG_API_TOKEN", "env-token");
 
@@ -469,7 +782,10 @@ mod tests {
         }
 
         assert_eq!(result.source, CredentialSource::Environment);
-        assert_eq!(result.api_token, "env-token");
+        match &result.scheme {
+            AuthScheme::Basic { api_token, .. } => assert_eq!(api_token, "env-token"),
+            _ => panic!("Expected Basic scheme"),
+        }
     }
 
     #[test]
@@ -478,7 +794,6 @@ mod tests {
         let store = make_store(&dir);
         let profile = make_profile("test");
 
-        // Ensure env var is not set
         let orig = env::var("SHRUG_API_TOKEN").ok();
         env::remove_var("SHRUG_API_TOKEN");
 
@@ -498,7 +813,6 @@ mod tests {
         let store = make_store(&dir);
         let profile = make_profile("test");
 
-        // Ensure env var is not set
         let orig = env::var("SHRUG_API_TOKEN").ok();
         env::remove_var("SHRUG_API_TOKEN");
 
@@ -513,7 +827,10 @@ mod tests {
             None => {}
         }
 
-        assert_eq!(result.api_token, "encrypted-token");
+        match &result.scheme {
+            AuthScheme::Basic { api_token, .. } => assert_eq!(api_token, "encrypted-token"),
+            _ => panic!("Expected Basic scheme"),
+        }
         assert_eq!(result.source, CredentialSource::EncryptedFile);
     }
 
@@ -527,8 +844,189 @@ mod tests {
     fn has_credential_returns_result() {
         let dir = tempfile::tempdir().unwrap();
         let store = make_store(&dir);
-        // Verify it returns Result, not bool
         let result: Result<bool, ShrugError> = store.has_credential("test");
         assert!(result.is_ok());
+    }
+
+    // --- OAuth Token Storage Tests ---
+
+    #[test]
+    fn oauth_tokens_store_retrieve_roundtrip_encrypted() {
+        let dir = tempfile::tempdir().unwrap();
+        let store = make_store(&dir);
+
+        let tokens = OAuthTokens {
+            access_token: "access-123".to_string(),
+            refresh_token: "refresh-456".to_string(),
+            expires_at: None,
+            scopes: vec!["read:jira-work".to_string()],
+        };
+
+        store.store_oauth_tokens("test-profile", &tokens).unwrap();
+
+        let retrieved = store
+            .retrieve_oauth_tokens("test-profile")
+            .unwrap()
+            .unwrap();
+        assert_eq!(retrieved.access_token, "access-123");
+        assert_eq!(retrieved.refresh_token, "refresh-456");
+    }
+
+    #[test]
+    fn oauth_tokens_no_plaintext_json_files() {
+        let dir = tempfile::tempdir().unwrap();
+        let store = make_store(&dir);
+
+        let tokens = OAuthTokens {
+            access_token: "secret".to_string(),
+            refresh_token: "also-secret".to_string(),
+            expires_at: None,
+            scopes: vec![],
+        };
+
+        store.store_oauth_tokens("test-profile", &tokens).unwrap();
+
+        // Verify no .oauth.json file exists (plaintext)
+        let plaintext_path = dir
+            .path()
+            .join("credentials")
+            .join("test-profile.oauth.json");
+        assert!(
+            !plaintext_path.exists(),
+            "Plaintext .oauth.json should NOT exist"
+        );
+    }
+
+    #[test]
+    fn oauth_config_store_retrieve_roundtrip() {
+        let dir = tempfile::tempdir().unwrap();
+        let store = make_store(&dir);
+
+        let config = OAuthConfig {
+            client_id: "client-id-123".to_string(),
+            client_secret: "secret-456".to_string(),
+            redirect_port: 9000,
+        };
+
+        store.store_oauth_config("test-profile", &config).unwrap();
+
+        let retrieved = store
+            .retrieve_oauth_config("test-profile")
+            .unwrap()
+            .unwrap();
+        assert_eq!(retrieved.client_id, "client-id-123");
+        assert_eq!(retrieved.client_secret, "secret-456");
+    }
+
+    #[test]
+    fn delete_cleans_up_oauth_files() {
+        let dir = tempfile::tempdir().unwrap();
+        let store = make_store(&dir);
+
+        let tokens = OAuthTokens {
+            access_token: "a".to_string(),
+            refresh_token: "b".to_string(),
+            expires_at: None,
+            scopes: vec![],
+        };
+        let config = OAuthConfig {
+            client_id: "id".to_string(),
+            client_secret: "secret".to_string(),
+            redirect_port: 8456,
+        };
+
+        store.store_oauth_tokens("test-profile", &tokens).unwrap();
+        store.store_oauth_config("test-profile", &config).unwrap();
+
+        store.delete("test-profile");
+
+        assert!(store
+            .retrieve_oauth_tokens("test-profile")
+            .unwrap()
+            .is_none());
+        assert!(store
+            .retrieve_oauth_config("test-profile")
+            .unwrap()
+            .is_none());
+    }
+
+    #[test]
+    fn resolve_oauth2_profile_returns_bearer_scheme() {
+        let dir = tempfile::tempdir().unwrap();
+        let store = make_store(&dir);
+        let profile = make_oauth_profile("oauth-test");
+
+        let tokens = OAuthTokens {
+            access_token: "bearer-token-123".to_string(),
+            refresh_token: "refresh".to_string(),
+            expires_at: Some(chrono::Utc::now() + chrono::Duration::hours(1)),
+            scopes: vec![],
+        };
+
+        store.store_oauth_tokens("oauth-test", &tokens).unwrap();
+
+        let result = store.resolve(&profile, None).unwrap().unwrap();
+        match &result.scheme {
+            AuthScheme::Bearer { access_token } => {
+                assert_eq!(access_token, "bearer-token-123");
+            }
+            _ => panic!("Expected Bearer scheme for OAuth2 profile"),
+        }
+    }
+
+    #[test]
+    fn resolve_oauth2_no_tokens_returns_none() {
+        let dir = tempfile::tempdir().unwrap();
+        let store = make_store(&dir);
+        let profile = make_oauth_profile("oauth-test");
+
+        let result = store.resolve(&profile, None).unwrap();
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn ensure_fresh_tokens_skips_basic_auth() {
+        let dir = tempfile::tempdir().unwrap();
+        let store = make_store(&dir);
+        let profile = make_profile("basic-test");
+
+        let result = store.ensure_fresh_tokens(&profile).unwrap();
+        assert!(!result);
+    }
+
+    #[test]
+    fn ensure_fresh_tokens_skips_when_not_expired() {
+        let dir = tempfile::tempdir().unwrap();
+        let store = make_store(&dir);
+        let profile = make_oauth_profile("oauth-test");
+
+        let tokens = OAuthTokens {
+            access_token: "still-valid".to_string(),
+            refresh_token: "refresh".to_string(),
+            expires_at: Some(chrono::Utc::now() + chrono::Duration::hours(1)),
+            scopes: vec![],
+        };
+        store.store_oauth_tokens("oauth-test", &tokens).unwrap();
+
+        let result = store.ensure_fresh_tokens(&profile).unwrap();
+        assert!(!result);
+    }
+
+    #[test]
+    fn has_credential_detects_oauth_tokens() {
+        let dir = tempfile::tempdir().unwrap();
+        let store = make_store(&dir);
+
+        assert!(!store.has_credential("oauth-test").unwrap());
+
+        let tokens = OAuthTokens {
+            access_token: "a".to_string(),
+            refresh_token: "b".to_string(),
+            expires_at: None,
+            scopes: vec![],
+        };
+        store.store_oauth_tokens("oauth-test", &tokens).unwrap();
+
+        assert!(store.has_credential("oauth-test").unwrap());
     }
 }

@@ -13,9 +13,9 @@ Users and AI agents can interact with all Atlassian Cloud products from the comm
 | Attribute | Value |
 |-----------|-------|
 | Version | 0.1.0 |
-| Status | Command tree complete |
+| Status | Authentication complete |
 | Last Updated | 2026-03-21 |
-| Phase | 3 complete, ready for Phase 4 |
+| Phase | 4 complete, ready for Phase 5 |
 
 ## Requirements
 
@@ -31,14 +31,14 @@ Users and AI agents can interact with all Atlassian Cloud products from the comm
 - [x] Pre-bundled fallback specs in binary for offline/first-run — Phase 2
 
 **Authentication & Profiles**
-- [ ] API token + email auth (Basic Auth) — primary method
-- [ ] OAuth 2.0 (3LO) with automatic token refresh
-- [ ] OS keychain credential storage (macOS Keychain, Windows Credential Manager, Linux Secret Service)
-- [ ] Encrypted file fallback when keychain unavailable
-- [ ] Multi-profile support (`shrug profile create/use/list/show`)
-- [ ] Per-command profile override (`--profile staging`)
-- [ ] Environment variable auth for CI/CD (`SHRUG_API_TOKEN`, `SHRUG_EMAIL`, `SHRUG_SITE`)
-- [ ] Interactive first-run setup wizard (`shrug auth setup`)
+- [x] API token + email auth (Basic Auth) — primary method — Phase 4
+- [x] OAuth 2.0 (3LO) with automatic token refresh — Phase 4
+- [x] OS keychain credential storage (macOS Keychain, Windows Credential Manager, Linux Secret Service) — Phase 4
+- [x] Encrypted file fallback when keychain unavailable — Phase 4
+- [x] Multi-profile support (`shrug profile create/use/list/show`) — Phase 4
+- [x] Per-command profile override (`--profile staging`) — Phase 4
+- [x] Environment variable auth for CI/CD (`SHRUG_API_TOKEN`, `SHRUG_EMAIL`, `SHRUG_SITE`) — Phase 4
+- [x] Interactive first-run setup wizard (`shrug auth setup`) — Phase 4
 
 **Output & Formatting**
 - [ ] Multiple output formats: JSON (default for pipes), table (default for TTY), YAML, CSV, plain
@@ -331,4 +331,4 @@ Users and AI agents can interact with all Atlassian Cloud products from the comm
 
 ---
 *PROJECT.md — Updated when requirements or context change*
-*Last updated: 2026-03-21 after Phase 3*
+*Last updated: 2026-03-21 after Phase 4*

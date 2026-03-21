@@ -164,4 +164,14 @@ pub enum AuthCommands {
         #[arg(long)]
         profile: Option<String>,
     },
+
+    /// Authorize an OAuth 2.0 profile via browser flow
+    Login {
+        /// Profile name (uses default if not specified)
+        #[arg(long)]
+        profile: Option<String>,
+    },
+
+    /// Interactive setup wizard for first-time configuration
+    Setup,
 }
