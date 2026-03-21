@@ -7,10 +7,14 @@ use shrug::auth::oauth;
 use shrug::auth::profile::{AuthType, Profile, ProfileStore};
 use shrug::cli::{AuthCommands, Cli, ColorChoice, Commands, OutputFormat, ProfileCommands};
 use shrug::cmd::router;
+use shrug::completions;
 use shrug::config::{self, ShrugConfig, ShrugPaths};
 use shrug::error::ShrugError;
 use shrug::executor;
+use shrug::helpers;
+use shrug::jql::JqlShorthand;
 use shrug::logging;
+use shrug::markdown_to_adf;
 use shrug::output;
 use shrug::spec::registry::Product;
 use shrug::spec::SpecCache;
@@ -484,18 +488,84 @@ fn run(config: &ShrugConfig, cli: &Cli) -> Result<(), ShrugError> {
 
             let client = executor::create_client()?;
 
-            let parsed_fields: Option<Vec<String>> = cli.fields.as_ref().map(|f| {
-                f.split(',').map(|s| s.trim().to_string()).collect()
-            });
+            // Convert Markdown fields in --json body to ADF if --markdown is set
+            let effective_json = if cli.markdown {
+                if let Some(ref body) = cli.json {
+                    Some(markdown_to_adf::convert_body_markdown(body)?)
+                } else {
+                    tracing::warn!("--markdown has no effect without --json");
+                    None
+                }
+            } else {
+                cli.json.clone()
+            };
+
+            // Build JQL from shorthand flags (Jira/JiraSoftware only)
+            let mut effective_args = args.clone();
+            let shorthand = JqlShorthand {
+                project: cli.project.clone(),
+                assignee: cli.assignee.clone(),
+                status: cli.status.clone(),
+                issue_type: cli.issue_type.clone(),
+                priority: cli.priority.clone(),
+                label: cli.label.clone(),
+            };
+            if (!shorthand.is_empty() || cli.jql.is_some())
+                && matches!(product, Product::Jira | Product::JiraSoftware)
+            {
+                if let Some(jql) = shorthand.build_jql(cli.jql.as_deref()) {
+                    effective_args.push("--jql".to_string());
+                    effective_args.push(jql);
+                }
+            }
+
+            let parsed_fields: Option<Vec<String>> = cli
+                .fields
+                .as_ref()
+                .map(|f| f.split(',').map(|s| s.trim().to_string()).collect());
+
+            // Intercept helper commands (+create, +search, +transition)
+            if helpers::is_helper_command(&effective_args) {
+                let helper_name = effective_args[0].trim_start_matches('+');
+                let helper_remaining = &effective_args[1..];
+
+                let paths = ShrugPaths::new().ok_or_else(|| {
+                    ShrugError::SpecError("Could not determine cache directory".into())
+                })?;
+                let cache = SpecCache::new(paths.cache_dir().to_path_buf())?;
+                let loader = SpecLoader::new(cache, config.cache_ttl_hours);
+                let spec = loader.load(&product)?;
+
+                let is_tty = is_terminal::is_terminal(std::io::stdout());
+                let effective_format = output::resolve_format(&config.output_format, is_tty);
+                let color_enabled = output::should_use_color(&config.color, is_tty);
+
+                return helpers::dispatch_helper(
+                    helper_name,
+                    &product,
+                    helper_remaining,
+                    &spec,
+                    &client,
+                    credential.as_ref(),
+                    &shorthand,
+                    cli.jql.as_deref(),
+                    &effective_format,
+                    is_tty,
+                    color_enabled,
+                    parsed_fields.as_deref(),
+                    cli.no_pager,
+                    cli.dry_run,
+                );
+            }
 
             handle_product(
                 product,
-                args,
+                &effective_args,
                 config,
                 &client,
                 credential.as_ref(),
                 cli.dry_run,
-                cli.json.as_deref(),
+                effective_json.as_deref(),
                 cli.page_all,
                 cli.limit,
                 &config.output_format,
@@ -520,9 +590,8 @@ fn run(config: &ShrugConfig, cli: &Cli) -> Result<(), ShrugError> {
             eprintln!("Cache: not yet implemented");
             Ok(())
         }
-        Some(Commands::Completions { .. }) => {
-            eprintln!("Completions: not yet implemented");
-            Ok(())
+        Some(Commands::Completions { shell }) => {
+            completions::generate_completions(shell, &mut std::io::stdout())
         }
         None => {
             eprintln!("Run `shrug --help` for usage information.");

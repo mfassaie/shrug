@@ -262,19 +262,13 @@ fn send_request(
                 }
             }
             let error = map_status_to_error(status.as_u16(), String::new());
-            return SendResult::Retryable {
-                error,
-                retry_after,
-            };
+            return SendResult::Retryable { error, retry_after };
         }
 
         // Final attempt: include body in error
         let error_body = response.text().unwrap_or_default();
         let error = map_status_to_error(status.as_u16(), error_body);
-        SendResult::Retryable {
-            error,
-            retry_after,
-        }
+        SendResult::Retryable { error, retry_after }
     }
     // Non-retryable HTTP errors
     else {
@@ -300,12 +294,23 @@ fn execute_with_retry(
 
         tracing::debug!(url = %url, attempt = attempt, "Sending request");
 
-        match send_request(client, method.clone(), url, credential, body, is_final, extra_headers) {
+        match send_request(
+            client,
+            method.clone(),
+            url,
+            credential,
+            body,
+            is_final,
+            extra_headers,
+        ) {
             SendResult::Success(response_body) => return Ok(response_body),
             SendResult::Fatal(err) => return Err(err),
             SendResult::Retryable { error, retry_after } => {
                 if is_final {
-                    tracing::warn!(attempts = max_attempts, "Request failed after all retry attempts");
+                    tracing::warn!(
+                        attempts = max_attempts,
+                        "Request failed after all retry attempts"
+                    );
                     return Err(error);
                 }
 
@@ -436,7 +441,8 @@ pub fn execute(
                 extra_headers,
             )?;
             if let Some(body) = response_body {
-                let formatted = output::format_response(&body, format, is_tty, color_enabled, fields);
+                let formatted =
+                    output::format_response(&body, format, is_tty, color_enabled, fields);
                 output::print_with_pager(&formatted, !no_pager, is_tty);
             }
             Ok(())
@@ -486,7 +492,15 @@ fn execute_paginated(
 
         // Build query params with pagination values
         let mut query_params: Vec<(String, String)> = initial_query_params.to_vec();
-        add_pagination_params(&mut query_params, style, offset, page_number, cursor.as_deref(), limit, total_results);
+        add_pagination_params(
+            &mut query_params,
+            style,
+            offset,
+            page_number,
+            cursor.as_deref(),
+            limit,
+            total_results,
+        );
 
         let full_url = build_full_url(base_url, path, path_params, &query_params)?;
 
@@ -530,14 +544,20 @@ fn execute_paginated(
 
         // Determine if there are more pages
         match style {
-            analysis::PaginationStyle::Offset { start_param: _, limit_param: _ } => {
+            analysis::PaginationStyle::Offset {
+                start_param: _,
+                limit_param: _,
+            } => {
                 let has_more = has_more_offset(&json, offset, page_result_count);
                 if !has_more || page_result_count == 0 {
                     break;
                 }
                 offset += page_result_count as u64;
             }
-            analysis::PaginationStyle::Page { page_param: _, size_param: _ } => {
+            analysis::PaginationStyle::Page {
+                page_param: _,
+                size_param: _,
+            } => {
                 let has_more = has_more_page(&json);
                 if !has_more || page_result_count == 0 {
                     break;
@@ -574,7 +594,10 @@ fn add_pagination_params(
 ) {
     // Remove any existing pagination params (from initial args) to avoid duplicates
     match style {
-        analysis::PaginationStyle::Offset { start_param, limit_param } => {
+        analysis::PaginationStyle::Offset {
+            start_param,
+            limit_param,
+        } => {
             query_params.retain(|(k, _)| k != start_param && k != limit_param);
             query_params.push((start_param.clone(), offset.to_string()));
 
@@ -587,7 +610,10 @@ fn add_pagination_params(
             };
             query_params.push((limit_param.clone(), page_size.to_string()));
         }
-        analysis::PaginationStyle::Page { page_param, size_param } => {
+        analysis::PaginationStyle::Page {
+            page_param,
+            size_param,
+        } => {
             query_params.retain(|(k, _)| k != page_param && k != size_param);
             query_params.push((page_param.clone(), page_number.to_string()));
 
@@ -627,7 +653,8 @@ pub fn count_results(json: &serde_json::Value) -> u32 {
 pub fn has_more_offset(json: &serde_json::Value, current_offset: u64, page_count: u32) -> bool {
     // Check if total field exists and we haven't reached it
     if let Some(total) = json.get("total").and_then(|v| v.as_u64()) {
-        return current_offset + page_count as u64 > 0 && (current_offset + page_count as u64) < total;
+        return current_offset + page_count as u64 > 0
+            && (current_offset + page_count as u64) < total;
     }
     // No total field — rely on whether we got results
     page_count > 0
@@ -877,7 +904,10 @@ mod tests {
 
         assert_eq!(parsed.path_params.get("issueIdOrKey").unwrap(), "TEST-1");
         assert_eq!(parsed.query_params.len(), 1);
-        assert_eq!(parsed.query_params[0], ("expand".to_string(), "names".to_string()));
+        assert_eq!(
+            parsed.query_params[0],
+            ("expand".to_string(), "names".to_string())
+        );
         assert!(parsed.body.is_none());
     }
 
@@ -893,7 +923,10 @@ mod tests {
         let result = parse_args(&op, &[], None);
         assert!(result.is_err());
         let err = format!("{}", result.unwrap_err());
-        assert!(err.contains("issueIdOrKey"), "Should mention missing param: {err}");
+        assert!(
+            err.contains("issueIdOrKey"),
+            "Should mention missing param: {err}"
+        );
     }
 
     #[test]
@@ -905,7 +938,12 @@ mod tests {
             vec![path_param("issueIdOrKey")],
             None,
         );
-        let args = vec!["--issueIdOrKey".into(), "TEST-1".into(), "--unknown".into(), "val".into()];
+        let args = vec![
+            "--issueIdOrKey".into(),
+            "TEST-1".into(),
+            "--unknown".into(),
+            "val".into(),
+        ];
         let result = parse_args(&op, &args, None);
         assert!(result.is_err());
         let err = format!("{}", result.unwrap_err());
@@ -955,7 +993,10 @@ mod tests {
             "listProjects",
             HttpMethod::Get,
             "/projects",
-            vec![query_param("startAt", false), query_param("maxResults", false)],
+            vec![
+                query_param("startAt", false),
+                query_param("maxResults", false),
+            ],
             None,
         );
         let parsed = parse_args(&op, &[], None).unwrap();
@@ -1115,7 +1156,12 @@ mod tests {
         let request = apply_auth(request, Some(&cred));
         // Build the request to inspect it
         let built = request.build().unwrap();
-        let auth = built.headers().get("Authorization").unwrap().to_str().unwrap();
+        let auth = built
+            .headers()
+            .get("Authorization")
+            .unwrap()
+            .to_str()
+            .unwrap();
         assert!(auth.starts_with("Basic "), "Should be Basic auth: {auth}");
         // Verify the base64 encoding
         let expected = base64::engine::general_purpose::STANDARD.encode("user@test.com:my-token");
@@ -1135,7 +1181,12 @@ mod tests {
         let request = client.get("https://example.com");
         let request = apply_auth(request, Some(&cred));
         let built = request.build().unwrap();
-        let auth = built.headers().get("Authorization").unwrap().to_str().unwrap();
+        let auth = built
+            .headers()
+            .get("Authorization")
+            .unwrap()
+            .to_str()
+            .unwrap();
         assert_eq!(auth, "Bearer my-access-token");
     }
 
@@ -1156,10 +1207,7 @@ mod tests {
             "test",
             HttpMethod::Get,
             "/test/{id}",
-            vec![
-                path_param("id"),
-                query_param("expand", false),
-            ],
+            vec![path_param("id"), query_param("expand", false)],
             None,
         );
         let formatted = format_valid_params(&op);
@@ -1183,8 +1231,14 @@ mod tests {
         assert_eq!(to_reqwest_method(&HttpMethod::Get), reqwest::Method::GET);
         assert_eq!(to_reqwest_method(&HttpMethod::Post), reqwest::Method::POST);
         assert_eq!(to_reqwest_method(&HttpMethod::Put), reqwest::Method::PUT);
-        assert_eq!(to_reqwest_method(&HttpMethod::Delete), reqwest::Method::DELETE);
-        assert_eq!(to_reqwest_method(&HttpMethod::Patch), reqwest::Method::PATCH);
+        assert_eq!(
+            to_reqwest_method(&HttpMethod::Delete),
+            reqwest::Method::DELETE
+        );
+        assert_eq!(
+            to_reqwest_method(&HttpMethod::Patch),
+            reqwest::Method::PATCH
+        );
     }
 
     // === Retry logic tests ===
@@ -1283,7 +1337,11 @@ mod tests {
     fn calculate_delay_retry_after_zero() {
         let delay = calculate_delay(0, Some(0));
         // 0s base + 0 jitter = 0s
-        assert!(delay.as_secs_f64() <= 0.01, "Zero retry-after should be ~0s: {:?}", delay);
+        assert!(
+            delay.as_secs_f64() <= 0.01,
+            "Zero retry-after should be ~0s: {:?}",
+            delay
+        );
     }
 
     // === map_status_to_error tests ===
@@ -1362,23 +1420,21 @@ mod tests {
     fn count_results_bitbucket_values() {
         let json: serde_json::Value = serde_json::from_str(
             r#"{"page":1,"pagelen":2,"values":[{"slug":"repo1"},{"slug":"repo2"}]}"#,
-        ).unwrap();
+        )
+        .unwrap();
         assert_eq!(count_results(&json), 2);
     }
 
     #[test]
     fn count_results_confluence_results() {
-        let json: serde_json::Value = serde_json::from_str(
-            r#"{"start":0,"limit":25,"results":[{"id":"page1"}]}"#,
-        ).unwrap();
+        let json: serde_json::Value =
+            serde_json::from_str(r#"{"start":0,"limit":25,"results":[{"id":"page1"}]}"#).unwrap();
         assert_eq!(count_results(&json), 1);
     }
 
     #[test]
     fn count_results_top_level_array() {
-        let json: serde_json::Value = serde_json::from_str(
-            r#"[{"id":"1"},{"id":"2"}]"#,
-        ).unwrap();
+        let json: serde_json::Value = serde_json::from_str(r#"[{"id":"1"},{"id":"2"}]"#).unwrap();
         assert_eq!(count_results(&json), 2);
     }
 
@@ -1400,7 +1456,8 @@ mod tests {
     fn has_more_offset_with_total() {
         let json: serde_json::Value = serde_json::from_str(
             r#"{"startAt":0,"maxResults":50,"total":150,"issues":[{"id":"1"}]}"#,
-        ).unwrap();
+        )
+        .unwrap();
         assert!(has_more_offset(&json, 0, 50));
     }
 
@@ -1408,24 +1465,24 @@ mod tests {
     fn has_more_offset_reached_total() {
         let json: serde_json::Value = serde_json::from_str(
             r#"{"startAt":100,"maxResults":50,"total":150,"issues":[{"id":"1"}]}"#,
-        ).unwrap();
+        )
+        .unwrap();
         assert!(!has_more_offset(&json, 100, 50));
     }
 
     #[test]
     fn has_more_offset_empty_results() {
-        let json: serde_json::Value = serde_json::from_str(
-            r#"{"startAt":150,"maxResults":50,"total":150,"issues":[]}"#,
-        ).unwrap();
+        let json: serde_json::Value =
+            serde_json::from_str(r#"{"startAt":150,"maxResults":50,"total":150,"issues":[]}"#)
+                .unwrap();
         // page_count is 0, so has_more returns false (guard)
         assert!(!has_more_offset(&json, 150, 0));
     }
 
     #[test]
     fn has_more_offset_no_total_with_results() {
-        let json: serde_json::Value = serde_json::from_str(
-            r#"{"issues":[{"id":"1"},{"id":"2"}]}"#,
-        ).unwrap();
+        let json: serde_json::Value =
+            serde_json::from_str(r#"{"issues":[{"id":"1"},{"id":"2"}]}"#).unwrap();
         // No total field — rely on page_count > 0
         assert!(has_more_offset(&json, 0, 2));
     }
@@ -1448,17 +1505,15 @@ mod tests {
 
     #[test]
     fn has_more_page_without_next() {
-        let json: serde_json::Value = serde_json::from_str(
-            r#"{"page":3,"pagelen":10,"values":[{"slug":"repo"}]}"#,
-        ).unwrap();
+        let json: serde_json::Value =
+            serde_json::from_str(r#"{"page":3,"pagelen":10,"values":[{"slug":"repo"}]}"#).unwrap();
         assert!(!has_more_page(&json));
     }
 
     #[test]
     fn has_more_page_next_is_null() {
-        let json: serde_json::Value = serde_json::from_str(
-            r#"{"page":1,"next":null,"values":[]}"#,
-        ).unwrap();
+        let json: serde_json::Value =
+            serde_json::from_str(r#"{"page":1,"next":null,"values":[]}"#).unwrap();
         assert!(!has_more_page(&json));
     }
 
@@ -1466,17 +1521,15 @@ mod tests {
 
     #[test]
     fn extract_cursor_direct_field() {
-        let json: serde_json::Value = serde_json::from_str(
-            r#"{"cursor":"abc123","values":[{"id":"1"}]}"#,
-        ).unwrap();
+        let json: serde_json::Value =
+            serde_json::from_str(r#"{"cursor":"abc123","values":[{"id":"1"}]}"#).unwrap();
         assert_eq!(extract_cursor(&json), Some("abc123".to_string()));
     }
 
     #[test]
     fn extract_cursor_next_page_token() {
-        let json: serde_json::Value = serde_json::from_str(
-            r#"{"nextPageToken":"tok456","values":[{"id":"1"}]}"#,
-        ).unwrap();
+        let json: serde_json::Value =
+            serde_json::from_str(r#"{"nextPageToken":"tok456","values":[{"id":"1"}]}"#).unwrap();
         assert_eq!(extract_cursor(&json), Some("tok456".to_string()));
     }
 
@@ -1484,15 +1537,17 @@ mod tests {
     fn extract_cursor_links_next() {
         let json: serde_json::Value = serde_json::from_str(
             r#"{"_links":{"next":"/api/next?after=xyz"},"values":[{"id":"1"}]}"#,
-        ).unwrap();
-        assert_eq!(extract_cursor(&json), Some("/api/next?after=xyz".to_string()));
+        )
+        .unwrap();
+        assert_eq!(
+            extract_cursor(&json),
+            Some("/api/next?after=xyz".to_string())
+        );
     }
 
     #[test]
     fn extract_cursor_none_when_absent() {
-        let json: serde_json::Value = serde_json::from_str(
-            r#"{"values":[{"id":"1"}]}"#,
-        ).unwrap();
+        let json: serde_json::Value = serde_json::from_str(r#"{"values":[{"id":"1"}]}"#).unwrap();
         assert_eq!(extract_cursor(&json), None);
     }
 
@@ -1509,7 +1564,9 @@ mod tests {
         add_pagination_params(&mut params, &style, 50, 1, None, None, 50);
         assert!(params.iter().any(|(k, v)| k == "startAt" && v == "50"));
         assert!(params.iter().any(|(k, v)| k == "maxResults" && v == "100"));
-        assert!(params.iter().any(|(k, v)| k == "jql" && v == "project=TEST"));
+        assert!(params
+            .iter()
+            .any(|(k, v)| k == "jql" && v == "project=TEST"));
     }
 
     #[test]

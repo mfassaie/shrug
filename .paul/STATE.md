@@ -5,19 +5,19 @@
 See: .paul/PROJECT.md (updated 2026-03-21)
 
 **Core value:** Users and AI agents can interact with Atlassian Cloud products from the command line without context-switching to a browser.
-**Current focus:** Phase 7 — Helper Commands & ADF
+**Current focus:** Phase 8 — Distribution & Polish
 
 ## Current Position
 
 Milestone: v0.1 MVP (v0.1.0)
-Phase: 7 of 8 (Helper Commands & ADF) — Not started
+Phase: 8 of 8 (Distribution & Polish) — Not started
 Plan: Not started
 Status: Ready to plan
-Last activity: 2026-03-21 — Phase 6 complete, transitioned to Phase 7
+Last activity: 2026-03-21 — Phase 7 complete, transitioned to Phase 8
 
 Progress:
-- Milestone: [████████░░] 78%
-- Phase 7: [░░░░░░░░░░] 0%
+- Milestone: [█████████░] 92%
+- Phase 8: [░░░░░░░░░░] 0%
 
 ## Loop Position
 
@@ -53,6 +53,9 @@ PLAN ──▶ APPLY ──▶ UNIFY
 | Enterprise audit on 05-04: Applied 1 must-have, 1 strongly-recommended. Verdict: enterprise-ready after fixes | Phase 5 | Quirks: static slice type for Quirk struct, operationId existence verification test |
 | Enterprise audit on 06-01: Applied 1 must-have, 1 strongly-recommended. Verdict: enterprise-ready after fixes | Phase 6 | Output: non-JSON body fallback, deterministic CSV column ordering |
 | Enterprise audit on 06-02: Applied 1 must-have, 1 strongly-recommended. Verdict: enterprise-ready after fixes | Phase 6 | Output: pager disabled for pagination, pager default -F -X flags |
+| Enterprise audit on 07-01: Applied 1 must-have, 2 strongly-recommended. Verdict: enterprise-ready after fixes | Phase 7 | JQL value escaping, nested JSON field traversal for --markdown, --markdown without --json warning |
+| Enterprise audit on 07-02: Applied 2 must-have, 2 strongly-recommended. Verdict: enterprise-ready after fixes | Phase 7 | Direct HTTP requests (not executor::execute()), operationId not-found guards, product validation, +transition dry-run |
+| Enterprise audit on 07-03: Applied 1 must-have, 1 strongly-recommended. Verdict: enterprise-ready after fixes | Phase 7 | Completions writer param for testability, atomic cache writes |
 
 ### Deferred Issues
 None yet.
@@ -67,15 +70,15 @@ Feature branches merged: none
 
 ## Session Continuity
 
-Last session: 2026-03-21 (session 8)
-Stopped at: Phase 6 complete, Phase 7 not started
-Next action: /paul:plan for 07-01 (Markdown → ADF converter and JQL shorthand flags)
-Resume file: .paul/HANDOFF-2026-03-21-session8.md
+Last session: 2026-03-21 (session 9)
+Stopped at: Phase 7 complete, Phase 8 not started
+Next action: /paul:plan for 08-01 (cargo-dist release pipeline, Homebrew tap, Scoop manifest)
+Resume file: .paul/ROADMAP.md
 Resume context:
-- Phases 5 and 6 completed this session (05-04 quirks, 06-01 formatters, 06-02 ADF/pager/fields)
-- 321 tests, all passing
-- Milestone progress: 6/8 phases (78%)
-- Phase 7 scope: Markdown → ADF, JQL shorthand, helper commands, shell completions (3 plans)
+- Phase 7 complete: Markdown→ADF, JQL shorthand, helper commands, completions, resolution caches
+- 386 tests, all passing
+- Milestone progress: 7/8 phases (92%)
+- Phase 8 scope: cargo-dist, Homebrew, Scoop, mock tests, E2E smoke tests, benchmarks
 - User wants autonomous execution: plan → audit → apply → unify, no stopping
 - MSYS2 GCC needed on PATH: export PATH="/c/msys64/mingw64/bin:$HOME/.cargo/bin:$PATH"
 

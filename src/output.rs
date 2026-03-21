@@ -217,11 +217,7 @@ fn format_array_table(arr: &[serde_json::Value], color_enabled: bool) -> String 
     for item in arr {
         let row: Vec<String> = all_keys
             .iter()
-            .map(|key| {
-                item.get(key)
-                    .map(truncate_value)
-                    .unwrap_or_default()
-            })
+            .map(|key| item.get(key).map(truncate_value).unwrap_or_default())
             .collect();
         table.add_row(row);
     }
@@ -260,11 +256,7 @@ fn format_csv_ordered(json: &serde_json::Value, columns: &[String]) -> String {
     for item in &arr {
         let row: Vec<String> = columns
             .iter()
-            .map(|key| {
-                item.get(key)
-                    .map(value_to_csv_cell)
-                    .unwrap_or_default()
-            })
+            .map(|key| item.get(key).map(value_to_csv_cell).unwrap_or_default())
             .collect();
         writer.write_record(&row).ok();
     }
@@ -317,11 +309,7 @@ fn format_csv(json: &serde_json::Value) -> String {
     for item in &arr {
         let row: Vec<String> = all_keys
             .iter()
-            .map(|key| {
-                item.get(key)
-                    .map(value_to_csv_cell)
-                    .unwrap_or_default()
-            })
+            .map(|key| item.get(key).map(value_to_csv_cell).unwrap_or_default())
             .collect();
         writer.write_record(&row).ok();
     }
@@ -515,7 +503,10 @@ mod tests {
         ]);
         let output = format_csv(&json);
         let header = output.lines().next().unwrap();
-        assert_eq!(header, "alpha,middle,zebra", "Columns should be sorted alphabetically");
+        assert_eq!(
+            header, "alpha,middle,zebra",
+            "Columns should be sorted alphabetically"
+        );
     }
 
     #[test]
@@ -584,7 +575,10 @@ mod tests {
     fn format_response_returns_raw_body_for_invalid_json() {
         let body = "<html><body>Error</body></html>";
         let output = format_response(body, &OutputFormat::Json, true, false, None);
-        assert_eq!(output, body, "Should return raw body when JSON parsing fails");
+        assert_eq!(
+            output, body,
+            "Should return raw body when JSON parsing fails"
+        );
     }
 
     #[test]
@@ -617,7 +611,10 @@ mod tests {
         assert!(output.contains("PROJ-2"));
         // Should have header row with issue fields, not wrapper fields
         let header = output.lines().next().unwrap();
-        assert!(header.contains("key"), "Should have 'key' column from issues");
+        assert!(
+            header.contains("key"),
+            "Should have 'key' column from issues"
+        );
     }
 
     // --- filter_fields tests ---
@@ -642,7 +639,10 @@ mod tests {
         let first = arr[0].as_object().unwrap();
         assert!(first.contains_key("key"));
         assert!(first.contains_key("summary"));
-        assert!(!first.contains_key("id"), "Should not contain unselected fields");
+        assert!(
+            !first.contains_key("id"),
+            "Should not contain unselected fields"
+        );
     }
 
     #[test]
@@ -655,13 +655,17 @@ mod tests {
 
     #[test]
     fn format_response_with_fields_filters_table() {
-        let body = r#"[{"id":1,"name":"Alice","role":"admin"},{"id":2,"name":"Bob","role":"user"}]"#;
+        let body =
+            r#"[{"id":1,"name":"Alice","role":"admin"},{"id":2,"name":"Bob","role":"user"}]"#;
         let fields = vec!["name".to_string()];
         let output = format_response(body, &OutputFormat::Table, true, false, Some(&fields));
         assert!(output.contains("Alice"));
         assert!(output.contains("Bob"));
         // Should not contain "admin" or "user" since "role" is not in fields
-        assert!(!output.contains("admin"), "role column should be filtered out");
+        assert!(
+            !output.contains("admin"),
+            "role column should be filtered out"
+        );
     }
 
     #[test]
@@ -691,8 +695,14 @@ mod tests {
             }
         });
         let output = format_table(&json, false);
-        assert!(output.contains("A bug report"), "ADF should be rendered as text in table");
-        assert!(!output.contains("\"type\""), "ADF JSON structure should not appear");
+        assert!(
+            output.contains("A bug report"),
+            "ADF should be rendered as text in table"
+        );
+        assert!(
+            !output.contains("\"type\""),
+            "ADF JSON structure should not appear"
+        );
     }
 
     #[test]
@@ -718,6 +728,9 @@ mod tests {
         let filtered = filter_fields(&json, &fields);
         let output = format_csv_with_fields(&filtered, Some(&fields));
         let header = output.lines().next().unwrap();
-        assert_eq!(header, "b,a", "CSV should respect --fields order, not alphabetical");
+        assert_eq!(
+            header, "b,a",
+            "CSV should respect --fields order, not alphabetical"
+        );
     }
 }
