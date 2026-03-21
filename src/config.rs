@@ -234,6 +234,10 @@ pub fn load_config() -> Result<ShrugConfig, ShrugError> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::sync::Mutex;
+
+    /// Env var tests must run serially to avoid race conditions.
+    static ENV_LOCK: Mutex<()> = Mutex::new(());
 
     #[test]
     fn default_config_has_sensible_values() {
@@ -360,6 +364,7 @@ mod tests {
     // Env var tests use unique var names to avoid parallel test pollution
     #[test]
     fn env_var_invalid_page_size_returns_error() {
+        let _guard = ENV_LOCK.lock().unwrap();
         let key = "SHRUG_PAGE_SIZE";
         let original = env::var(key).ok();
         env::set_var(key, "abc");
@@ -383,6 +388,7 @@ mod tests {
 
     #[test]
     fn env_var_invalid_output_returns_error() {
+        let _guard = ENV_LOCK.lock().unwrap();
         let key = "SHRUG_OUTPUT";
         let original = env::var(key).ok();
         env::set_var(key, "xml");
@@ -405,6 +411,7 @@ mod tests {
 
     #[test]
     fn env_var_valid_overrides_apply() {
+        let _guard = ENV_LOCK.lock().unwrap();
         let keys = ["SHRUG_OUTPUT", "SHRUG_SITE", "SHRUG_PAGE_SIZE"];
         let originals: Vec<_> = keys.iter().map(|k| env::var(k).ok()).collect();
 
