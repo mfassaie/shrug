@@ -26,6 +26,10 @@ pub struct Cli {
     #[arg(long, global = true)]
     pub dry_run: bool,
 
+    /// JSON request body for operations that require one
+    #[arg(long, global = true)]
+    pub json: Option<String>,
+
     /// Enable trace-level logging (full diagnostic output)
     #[arg(long, global = true)]
     pub trace: bool,
