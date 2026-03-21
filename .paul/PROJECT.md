@@ -13,9 +13,9 @@ Users and AI agents can interact with all Atlassian Cloud products from the comm
 | Attribute | Value |
 |-----------|-------|
 | Version | 0.1.0 |
-| Status | Authentication complete |
+| Status | HTTP executor complete |
 | Last Updated | 2026-03-21 |
-| Phase | 4 complete, ready for Phase 5 |
+| Phase | 5 complete, ready for Phase 6 |
 
 ## Requirements
 
@@ -26,7 +26,7 @@ Users and AI agents can interact with all Atlassian Cloud products from the comm
 - [x] OpenAPI 3.0.1 spec parser for Jira, Jira Software, Confluence, Service Management — Phase 2
 - [x] Swagger 2.0 spec parser for BitBucket (direct-to-ApiSpec conversion) — Phase 2
 - [x] Runtime command tree generation from specs (tags → command groups, operationId → commands) — Phase 3
-- [ ] Generic HTTP executor with URL template substitution, parameter validation
+- [x] Generic HTTP executor with URL template substitution, parameter validation — Phase 5
 - [x] Spec caching with 24h TTL — Phase 2 (manual refresh command deferred to Phase 3)
 - [x] Pre-bundled fallback specs in binary for offline/first-run — Phase 2
 
@@ -51,12 +51,12 @@ Users and AI agents can interact with all Atlassian Cloud products from the comm
 - [ ] ADF (Atlassian Document Format) input: accept Markdown/plain text → convert to ADF
 - [ ] ADF output: render as plain text or ANSI-formatted terminal output
 - [ ] JQL support via `--jql` flag for raw queries
-- [ ] Unified pagination iterator (offset-based, cursor-based, link-based)
-- [ ] Auto-pagination with `--page-all` and `--limit`
+- [x] Unified pagination iterator (offset-based, cursor-based, link-based) — Phase 5
+- [x] Auto-pagination with `--page-all` and `--limit` — Phase 5
 
 **Error Handling & Resilience**
 - [x] Structured exit codes (0=ok, 2=usage, 3=auth, 4=not-found, 5=forbidden, 10=rate-limited, 11=network, 12=server) — Phase 1
-- [ ] Rate limit handling: parse `Retry-After`, exponential backoff with jitter, max 4 retries
+- [x] Rate limit handling: parse `Retry-After`, exponential backoff with jitter, max 4 retries — Phase 5
 - [ ] Actionable error messages (what happened → why → what to do)
 
 **Cross-Platform**
@@ -85,7 +85,7 @@ Users and AI agents can interact with all Atlassian Cloud products from the comm
 
 **Logging & Debugging**
 - [x] `-v` (info), `-vv` (debug), `--trace` (full request/response with masked secrets) — Phase 1 (request logging placeholder, actual in Phase 5)
-- [ ] `--dry-run` to show request without sending
+- [x] `--dry-run` to show request without sending — Phase 5
 - [x] All debug output to stderr — Phase 1
 
 **Performance**
@@ -331,4 +331,4 @@ Users and AI agents can interact with all Atlassian Cloud products from the comm
 
 ---
 *PROJECT.md — Updated when requirements or context change*
-*Last updated: 2026-03-21 after Phase 4*
+*Last updated: 2026-03-21 after Phase 5*

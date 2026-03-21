@@ -8,7 +8,7 @@ A dynamic CLI for Atlassian Cloud — commands generated at runtime from OpenAPI
 
 **v0.1 MVP** (v0.1.0)
 Status: In progress
-Phases: 4 of 8 complete
+Phases: 5 of 8 complete
 
 ## Phases
 
@@ -18,7 +18,7 @@ Phases: 4 of 8 complete
 | 2 | OpenAPI Spec Engine | 4 | ✅ Complete | 2026-03-21 |
 | 3 | Dynamic Command Tree | 2 | ✅ Complete | 2026-03-21 |
 | 4 | Authentication & Profiles | 3 | ✅ Complete | 2026-03-21 |
-| 5 | Generic HTTP Executor | 4 | Not started | - |
+| 5 | Generic HTTP Executor | 4 | ✅ Complete | 2026-03-21 |
 | 6 | Output & Formatting | 2 | Not started | - |
 | 7 | Helper Commands & ADF | 3 | Not started | - |
 | 8 | Distribution & Polish | 3 | Not started | - |
@@ -114,10 +114,10 @@ Phases: 4 of 8 complete
 - Quirks registry for endpoint-specific behavior not captured in specs
 
 **Plans:**
-- [ ] 05-01: URL building, request construction, and basic execution
-- [ ] 05-02: Rate limiting, retries, and error response handling
-- [ ] 05-03: Unified pagination iterator (offset, cursor, link-based)
-- [ ] 05-04: Quirks registry (operationId → special headers, non-spec behaviors)
+- [x] 05-01: URL building, request construction, and basic execution
+- [x] 05-02: Rate limiting, retries, and error response handling
+- [x] 05-03: Unified pagination iterator (offset, cursor, link-based)
+- [x] 05-04: Quirks registry (operationId → special headers, non-spec behaviors)
 
 ### Phase 6: Output & Formatting
 
@@ -176,4 +176,4 @@ Phases: 4 of 8 complete
 
 ---
 *Roadmap created: 2026-03-21*
-*Last updated: 2026-03-21 after Phase 4*
+*Last updated: 2026-03-21 after Phase 5*

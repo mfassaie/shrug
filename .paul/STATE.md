@@ -5,26 +5,26 @@
 See: .paul/PROJECT.md (updated 2026-03-21)
 
 **Core value:** Users and AI agents can interact with Atlassian Cloud products from the command line without context-switching to a browser.
-**Current focus:** Phase 5 — Generic HTTP Executor
+**Current focus:** Phase 6 — Output & Formatting
 
 ## Current Position
 
 Milestone: v0.1 MVP (v0.1.0)
-Phase: 5 of 8 (Generic HTTP Executor) — Not started
+Phase: 6 of 8 (Output & Formatting) — Not started
 Plan: Not started
 Status: Ready to plan
-Last activity: 2026-03-21 — Phase 4 complete, transitioned to Phase 5
+Last activity: 2026-03-21 — Phase 5 complete, transitioned to Phase 6
 
 Progress:
-- Milestone: [██████░░░░] 54%
-- Phase 5: [░░░░░░░░░░] 0%
+- Milestone: [███████░░░] 69%
+- Phase 6: [░░░░░░░░░░] 0%
 
 ## Loop Position
 
 Current loop state:
 ```
 PLAN ──▶ APPLY ──▶ UNIFY
-  ○        ○        ○     [Ready for next PLAN]
+  ○        ○        ○     [Ready for new PLAN]
 ```
 
 ## Accumulated Context
@@ -47,6 +47,10 @@ PLAN ──▶ APPLY ──▶ UNIFY
 | Enterprise audit on 04-01: Applied 2 must-have, 2 strongly-recommended. Verdict: enterprise-ready after fixes | Phase 4 | Profile: .default file pattern, NotFound errors, atomic writes, resilient list() |
 | Enterprise audit on 04-02: Applied 1 must-have, 2 strongly-recommended. Verdict: enterprise-ready after fixes | Phase 4 | Credentials: prompts in CLI layer, has_credential returns Result, no keychain probe |
 | Enterprise audit on 04-03: Applied 2 must-have, 3 strongly-recommended. Verdict: enterprise-ready after fixes | Phase 4 | OAuth: no plaintext tokens, keychain-first for config, 127.0.0.1 binding, error callback handling, refresh separated from resolve |
+| Enterprise audit on 05-01: Applied 2 must-have, 3 strongly-recommended. Verdict: enterprise-ready after fixes | Phase 5 | Executor: site URL substitution, 400 mapping, dry-run credential masking, error body inclusion, 204 handling |
+| Enterprise audit on 05-02: Applied 1 must-have, 1 strongly-recommended. Verdict: enterprise-ready after fixes | Phase 5 | Retries: network error retries for timeout/connect, debug logging of intermediate failures |
+| Enterprise audit on 05-03: Applied 1 must-have, 1 strongly-recommended. Verdict: enterprise-ready after fixes | Phase 5 | Pagination: MAX_PAGES safety limit, progress logging |
+| Enterprise audit on 05-04: Applied 1 must-have, 1 strongly-recommended. Verdict: enterprise-ready after fixes | Phase 5 | Quirks: static slice type for Quirk struct, operationId existence verification test |
 
 ### Deferred Issues
 None yet.
@@ -55,19 +59,20 @@ None yet.
 None yet.
 
 ### Git State
-Last commit: 8504c08
+Last commit: 88b4550
 Branch: main
 Feature branches merged: none
 
 ## Session Continuity
 
-Last session: 2026-03-21
-Stopped at: Phase 4 complete, ready to plan Phase 5
-Next action: /paul:plan for Phase 5 (Generic HTTP Executor)
+Last session: 2026-03-21 (session 8)
+Stopped at: Phase 5 complete, transitioned to Phase 6
+Next action: /paul:plan for Phase 6 (Output & Formatting)
 Resume file: .paul/ROADMAP.md
 Resume context:
-- Phase 4 complete: profiles, credentials, OAuth 2.0, setup wizard — 203 tests
-- Phase 5 scope: URL building, request construction, rate limiting, retries, pagination, quirks registry
+- Phase 5 complete: executor, retries, pagination, quirks (278 tests)
+- Milestone progress: 5/8 phases (69%)
+- Phase 6 scope: output formatters (table, JSON, YAML, CSV), TTY detection, ADF rendering, pager
 - User wants autonomous execution: plan → audit → apply → unify, no stopping
 - MSYS2 GCC needed on PATH: export PATH="/c/msys64/mingw64/bin:$HOME/.cargo/bin:$PATH"
 

@@ -43,7 +43,7 @@ fn handle_product(
         json_body.map(|s| s.to_string()),
     )?;
 
-    executor::execute(client, &resolved, &parsed_args, credential, dry_run, page_all, limit)
+    executor::execute(client, &product, &resolved, &parsed_args, credential, dry_run, page_all, limit)
 }
 
 /// Resolve the active profile from the precedence chain:
