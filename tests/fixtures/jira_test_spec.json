@@ -1,0 +1,60 @@
+{
+  "openapi": "3.0.1",
+  "info": { "title": "Jira Platform (Test)", "version": "1.0.0" },
+  "servers": [{ "url": "https://test.atlassian.net" }],
+  "tags": [
+    { "name": "issues", "description": "Issue operations" },
+    { "name": "issue search", "description": "Search operations" }
+  ],
+  "paths": {
+    "/rest/api/3/issue": {
+      "post": {
+        "operationId": "createIssue",
+        "summary": "Create issue",
+        "tags": ["issues"],
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": {} }
+        },
+        "responses": { "201": { "description": "Created" } }
+      }
+    },
+    "/rest/api/3/search": {
+      "get": {
+        "operationId": "searchForIssuesUsingJql",
+        "summary": "Search for issues using JQL",
+        "tags": ["issue search"],
+        "parameters": [
+          { "name": "jql", "in": "query", "required": false, "schema": { "type": "string" } },
+          { "name": "startAt", "in": "query", "required": false, "schema": { "type": "integer" } },
+          { "name": "maxResults", "in": "query", "required": false, "schema": { "type": "integer" } }
+        ],
+        "responses": { "200": { "description": "Search results" } }
+      }
+    },
+    "/rest/api/3/issue/{issueIdOrKey}/transitions": {
+      "get": {
+        "operationId": "getTransitions",
+        "summary": "Get transitions",
+        "tags": ["issues"],
+        "parameters": [
+          { "name": "issueIdOrKey", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": { "200": { "description": "Transitions" } }
+      },
+      "post": {
+        "operationId": "doTransition",
+        "summary": "Transition issue",
+        "tags": ["issues"],
+        "parameters": [
+          { "name": "issueIdOrKey", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": {} }
+        },
+        "responses": { "204": { "description": "No content" } }
+      }
+    }
+  }
+}

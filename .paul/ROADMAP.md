@@ -7,8 +7,8 @@ A dynamic CLI for Atlassian Cloud — commands generated at runtime from OpenAPI
 ## Current Milestone
 
 **v0.1 MVP** (v0.1.0)
-Status: In progress
-Phases: 7 of 8 complete
+Status: Complete
+Phases: 8 of 8 complete
 
 ## Phases
 
@@ -21,7 +21,7 @@ Phases: 7 of 8 complete
 | 5 | Generic HTTP Executor | 4 | ✅ Complete | 2026-03-21 |
 | 6 | Output & Formatting | 2 | ✅ Complete | 2026-03-21 |
 | 7 | Helper Commands & ADF | 3 | ✅ Complete | 2026-03-21 |
-| 8 | Distribution & Polish | 3 | Not started | - |
+| 8 | Distribution & Polish | 3 | ✅ Complete | 2026-03-21 |
 
 ## Phase Details
 
@@ -170,10 +170,10 @@ Phases: 7 of 8 complete
 - Performance benchmarking
 
 **Plans:**
-- [ ] 08-01: cargo-dist release pipeline, Homebrew tap, and Scoop manifest
-- [ ] 08-02: Mock-based integration tests with recorded API responses
-- [ ] 08-03: On-demand E2E smoke tests against live Atlassian Cloud, performance benchmarks, and first-run polish
+- [x] 08-01: cargo-dist release pipeline, Homebrew tap, and Scoop manifest
+- [x] 08-02: Mock-based integration tests with recorded API responses
+- [x] 08-03: On-demand E2E smoke tests against live Atlassian Cloud, performance benchmarks, and first-run polish
 
 ---
 *Roadmap created: 2026-03-21*
-*Last updated: 2026-03-21 after Phase 6*
+*Last updated: 2026-03-21 after Phase 8 (v0.1 MVP complete)*

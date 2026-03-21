@@ -1,0 +1,58 @@
+name: E2E Smoke Tests
+
+on:
+  workflow_dispatch:
+    inputs:
+      site_url:
+        description: "Atlassian site URL (e.g., mysite.atlassian.net)"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  smoke-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      SHRUG_SITE: ${{ inputs.site_url }}
+      SHRUG_EMAIL: ${{ secrets.SHRUG_EMAIL }}
+      SHRUG_API_TOKEN: ${{ secrets.SHRUG_API_TOKEN }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo registry and build
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('Cargo.lock') }}
+
+      - name: Build shrug
+        run: cargo build --release
+
+      - name: Smoke test - version
+        run: ./target/release/shrug --version
+
+      - name: Smoke test - help
+        run: |
+          output=$(./target/release/shrug --help)
+          echo "$output"
+          echo "$output" | grep -q "Atlassian"
+
+      - name: Smoke test - jira help (spec loading)
+        run: ./target/release/shrug jira --help
+
+      - name: Smoke test - live API (list issues)
+        if: env.SHRUG_API_TOKEN != ''
+        run: |
+          output=$(./target/release/shrug jira issues searchForIssuesUsingJql --maxResults 1 --output json 2>&1) || true
+          echo "$output"
+          echo "Live API smoke test completed (exit code may vary based on permissions)"

@@ -13,9 +13,9 @@ Users and AI agents can interact with all Atlassian Cloud products from the comm
 | Attribute | Value |
 |-----------|-------|
 | Version | 0.1.0 |
-| Status | Helper commands and completions complete |
+| Status | v0.1 MVP complete |
 | Last Updated | 2026-03-21 |
-| Phase | 7 complete, ready for Phase 8 |
+| Phase | 8 of 8 complete — all phases shipped |
 
 ## Requirements
 
@@ -57,12 +57,12 @@ Users and AI agents can interact with all Atlassian Cloud products from the comm
 **Error Handling & Resilience**
 - [x] Structured exit codes (0=ok, 2=usage, 3=auth, 4=not-found, 5=forbidden, 10=rate-limited, 11=network, 12=server) — Phase 1
 - [x] Rate limit handling: parse `Retry-After`, exponential backoff with jitter, max 4 retries — Phase 5
-- [ ] Actionable error messages (what happened → why → what to do)
+- [x] Actionable error messages (what happened → why → what to do) — Phase 8
 
 **Cross-Platform**
-- [ ] Windows, macOS, Linux support
+- [x] Windows, macOS, Linux support — Phase 8 (release workflow targets all 3)
 - [x] Platform-correct config/cache paths via `directories` crate — Phase 1
-- [ ] Static binary distribution (musl for Linux)
+- [x] Static binary distribution (musl for Linux) — Phase 8
 
 ### Should Have
 
@@ -110,11 +110,11 @@ Users and AI agents can interact with all Atlassian Cloud products from the comm
 - [ ] Plugin/extension system for custom commands
 
 **Distribution**
-- [ ] Homebrew tap (macOS/Linux)
-- [ ] Scoop manifest (Windows)
+- [x] Homebrew tap (macOS/Linux) — Phase 8 (template formula)
+- [x] Scoop manifest (Windows) — Phase 8 (template manifest)
 - [ ] WinGet package
 - [ ] `cargo binstall` support
-- [ ] GitHub Releases with automated builds via `cargo-dist`
+- [x] GitHub Releases with automated builds via `cargo-dist` — Phase 8
 - [ ] macOS notarization, Windows code signing
 
 ### Out of Scope
@@ -331,4 +331,4 @@ Users and AI agents can interact with all Atlassian Cloud products from the comm
 
 ---
 *PROJECT.md — Updated when requirements or context change*
-*Last updated: 2026-03-21 after Phase 6*
+*Last updated: 2026-03-21 after Phase 8 (v0.1 MVP complete)*

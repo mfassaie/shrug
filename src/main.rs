@@ -459,6 +459,14 @@ fn run(config: &ShrugConfig, cli: &Cli) -> Result<(), ShrugError> {
             let cred_store = get_credential_store(&paths)?;
             let profile = resolve_profile(&cli.profile, config, &profile_store)?;
 
+            // First-run detection: if no profile resolved and profile store is empty,
+            // guide the user to set up their account rather than failing with a confusing error.
+            if profile.is_none() && profile_store.list()?.is_empty() {
+                return Err(ShrugError::AuthError(
+                    "No profile configured. Run `shrug auth setup` to connect your Atlassian account.".into(),
+                ));
+            }
+
             let credential = if let Some(ref p) = profile {
                 tracing::debug!(profile = %p.name, site = %p.site, "Active profile for request");
 
@@ -621,6 +629,7 @@ fn main() {
         Ok(c) => c,
         Err(e) => {
             eprintln!("Error: {e}");
+            eprintln!("Hint: {}", e.remediation());
             std::process::exit(e.exit_code());
         }
     };
@@ -632,6 +641,7 @@ fn main() {
         Ok(()) => std::process::exit(shrug::exit_codes::OK),
         Err(e) => {
             eprintln!("Error: {e}");
+            eprintln!("Hint: {}", e.remediation());
             std::process::exit(e.exit_code());
         }
     }
