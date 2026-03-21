@@ -2,13 +2,14 @@ use std::env;
 
 use clap::Parser;
 
-use shrug::auth::credentials::CredentialStore;
+use shrug::auth::credentials::{CredentialStore, ResolvedCredential};
 use shrug::auth::oauth;
 use shrug::auth::profile::{AuthType, Profile, ProfileStore};
 use shrug::cli::{AuthCommands, Cli, Commands, ProfileCommands};
-use shrug::cmd::{router, tree};
+use shrug::cmd::router;
 use shrug::config::{self, ShrugConfig, ShrugPaths};
 use shrug::error::ShrugError;
+use shrug::executor;
 use shrug::logging;
 use shrug::spec::registry::Product;
 use shrug::spec::SpecCache;
@@ -20,6 +21,10 @@ fn handle_product(
     product: Product,
     args: &[String],
     config: &ShrugConfig,
+    client: &reqwest::blocking::Client,
+    credential: Option<&ResolvedCredential>,
+    dry_run: bool,
+    json_body: Option<&str>,
 ) -> Result<(), ShrugError> {
     let paths = ShrugPaths::new()
         .ok_or_else(|| ShrugError::SpecError("Could not determine cache directory".into()))?;
@@ -29,17 +34,13 @@ fn handle_product(
 
     let resolved = router::route_product(&product, &spec, args)?;
 
-    // Display operation detail (actual HTTP execution in Phase 5)
-    eprintln!(
-        "{}",
-        tree::format_operation_detail(&resolved.operation, resolved.server_url.as_deref())
-    );
-    if !resolved.remaining_args.is_empty() {
-        eprintln!("\n  Args: {:?}", resolved.remaining_args);
-    }
-    eprintln!("\n  [Phase 5 will execute this API call]");
+    let parsed_args = executor::parse_args(
+        &resolved.operation,
+        &resolved.remaining_args,
+        json_body.map(|s| s.to_string()),
+    )?;
 
-    Ok(())
+    executor::execute(client, &resolved, &parsed_args, credential, dry_run)
 }
 
 /// Resolve the active profile from the precedence chain:
@@ -428,7 +429,7 @@ fn run(config: &ShrugConfig, cli: &Cli) -> Result<(), ShrugError> {
             let cred_store = get_credential_store(&paths)?;
             let profile = resolve_profile(&cli.profile, config, &profile_store)?;
 
-            if let Some(ref p) = profile {
+            let credential = if let Some(ref p) = profile {
                 tracing::debug!(profile = %p.name, site = %p.site, "Active profile for request");
 
                 // Ensure OAuth tokens are fresh before resolving
@@ -440,17 +441,32 @@ fn run(config: &ShrugConfig, cli: &Cli) -> Result<(), ShrugError> {
                 match cred_store.resolve(p, None) {
                     Ok(Some(cred)) => {
                         tracing::debug!(source = %cred.source, "Credential resolved");
+                        Some(cred)
                     }
                     Ok(None) => {
                         tracing::debug!("No credentials found for profile");
+                        None
                     }
                     Err(e) => {
                         tracing::warn!("Credential resolution failed: {}", e);
+                        None
                     }
                 }
-            }
+            } else {
+                None
+            };
 
-            handle_product(product, args, config)
+            let client = executor::create_client()?;
+
+            handle_product(
+                product,
+                args,
+                config,
+                &client,
+                credential.as_ref(),
+                cli.dry_run,
+                cli.json.as_deref(),
+            )
         }
         Some(Commands::Auth { command }) => {
             let paths = get_paths()?;
