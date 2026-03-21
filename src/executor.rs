@@ -6,8 +6,10 @@ use rand::Rng;
 use reqwest::blocking::Client;
 
 use crate::auth::credentials::{AuthScheme, ResolvedCredential};
+use crate::cli::OutputFormat;
 use crate::cmd::router::ResolvedCommand;
 use crate::error::ShrugError;
+use crate::output;
 use crate::quirks;
 use crate::spec::analysis;
 use crate::spec::model::{HttpMethod, Operation, ParameterLocation};
@@ -358,6 +360,11 @@ pub fn execute(
     dry_run: bool,
     page_all: bool,
     limit: Option<u32>,
+    format: &OutputFormat,
+    is_tty: bool,
+    color_enabled: bool,
+    fields: Option<&[String]>,
+    no_pager: bool,
 ) -> Result<(), ShrugError> {
     let base_url = resolve_base_url(command.server_url.as_deref(), credential);
     let full_url = build_full_url(
@@ -413,6 +420,10 @@ pub fn execute(
             &style,
             limit,
             extra_headers,
+            format,
+            is_tty,
+            color_enabled,
+            fields,
         ),
         None => {
             // Single request (no pagination)
@@ -425,7 +436,8 @@ pub fn execute(
                 extra_headers,
             )?;
             if let Some(body) = response_body {
-                println!("{}", body);
+                let formatted = output::format_response(&body, format, is_tty, color_enabled, fields);
+                output::print_with_pager(&formatted, !no_pager, is_tty);
             }
             Ok(())
         }
@@ -446,6 +458,10 @@ fn execute_paginated(
     style: &analysis::PaginationStyle,
     limit: Option<u32>,
     extra_headers: &[(&str, &str)],
+    format: &OutputFormat,
+    is_tty: bool,
+    color_enabled: bool,
+    fields: Option<&[String]>,
 ) -> Result<(), ShrugError> {
     let mut total_results: u32 = 0;
     let mut page_count: u32 = 0;
@@ -497,7 +513,8 @@ fn execute_paginated(
         };
 
         // Print this page
-        println!("{}", body_text);
+        let formatted = output::format_response(&body_text, format, is_tty, color_enabled, fields);
+        println!("{}", formatted);
 
         // Parse response to determine if more pages exist
         let json: serde_json::Value = serde_json::from_str(&body_text).unwrap_or_default();

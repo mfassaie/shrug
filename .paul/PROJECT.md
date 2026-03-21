@@ -13,9 +13,9 @@ Users and AI agents can interact with all Atlassian Cloud products from the comm
 | Attribute | Value |
 |-----------|-------|
 | Version | 0.1.0 |
-| Status | HTTP executor complete |
+| Status | Output formatting complete |
 | Last Updated | 2026-03-21 |
-| Phase | 5 complete, ready for Phase 6 |
+| Phase | 6 complete, ready for Phase 7 |
 
 ## Requirements
 
@@ -41,15 +41,15 @@ Users and AI agents can interact with all Atlassian Cloud products from the comm
 - [x] Interactive first-run setup wizard (`shrug auth setup`) — Phase 4
 
 **Output & Formatting**
-- [ ] Multiple output formats: JSON (default for pipes), table (default for TTY), YAML, CSV, plain
-- [ ] TTY detection for automatic format/color selection
-- [ ] `NO_COLOR` and `--color=auto|always|never` support
-- [ ] Pager integration for long output (`$PAGER`, `--no-pager`)
-- [ ] `--fields` for column selection in table output
+- [x] Multiple output formats: JSON (default for pipes), table (default for TTY), YAML, CSV, plain — Phase 6
+- [x] TTY detection for automatic format/color selection — Phase 6
+- [x] `NO_COLOR` and `--color=auto|always|never` support — Phase 6
+- [x] Pager integration for long output (`$PAGER`, `--no-pager`) — Phase 6
+- [x] `--fields` for column selection in table output — Phase 6
 
 **Atlassian Data Handling**
 - [ ] ADF (Atlassian Document Format) input: accept Markdown/plain text → convert to ADF
-- [ ] ADF output: render as plain text or ANSI-formatted terminal output
+- [x] ADF output: render as plain text or ANSI-formatted terminal output — Phase 6
 - [ ] JQL support via `--jql` flag for raw queries
 - [x] Unified pagination iterator (offset-based, cursor-based, link-based) — Phase 5
 - [x] Auto-pagination with `--page-all` and `--limit` — Phase 5
@@ -331,4 +331,4 @@ Users and AI agents can interact with all Atlassian Cloud products from the comm
 
 ---
 *PROJECT.md — Updated when requirements or context change*
-*Last updated: 2026-03-21 after Phase 5*
+*Last updated: 2026-03-21 after Phase 6*

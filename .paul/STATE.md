@@ -5,19 +5,19 @@
 See: .paul/PROJECT.md (updated 2026-03-21)
 
 **Core value:** Users and AI agents can interact with Atlassian Cloud products from the command line without context-switching to a browser.
-**Current focus:** Phase 6 — Output & Formatting
+**Current focus:** Phase 7 — Helper Commands & ADF
 
 ## Current Position
 
 Milestone: v0.1 MVP (v0.1.0)
-Phase: 6 of 8 (Output & Formatting) — Not started
+Phase: 7 of 8 (Helper Commands & ADF) — Not started
 Plan: Not started
 Status: Ready to plan
-Last activity: 2026-03-21 — Phase 5 complete, transitioned to Phase 6
+Last activity: 2026-03-21 — Phase 6 complete, transitioned to Phase 7
 
 Progress:
-- Milestone: [███████░░░] 69%
-- Phase 6: [░░░░░░░░░░] 0%
+- Milestone: [████████░░] 78%
+- Phase 7: [░░░░░░░░░░] 0%
 
 ## Loop Position
 
@@ -51,6 +51,8 @@ PLAN ──▶ APPLY ──▶ UNIFY
 | Enterprise audit on 05-02: Applied 1 must-have, 1 strongly-recommended. Verdict: enterprise-ready after fixes | Phase 5 | Retries: network error retries for timeout/connect, debug logging of intermediate failures |
 | Enterprise audit on 05-03: Applied 1 must-have, 1 strongly-recommended. Verdict: enterprise-ready after fixes | Phase 5 | Pagination: MAX_PAGES safety limit, progress logging |
 | Enterprise audit on 05-04: Applied 1 must-have, 1 strongly-recommended. Verdict: enterprise-ready after fixes | Phase 5 | Quirks: static slice type for Quirk struct, operationId existence verification test |
+| Enterprise audit on 06-01: Applied 1 must-have, 1 strongly-recommended. Verdict: enterprise-ready after fixes | Phase 6 | Output: non-JSON body fallback, deterministic CSV column ordering |
+| Enterprise audit on 06-02: Applied 1 must-have, 1 strongly-recommended. Verdict: enterprise-ready after fixes | Phase 6 | Output: pager disabled for pagination, pager default -F -X flags |
 
 ### Deferred Issues
 None yet.
@@ -66,13 +68,13 @@ Feature branches merged: none
 ## Session Continuity
 
 Last session: 2026-03-21 (session 8)
-Stopped at: Phase 5 complete, transitioned to Phase 6
-Next action: /paul:plan for Phase 6 (Output & Formatting)
+Stopped at: Phase 6 complete, transitioned to Phase 7
+Next action: /paul:plan for Phase 7 (Helper Commands & ADF)
 Resume file: .paul/ROADMAP.md
 Resume context:
-- Phase 5 complete: executor, retries, pagination, quirks (278 tests)
-- Milestone progress: 5/8 phases (69%)
-- Phase 6 scope: output formatters (table, JSON, YAML, CSV), TTY detection, ADF rendering, pager
+- Phase 6 complete: output formatters, --fields, pager, ADF rendering (321 tests)
+- Milestone progress: 6/8 phases (78%)
+- Phase 7 scope: Markdown → ADF, JQL shorthand, helper commands, shell completions
 - User wants autonomous execution: plan → audit → apply → unify, no stopping
 - MSYS2 GCC needed on PATH: export PATH="/c/msys64/mingw64/bin:$HOME/.cargo/bin:$PATH"
 

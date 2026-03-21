@@ -38,6 +38,14 @@ pub struct Cli {
     #[arg(long, global = true)]
     pub limit: Option<u32>,
 
+    /// Select specific fields for table/CSV output (comma-separated)
+    #[arg(long, global = true)]
+    pub fields: Option<String>,
+
+    /// Disable pager for output
+    #[arg(long, global = true)]
+    pub no_pager: bool,
+
     /// Enable trace-level logging (full diagnostic output)
     #[arg(long, global = true)]
     pub trace: bool,
