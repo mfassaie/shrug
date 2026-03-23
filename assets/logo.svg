@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200">
+  <rect width="200" height="200" rx="32" fill="white"/>
+  <!-- Big solid filled globe -->
+  <circle cx="100" cy="68" r="58" fill="#0052CC"/>
+  <ellipse cx="100" cy="68" rx="58" ry="21" fill="none" stroke="rgba(255,255,255,0.25)" stroke-width="1.5"/>
+  <ellipse cx="100" cy="68" rx="21" ry="58" fill="none" stroke="rgba(255,255,255,0.25)" stroke-width="1.5"/>
+  <path d="M 100 10 L 100 126" fill="none" stroke="rgba(255,255,255,0.15)" stroke-width="1"/>
+  <!-- Stickman holding it (slightly larger) -->
+  <circle cx="100" cy="142" r="8" fill="#172B4D"/>
+  <line x1="100" y1="150" x2="100" y2="172" stroke="#172B4D" stroke-width="3" stroke-linecap="round"/>
+  <path d="M 100,153 L 74,138 L 62,126" fill="none" stroke="#172B4D" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M 100,153 L 126,138 L 138,126" fill="none" stroke="#172B4D" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+  <line x1="100" y1="172" x2="85" y2="192" stroke="#172B4D" stroke-width="3" stroke-linecap="round"/>
+  <line x1="100" y1="172" x2="115" y2="192" stroke="#172B4D" stroke-width="3" stroke-linecap="round"/>
+</svg>

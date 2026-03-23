@@ -1,4 +1,8 @@
-# shrug
+<p align="center">
+  <img src="assets/logo.svg" alt="shrug logo" width="128" height="128">
+</p>
+
+<h1 align="center">shrug</h1>
 
 A dynamic CLI for Atlassian Cloud. Commands are generated at runtime from Atlassian's OpenAPI specifications, so the binary ships with no hardcoded API knowledge and automatically supports every endpoint across Jira, Jira Software, and Confluence (~925 operations).
 
