@@ -89,10 +89,10 @@ Users and AI agents can interact with all Atlassian Cloud products from the comm
 - [x] All debug output to stderr — Phase 1
 
 **Performance**
-- [ ] Binary spec cache with rkyv zero-copy deserialization (<30ms warm startup)
-- [ ] Lazy per-product spec loading
-- [ ] Serve-stale cache with background ETag refresh
-- [ ] Connection pooling via reqwest Client reuse
+- [x] Binary spec cache with rkyv zero-copy deserialization (<30ms warm startup) — Phase 18
+- [x] Lazy per-product spec loading — already implemented (SpecLoader loads per-product)
+- [x] Serve-stale cache with background ETag refresh — Phase 18
+- [x] Connection pooling via reqwest Client reuse — already implemented (shared Client in main.rs)
 
 ### Nice to Have
 
@@ -331,4 +331,4 @@ Users and AI agents can interact with all Atlassian Cloud products from the comm
 
 ---
 *PROJECT.md — Updated when requirements or context change*
-*Last updated: 2026-03-23 after v0.3 Test Coverage & Entity Expansion milestone*
+*Last updated: 2026-03-23 after Phase 18 (Spec Performance)*

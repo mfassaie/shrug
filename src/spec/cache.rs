@@ -44,31 +44,29 @@ impl SpecCache {
     /// Save a parsed spec to the cache with metadata.
     /// Writes both JSON (for metadata/TTL) and binary (for fast loading).
     pub fn save(&self, product: &str, spec: &ApiSpec) -> Result<(), ShrugError> {
+        self.save_with_etag(product, spec, None)
+    }
+
+    /// Save a parsed spec with an optional ETag from the HTTP response.
+    /// Writes both JSON (for metadata/TTL) and binary (for fast loading).
+    pub fn save_with_etag(
+        &self,
+        product: &str,
+        spec: &ApiSpec,
+        etag: Option<String>,
+    ) -> Result<(), ShrugError> {
         validate_cache_key(product)?;
 
         let entry = CacheEntry {
             metadata: CacheMetadata {
                 cached_at: Utc::now(),
                 spec_version: spec.version.clone(),
-                etag: None,
+                etag,
             },
             spec: spec.clone(),
         };
 
-        let json = serde_json::to_string_pretty(&entry)
-            .map_err(|e| ShrugError::SpecError(format!("Failed to serialize spec cache: {e}")))?;
-
-        let target = self.spec_path(product);
-        let tmp = self
-            .specs_dir
-            .join(format!("{product}.json.tmp.{}", std::process::id()));
-        fs::write(&tmp, &json).map_err(|e| {
-            ShrugError::SpecError(format!("Failed to write spec cache temp file: {e}"))
-        })?;
-        fs::rename(&tmp, &target).map_err(|e| {
-            let _ = fs::remove_file(&tmp);
-            ShrugError::SpecError(format!("Failed to rename spec cache file: {e}"))
-        })?;
+        self.write_json_entry(product, &entry)?;
 
         // Dual-write: also save binary cache for fast loading
         if let Err(e) = self.save_binary(product, spec) {
@@ -134,6 +132,23 @@ impl SpecCache {
         Ok(())
     }
 
+    /// Get the stored ETag for a product's cached spec.
+    /// Returns None if no cache exists or no ETag was stored.
+    pub fn load_etag(&self, product: &str) -> Result<Option<String>, ShrugError> {
+        Ok(self.load_entry(product)?.and_then(|e| e.metadata.etag))
+    }
+
+    /// Refresh the cache TTL without re-saving the spec.
+    /// Updates cached_at to now, preserving the spec and ETag.
+    pub fn touch_ttl(&self, product: &str) -> Result<(), ShrugError> {
+        let mut entry = match self.load_entry(product)? {
+            Some(e) => e,
+            None => return Ok(()),
+        };
+        entry.metadata.cached_at = Utc::now();
+        self.write_json_entry(product, &entry)
+    }
+
     /// List product names that have cached spec files.
     pub fn list_cached(&self) -> Vec<String> {
         fs::read_dir(&self.specs_dir)
@@ -180,6 +195,15 @@ impl SpecCache {
             }
             None => Ok(true),
         }
+    }
+
+    /// Get the cache directory (parent of specs/).
+    /// Used by background refresh to create its own SpecCache instance.
+    pub fn cache_dir(&self) -> PathBuf {
+        self.specs_dir
+            .parent()
+            .map(|p| p.to_path_buf())
+            .unwrap_or_else(|| self.specs_dir.clone())
     }
 
     /// Get the specs directory path (used by tests in registry module).
@@ -255,6 +279,25 @@ impl SpecCache {
 
     fn binary_path(&self, product: &str) -> PathBuf {
         self.specs_dir.join(format!("{product}.rkyv"))
+    }
+
+    fn write_json_entry(&self, product: &str, entry: &CacheEntry) -> Result<(), ShrugError> {
+        let json = serde_json::to_string_pretty(entry)
+            .map_err(|e| ShrugError::SpecError(format!("Failed to serialize spec cache: {e}")))?;
+
+        let target = self.spec_path(product);
+        let tmp = self
+            .specs_dir
+            .join(format!("{product}.json.tmp.{}", std::process::id()));
+        fs::write(&tmp, &json).map_err(|e| {
+            ShrugError::SpecError(format!("Failed to write spec cache temp file: {e}"))
+        })?;
+        fs::rename(&tmp, &target).map_err(|e| {
+            let _ = fs::remove_file(&tmp);
+            ShrugError::SpecError(format!("Failed to rename spec cache file: {e}"))
+        })?;
+
+        Ok(())
     }
 
     fn load_entry(&self, product: &str) -> Result<Option<CacheEntry>, ShrugError> {
@@ -596,5 +639,80 @@ mod tests {
         let loaded = cache.load("test-api", 24).unwrap();
         assert!(loaded.is_some());
         assert_eq!(loaded.unwrap().title, "Test API");
+    }
+
+    #[test]
+    fn save_with_etag_stores_etag() {
+        let (_tmp, cache) = make_cache();
+        let spec = test_spec("1.0.0");
+
+        cache
+            .save_with_etag("test-api", &spec, Some("W/\"abc123\"".to_string()))
+            .unwrap();
+
+        let etag = cache.load_etag("test-api").unwrap();
+        assert_eq!(etag, Some("W/\"abc123\"".to_string()));
+    }
+
+    #[test]
+    fn save_without_etag_stores_none() {
+        let (_tmp, cache) = make_cache();
+        let spec = test_spec("1.0.0");
+
+        cache.save("test-api", &spec).unwrap();
+
+        let etag = cache.load_etag("test-api").unwrap();
+        assert_eq!(etag, None);
+    }
+
+    #[test]
+    fn load_etag_returns_none_when_no_cache() {
+        let (_tmp, cache) = make_cache();
+        let etag = cache.load_etag("nonexistent").unwrap();
+        assert_eq!(etag, None);
+    }
+
+    #[test]
+    fn touch_ttl_refreshes_timestamp() {
+        let (_tmp, cache) = make_cache();
+        let spec = test_spec("1.0.0");
+
+        // Save with old timestamp
+        cache.save("test-api", &spec).unwrap();
+        let mut entry = cache.load_entry("test-api").unwrap().unwrap();
+        entry.metadata.cached_at = Utc::now() - chrono::Duration::hours(25);
+        cache.write_json_entry("test-api", &entry).unwrap();
+
+        // Confirm it's expired
+        assert!(cache.load("test-api", 24).unwrap().is_none());
+
+        // Touch TTL
+        cache.touch_ttl("test-api").unwrap();
+
+        // Should now be fresh
+        let loaded = cache.load("test-api", 24).unwrap();
+        assert!(loaded.is_some(), "touch_ttl should refresh the TTL");
+    }
+
+    #[test]
+    fn touch_ttl_preserves_etag() {
+        let (_tmp, cache) = make_cache();
+        let spec = test_spec("1.0.0");
+
+        cache
+            .save_with_etag("test-api", &spec, Some("W/\"xyz\"".to_string()))
+            .unwrap();
+
+        cache.touch_ttl("test-api").unwrap();
+
+        let etag = cache.load_etag("test-api").unwrap();
+        assert_eq!(etag, Some("W/\"xyz\"".to_string()));
+    }
+
+    #[test]
+    fn touch_ttl_is_noop_when_no_cache() {
+        let (_tmp, cache) = make_cache();
+        // Should not error
+        cache.touch_ttl("nonexistent").unwrap();
     }
 }

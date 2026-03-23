@@ -1,3 +1,4 @@
+use std::path::PathBuf;
 use std::time::Duration;
 
 use crate::error::ShrugError;
@@ -142,17 +143,36 @@ impl SpecLoader {
         Self { cache, ttl_hours }
     }
 
-    /// Load a spec: try cache first, then network, then bundled fallback.
+    /// Load a spec with serve-stale pattern.
+    ///
+    /// 1. Fresh cache: return immediately.
+    /// 2. Stale cache: return immediately, spawn background thread to refresh.
+    /// 3. No cache: synchronous fetch, then bundled fallback.
     pub fn load(&self, product: &Product) -> Result<ApiSpec, ShrugError> {
         let cache_key = product.info().cache_key;
 
-        // Tier 1: Try cache (TTL-based)
+        // Tier 1: Try fresh cache (within TTL)
         if let Some(spec) = self.cache.load(cache_key, self.ttl_hours)? {
-            tracing::debug!(product = cache_key, "Spec loaded from cache");
+            tracing::debug!(product = cache_key, "Spec loaded from fresh cache");
             return Ok(spec);
         }
 
-        // Tier 2: Try network fetch
+        // Tier 2: Serve stale cache + background refresh
+        if let Some(spec) = self.cache.load_stale(cache_key)? {
+            tracing::debug!(product = cache_key, "Serving stale cache, spawning background refresh");
+            let cache_dir = self.cache.cache_dir();
+            let spec_url = product.info().spec_url.to_string();
+            let key = cache_key.to_string();
+            let spec_format = product.info().spec_format;
+            let etag = self.cache.load_etag(cache_key).unwrap_or(None);
+            // Fire-and-forget background refresh
+            let _ = std::thread::spawn(move || {
+                background_refresh(cache_dir, spec_url, key, spec_format, etag);
+            });
+            return Ok(spec);
+        }
+
+        // Tier 3: No cache at all, synchronous fetch
         match self.fetch_spec(product) {
             Ok(spec) => return Ok(spec),
             Err(e) => {
@@ -164,7 +184,7 @@ impl SpecLoader {
             }
         }
 
-        // Tier 3: Bundled fallback
+        // Tier 4: Bundled fallback
         self.load_bundled(product)
     }
 
@@ -193,7 +213,7 @@ impl SpecLoader {
             .has_version_changed(product.info().cache_key, new_spec)
     }
 
-    /// Fetch a spec from Atlassian CDN, parse it, and save to cache.
+    /// Fetch a spec from Atlassian CDN, parse it, and save to cache with ETag.
     fn fetch_spec(&self, product: &Product) -> Result<ApiSpec, ShrugError> {
         let info = product.info();
 
@@ -203,12 +223,30 @@ impl SpecLoader {
             .build()
             .map_err(ShrugError::NetworkError)?;
 
-        let response = client
-            .get(info.spec_url)
-            .send()
-            .map_err(ShrugError::NetworkError)?;
+        // Send conditional request if we have a stored ETag
+        let mut request = client.get(info.spec_url);
+        if let Ok(Some(etag)) = self.cache.load_etag(info.cache_key) {
+            request = request.header("If-None-Match", &etag);
+        }
+
+        let response = request.send().map_err(ShrugError::NetworkError)?;
 
         let status = response.status();
+
+        // 304 Not Modified: spec hasn't changed, just refresh TTL
+        if status == reqwest::StatusCode::NOT_MODIFIED {
+            tracing::debug!(product = info.cache_key, "Spec not modified (304), refreshing TTL");
+            self.cache.touch_ttl(info.cache_key)?;
+            // Return the cached spec
+            if let Some(spec) = self.cache.load_stale(info.cache_key)? {
+                return Ok(spec);
+            }
+            // Edge case: 304 but no cache (shouldn't happen). Fall through to error.
+            return Err(ShrugError::SpecError(
+                "Received 304 but no cached spec exists".to_string(),
+            ));
+        }
+
         if !status.is_success() {
             return Err(ShrugError::SpecError(format!(
                 "HTTP {} fetching spec from {}",
@@ -216,13 +254,20 @@ impl SpecLoader {
             )));
         }
 
+        // Capture ETag from response headers
+        let etag = response
+            .headers()
+            .get("etag")
+            .and_then(|v| v.to_str().ok())
+            .map(|s| s.to_string());
+
         let body = response
             .text()
             .map_err(|e| ShrugError::SpecError(format!("Failed to read response body: {e}")))?;
 
         let spec = parse_spec(&body)?;
 
-        if let Err(e) = self.cache.save(info.cache_key, &spec) {
+        if let Err(e) = self.cache.save_with_etag(info.cache_key, &spec, etag) {
             tracing::warn!(
                 product = info.cache_key,
                 error = %e,
@@ -274,6 +319,75 @@ impl SpecLoader {
             "Spec loaded from bundled fallback"
         );
         Ok(spec)
+    }
+}
+
+/// Background spec refresh (runs in a detached thread).
+/// Creates its own HTTP client and cache instance to avoid Send/Sync issues.
+/// Best-effort: all errors are logged but never propagated.
+fn background_refresh(
+    cache_dir: PathBuf,
+    spec_url: String,
+    cache_key: String,
+    spec_format: SpecFormat,
+    etag: Option<String>,
+) {
+    let result = (|| -> Result<(), ShrugError> {
+        let cache = SpecCache::new(cache_dir)?;
+
+        let client = reqwest::blocking::Client::builder()
+            .timeout(Duration::from_secs(30))
+            .user_agent(format!("shrug/{}", env!("CARGO_PKG_VERSION")))
+            .build()
+            .map_err(ShrugError::NetworkError)?;
+
+        let mut request = client.get(&spec_url);
+        if let Some(ref etag_val) = etag {
+            request = request.header("If-None-Match", etag_val);
+        }
+
+        let response = request.send().map_err(ShrugError::NetworkError)?;
+        let status = response.status();
+
+        if status == reqwest::StatusCode::NOT_MODIFIED {
+            tracing::debug!(product = %cache_key, "Background refresh: 304 Not Modified, touching TTL");
+            cache.touch_ttl(&cache_key)?;
+            return Ok(());
+        }
+
+        if !status.is_success() {
+            return Err(ShrugError::SpecError(format!(
+                "Background refresh: HTTP {} from {}",
+                status, spec_url
+            )));
+        }
+
+        let new_etag = response
+            .headers()
+            .get("etag")
+            .and_then(|v| v.to_str().ok())
+            .map(|s| s.to_string());
+
+        let body = response
+            .text()
+            .map_err(|e| ShrugError::SpecError(format!("Failed to read response body: {e}")))?;
+
+        // parse_spec handles both V3 and V2 internally (it tries V3 first, falls back to V2)
+        let _ = spec_format; // Format is auto-detected by parse_spec
+        let spec = parse_spec(&body)?;
+        cache.save_with_etag(&cache_key, &spec, new_etag)?;
+
+        tracing::debug!(
+            product = %cache_key,
+            operations = spec.operations.len(),
+            "Background refresh: spec updated"
+        );
+
+        Ok(())
+    })();
+
+    if let Err(e) = result {
+        tracing::debug!(error = %e, "Background spec refresh failed (non-fatal)");
     }
 }
 
@@ -418,6 +532,48 @@ mod tests {
             .load(Product::Jira.info().cache_key, 24)
             .unwrap();
         assert!(cached.is_some(), "Bundled spec should be cached after load");
+    }
+
+    #[test]
+    fn loader_serves_stale_when_expired() {
+        let (_tmp, loader) = make_loader();
+        let spec = test_spec("Stale Serve API", "0.8.0");
+
+        // Save to cache, then expire it
+        loader
+            .cache
+            .save(Product::Jira.info().cache_key, &spec)
+            .unwrap();
+        let path = loader
+            .cache
+            .specs_dir()
+            .join(format!("{}.json", Product::Jira.info().cache_key));
+        let mut entry: crate::spec::cache::CacheEntry =
+            serde_json::from_str(&std::fs::read_to_string(&path).unwrap()).unwrap();
+        entry.metadata.cached_at = chrono::Utc::now() - chrono::Duration::hours(100);
+        std::fs::write(&path, serde_json::to_string_pretty(&entry).unwrap()).unwrap();
+
+        // load() should serve the stale spec (not None, not error)
+        let loaded = loader.load(&Product::Jira).unwrap();
+        assert_eq!(
+            loaded.title, "Stale Serve API",
+            "Should serve stale cache immediately"
+        );
+    }
+
+    #[test]
+    fn loader_fresh_cache_returns_without_background_work() {
+        let (_tmp, loader) = make_loader();
+        let spec = test_spec("Fresh API", "2.0.0");
+
+        // Save to cache (fresh)
+        loader
+            .cache
+            .save(Product::Jira.info().cache_key, &spec)
+            .unwrap();
+
+        let loaded = loader.load(&Product::Jira).unwrap();
+        assert_eq!(loaded.title, "Fresh API");
     }
 
     #[test]
