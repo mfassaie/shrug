@@ -6,20 +6,20 @@ A dynamic CLI for Atlassian Cloud — commands generated at runtime from OpenAPI
 
 ## Current Milestone
 
-**v0.5 MCP Server & Schema Introspection** (v0.5.0)
-Status: In Progress
+**v0.6 MCP Server & Schema Introspection** (v0.6.0)
+Status: Not started
 Phases: 0 of 2 complete
 
 ## Phases
 
 | Phase | Name | Plans | Status | Completed |
 |-------|------|-------|--------|-----------|
-| 21 | MCP Server | TBD | Not started | - |
-| 22 | Schema Introspection | TBD | Not started | - |
+| 25 | MCP Server | TBD | Not started | - |
+| 26 | Schema Introspection | TBD | Not started | - |
 
 ## Phase Details
 
-### Phase 21: MCP Server
+### Phase 25: MCP Server
 
 **Focus:** Expose Atlassian Cloud APIs as MCP tools for AI agents via stdio JSON-RPC protocol
 **Plans:** TBD
@@ -33,12 +33,12 @@ Phases: 0 of 2 complete
 - Reuse existing executor, auth, and spec infrastructure
 
 **Constraints:**
-- stdio transport only (no HTTP/SSE in v0.5)
+- stdio transport only (no HTTP/SSE in v0.6)
 - Must follow MCP specification for tool discovery and execution
 - Tool execution must use existing auth profiles
 - Must handle large tool lists efficiently
 
-### Phase 22: Schema Introspection
+### Phase 26: Schema Introspection
 
 **Focus:** `shrug schema` command for inspecting API operation schemas
 **Plans:** TBD
@@ -55,11 +55,25 @@ Phases: 0 of 2 complete
 
 ## Constraints
 
-- All existing tests must continue to pass (529 unit + doc + integration)
+- All existing tests must continue to pass (576 tests)
 - No regressions in existing CLI behaviour
 - MCP protocol compliance is mandatory
 
 ## Completed Milestones
+
+<details>
+<summary>v0.5 Windows E2E Smoke Tests - 2026-03-23 (4 phases, 4 plans)</summary>
+
+| Phase | Name | Plans | Completed |
+|-------|------|-------|-----------|
+| 21 | Installed Binary Test Harness | 1 | 2026-03-23 |
+| 22 | Static Commands & Global Flags | 1 | 2026-03-23 |
+| 23 | Help & Error Message Snapshots | 1 | 2026-03-23 |
+| 24 | Live API CRUD Smoke Tests | 1 | 2026-03-23 |
+
+Full archive: `.paul/milestones/v0.5.0-ROADMAP.md`
+
+</details>
 
 <details>
 <summary>v0.4 Performance & UX Polish - 2026-03-23 (3 phases, 4 plans)</summary>
@@ -123,4 +137,4 @@ Full archive: `.paul/milestones/v0.1.0-ROADMAP.md`
 
 ---
 *Roadmap created: 2026-03-21*
-*Last updated: 2026-03-23 after v0.5 milestone creation*
+*Last updated: 2026-03-23 after v0.5 milestone completion*

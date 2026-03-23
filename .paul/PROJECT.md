@@ -12,10 +12,10 @@ Users and AI agents can interact with all Atlassian Cloud products from the comm
 
 | Attribute | Value |
 |-----------|-------|
-| Version | 0.3.0 |
-| Status | v0.3 complete |
+| Version | 0.5.0 |
+| Status | v0.5 complete |
 | Last Updated | 2026-03-23 |
-| Phase | All phases complete (v0.1 + v0.2 + v0.3) |
+| Phase | All phases complete (v0.1 + v0.2 + v0.3 + v0.4 + v0.5) |
 
 ## Requirements
 

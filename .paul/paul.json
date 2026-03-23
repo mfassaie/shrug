@@ -2,14 +2,14 @@
   "name": "shrug",
   "version": "0.5.0",
   "milestone": {
-    "name": "v0.5 MCP Server & Schema Introspection",
+    "name": "v0.5 Windows E2E Smoke Tests",
     "version": "0.5.0",
-    "status": "in_progress"
+    "status": "complete"
   },
   "phase": {
-    "number": 21,
-    "name": "21-mcp-server",
-    "status": "not_started"
+    "number": 24,
+    "name": "24-live-api-crud-smoke-tests",
+    "status": "complete"
   },
   "loop": {
     "plan": null,

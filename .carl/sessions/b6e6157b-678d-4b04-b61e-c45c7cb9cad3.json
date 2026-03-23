@@ -1,0 +1,15 @@
+{
+  "uuid": "b6e6157b-678d-4b04-b61e-c45c7cb9cad3",
+  "started": "2026-03-23T15:28:38.766894",
+  "cwd": "C:\\Users\\Falconer\\Development\\mfassaie\\shrug",
+  "label": "shrug",
+  "title": "<command-message>paul:resume</command-message>",
+  "prompt_count": 45,
+  "last_activity": "2026-03-23T18:55:48.446134",
+  "overrides": {
+    "DEVMODE": null,
+    "GLOBAL_STATE": null,
+    "CONTEXT_STATE": null,
+    "COMMANDS_STATE": null
+  }
+}
