@@ -226,7 +226,7 @@ fn format_array_table(arr: &[serde_json::Value], color_enabled: bool) -> String 
 }
 
 fn format_yaml(json: &serde_json::Value) -> String {
-    serde_yml::to_string(json).unwrap_or_else(|_| format_json(json))
+    serde_yaml_ng::to_string(json).unwrap_or_else(|_| format_json(json))
 }
 
 /// Format CSV with optional field ordering from --fields.
