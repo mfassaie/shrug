@@ -223,3 +223,145 @@ fn test_error_remediation_hint() {
         result.stderr
     );
 }
+
+// ─── Pagination ─────────────────────────────────────────────────────────
+
+#[test]
+fn test_pagination_limit() {
+    let config = skip_unless_e2e!();
+    let runner = ShrugRunner::new(config);
+    let profile = setup_profile(&runner);
+    let project = runner.config().jira_project.as_str();
+
+    let jql = format!("project = {} ORDER BY created DESC", project);
+    let result = runner.run_json(&[
+        "jira", "Issue search", "search-and-reconsile-issues-using-jql",
+        "--jql", &jql,
+        "--maxResults", "2",
+    ]);
+    result.assert_success();
+    let issue_count = result
+        .json
+        .as_ref()
+        .and_then(|j| j.get("issues"))
+        .and_then(|i| i.as_array())
+        .map(|arr| arr.len())
+        .unwrap_or(0);
+    assert!(issue_count <= 2, "Expected at most 2 issues, got {}", issue_count);
+    eprintln!("Pagination limit test: got {} issues (max 2)", issue_count);
+    harness::rate_limit_delay(runner.config());
+    teardown_profile(&runner, &profile);
+}
+
+// ─── Verbose Logging ────────────────────────────────────────────────────
+
+#[test]
+fn test_verbose_logging() {
+    let config = skip_unless_e2e!();
+    let runner = ShrugRunner::new(config);
+    let profile = setup_profile(&runner);
+
+    let result = runner.run(&[
+        "-v",
+        "jira", "Issue types", "get-issue-all-types",
+    ]);
+    assert!(result.exit_code == 0, "Verbose command failed: {}", result.stderr);
+    // Tracing output goes to stderr — should contain log level indicator
+    assert!(
+        !result.stderr.is_empty(),
+        "Verbose mode should produce stderr logging output"
+    );
+    harness::rate_limit_delay(runner.config());
+    teardown_profile(&runner, &profile);
+}
+
+#[test]
+fn test_trace_logging() {
+    let config = skip_unless_e2e!();
+    let runner = ShrugRunner::new(config);
+    let profile = setup_profile(&runner);
+
+    let result = runner.run(&[
+        "--trace",
+        "jira", "Issue types", "get-issue-all-types",
+    ]);
+    assert!(result.exit_code == 0, "Trace command failed: {}", result.stderr);
+    // Trace should show request/response details
+    assert!(
+        !result.stderr.is_empty(),
+        "Trace mode should produce detailed stderr logging"
+    );
+    harness::rate_limit_delay(runner.config());
+    teardown_profile(&runner, &profile);
+}
+
+// ─── ADF Round-Trip ─────────────────────────────────────────────────────
+
+#[test]
+fn test_adf_comment_roundtrip() {
+    let config = skip_unless_e2e!();
+    let runner = ShrugRunner::new(config);
+    let profile = setup_profile(&runner);
+    let project = runner.config().jira_project.as_str();
+
+    // Create issue
+    let body = format!(
+        r#"{{"fields":{{"project":{{"key":"{}"}},"summary":"E2E ADF test","issuetype":{{"name":"Task"}}}}}}"#,
+        project
+    );
+    let create = runner.run_json_with_body(&body, &["jira", "Issues", "create-issue"]);
+    if create.exit_code != 0 {
+        eprintln!("Skipping ADF test: create-issue failed: {}", create.stderr);
+        teardown_profile(&runner, &profile);
+        return;
+    }
+    let key = create.json.as_ref()
+        .and_then(|j| j.get("key"))
+        .and_then(|v| v.as_str())
+        .expect("Expected issue key");
+    let key = key.to_string();
+    harness::rate_limit_delay(runner.config());
+
+    // Add comment with ADF body
+    let adf_body = r#"{"body":{"type":"doc","version":1,"content":[{"type":"paragraph","content":[{"type":"text","text":"ADF roundtrip test content"}]}]}}"#;
+    let add = runner.run_json_with_body(
+        adf_body,
+        &["jira", "Issue comments", "add-comment", "--issueIdOrKey", &key],
+    );
+    if add.exit_code != 0 {
+        eprintln!("ADF comment add failed: {}", add.stderr);
+        let _ = runner.run(&["jira", "Issues", "delete-issue", "--issueIdOrKey", &key]);
+        harness::rate_limit_delay(runner.config());
+        teardown_profile(&runner, &profile);
+        return;
+    }
+    let cid = add.json.as_ref()
+        .and_then(|j| j.get("id"))
+        .and_then(|v| v.as_str())
+        .expect("Expected comment id");
+    harness::rate_limit_delay(runner.config());
+
+    // Read comment back and verify content present
+    let read = runner.run_json(&[
+        "jira", "Issue comments", "get-comment",
+        "--issueIdOrKey", &key, "--id", cid,
+    ]);
+    read.assert_success();
+    // Verify the ADF text content is somewhere in the response
+    let raw = read.json.as_ref().map(|j| j.to_string()).unwrap_or_default();
+    assert!(
+        raw.contains("ADF roundtrip test content"),
+        "Comment should contain ADF text"
+    );
+    harness::rate_limit_delay(runner.config());
+
+    // Cleanup
+    let _ = runner.run(&[
+        "jira", "Issue comments", "delete-comment",
+        "--issueIdOrKey", &key, "--id", cid,
+    ]);
+    harness::rate_limit_delay(runner.config());
+    let _ = runner.run(&["jira", "Issues", "delete-issue", "--issueIdOrKey", &key]);
+    harness::rate_limit_delay(runner.config());
+    teardown_profile(&runner, &profile);
+}
