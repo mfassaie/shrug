@@ -11,19 +11,20 @@ See: .paul/PROJECT.md (updated 2026-03-23)
 
 Milestone: v0.4 Performance & UX Polish (v0.4.0)
 Phase: 18 of 20 (Spec Performance)
-Plan: Not started
-Status: Ready to plan
-Last activity: 2026-03-23 — Milestone v0.4 created
+Plan: 18-01 applied (rkyv binary cache)
+Status: APPLY complete, ready for UNIFY
+Last activity: 2026-03-23 — Applied 18-01: rkyv binary spec cache with JSON fallback
 
 Progress:
-- v0.4 Performance & UX Polish: [░░░░░░░░░░] 0%
+- v0.4 Performance & UX Polish: [██░░░░░░░░] 17%
+- Phase 18: [█████░░░░░] 50%
 
 ## Loop Position
 
 Current loop state:
 ```
 PLAN ──▶ APPLY ──▶ UNIFY
-  ○        ○        ○     [Ready for first PLAN]
+  ✓        ✓        ○     [Applied, ready for UNIFY]
 ```
 
 ## Accumulated Context
@@ -50,13 +51,14 @@ Tags: v0.1.0, v0.2.0, v0.3.0
 ## Session Continuity
 
 Last session: 2026-03-23
-Stopped at: Milestone v0.4 created, ready to plan
-Next action: /paul:plan for Phase 18 (Spec Performance)
-Resume file: .paul/ROADMAP.md
+Stopped at: Plan 18-01 APPLY complete, UNIFY pending
+Next action: /paul:unify .paul/phases/18-spec-performance/18-01-PLAN.md
+Resume file: .paul/HANDOFF-2026-03-23-phase18.md
 Resume context:
-- v0.4: 3 phases (spec performance, confluence helper, dynamic completions)
-- 6 features total: rkyv cache, lazy loading, serve-stale, connection pooling, +create, completions
-- 70 tests pass, zero clippy
+- Plan 18-01 applied: rkyv binary spec cache (7 model types, dual-write, binary-preferred load)
+- 495 tests pass, zero clippy warnings
+- Plan 18-02 needed: background ETag refresh
+- Connection pooling + lazy loading already implemented (no work needed)
 
 ---
 *STATE.md — Updated after every significant action*

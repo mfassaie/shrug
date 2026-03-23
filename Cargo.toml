@@ -37,6 +37,7 @@ serde_yaml = "0.9"
 csv = "1"
 is-terminal = "0.4"
 pulldown-cmark = "0.13"
+rkyv = { version = "0.8", features = ["bytecheck"] }
 
 [dev-dependencies]
 assert_cmd = "2"
