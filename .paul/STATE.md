@@ -5,25 +5,25 @@
 See: .paul/PROJECT.md (updated 2026-03-23)
 
 **Core value:** Users and AI agents can interact with Atlassian Cloud products from the command line without context-switching to a browser.
-**Current focus:** v0.3 Test Coverage & Entity Expansion — MILESTONE COMPLETE
+**Current focus:** v0.4 Performance & UX Polish — Spec Performance first
 
 ## Current Position
 
-Milestone: v0.3 Test Coverage & Entity Expansion (v0.3.0) — COMPLETE
-Phase: 17 of 17 (all phases complete)
-Plan: All plans complete
-Status: Milestone complete
-Last activity: 2026-03-23 — Phase 17 complete, v0.3 milestone done
+Milestone: v0.4 Performance & UX Polish (v0.4.0)
+Phase: 18 of 20 (Spec Performance)
+Plan: Not started
+Status: Ready to plan
+Last activity: 2026-03-23 — Milestone v0.4 created
 
 Progress:
-- v0.3 Test Coverage: [██████████] 100%
+- v0.4 Performance & UX Polish: [░░░░░░░░░░] 0%
 
 ## Loop Position
 
 Current loop state:
 ```
 PLAN ──▶ APPLY ──▶ UNIFY
-  ✓        ✓        ✓     [Milestone complete]
+  ○        ○        ○     [Ready for first PLAN]
 ```
 
 ## Accumulated Context
@@ -43,20 +43,20 @@ PLAN ──▶ APPLY ──▶ UNIFY
 None.
 
 ### Git State
-Last commit: 0ecf041
+Last commit: 35bd7f5
 Branch: main
-Tags: v0.1.0, v0.2.0
+Tags: v0.1.0, v0.2.0, v0.3.0
 
 ## Session Continuity
 
 Last session: 2026-03-23
-Stopped at: v0.3 milestone complete
-Next action: /paul:complete-milestone or /paul:discuss-milestone for v0.4
+Stopped at: Milestone v0.4 created, ready to plan
+Next action: /paul:plan for Phase 18 (Spec Performance)
 Resume file: .paul/ROADMAP.md
 Resume context:
-- v0.3 complete: 5 phases, 70 tests, zero clippy
-- Jira: 20 entities, JSW: 6 tests, Confluence: 20 entities
-- Feature gaps closed: pagination, logging, ADF
+- v0.4: 3 phases (spec performance, confluence helper, dynamic completions)
+- 6 features total: rkyv cache, lazy loading, serve-stale, connection pooling, +create, completions
+- 70 tests pass, zero clippy
 
 ---
 *STATE.md — Updated after every significant action*
