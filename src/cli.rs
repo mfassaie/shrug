@@ -165,6 +165,13 @@ pub enum Commands {
         #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
         args: Vec<String>,
     },
+    /// Internal: generate man pages to a directory
+    #[command(name = "_generate-man", hide = true)]
+    GenerateMan {
+        /// Output directory for man pages
+        #[arg(default_value = "man")]
+        output_dir: String,
+    },
 }
 
 #[derive(Subcommand)]

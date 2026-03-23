@@ -4,6 +4,11 @@ version = "0.5.0"
 edition = "2021"
 description = "A dynamic CLI for Atlassian Cloud"
 license = "MIT"
+repository = "https://github.com/mfassaie/shrug"
+readme = "README.md"
+keywords = ["atlassian", "jira", "confluence", "cli", "cloud"]
+categories = ["command-line-utilities"]
+rust-version = "1.74"
 
 [dependencies]
 clap = { version = "4", features = ["derive", "env"] }
@@ -33,10 +38,11 @@ url = "2"
 open = "5"
 dialoguer = "0.11"
 comfy-table = "7"
-serde_yaml = "0.9"
+serde_yml = "0.0.12"
 csv = "1"
 is-terminal = "0.4"
 pulldown-cmark = "0.13"
+clap_mangen = "0.2"
 rkyv = { version = "0.8", features = ["bytecheck"] }
 
 [dev-dependencies]
@@ -47,6 +53,9 @@ predicates = "3"
 serde_json = "1"
 tempfile = "3"
 which = "7"
+
+[lints.rust]
+unsafe_code = "forbid"
 
 [[test]]
 name = "smoke"
