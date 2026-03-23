@@ -48,7 +48,11 @@ Tags: v0.1.0, v0.2.0
 Last session: 2026-03-23 (autonomous execution)
 Stopped at: Phase 13 complete, continuing to Phase 14
 Next action: /paul:plan for Phase 14 (Jira Platform Top 20)
-Resume file: .paul/ROADMAP.md
+Resume file: .paul/HANDOFF-2026-03-23-phase14.md
+Resume context:
+- Phase 14 adds 6 CRUD entities to Jira (attachments, links, watchers, votes, groups, types)
+- Current: 14 Jira entities in tests/e2e/jira.rs
+- 458 total tests (411 unit + 7 integration + 40 E2E), zero clippy warnings
 
 ---
 *STATE.md — Updated after every significant action*
