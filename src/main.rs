@@ -1,6 +1,7 @@
 use std::env;
 
 use clap::Parser;
+use owo_colors::OwoColorize;
 
 use shrug::auth::credentials::{CredentialStore, ResolvedCredential};
 use shrug::auth::oauth;
@@ -744,11 +745,20 @@ fn main() {
     }
 
     // Load config with layered precedence, then apply CLI overrides
+    // Pre-cli colour check (cli.color not yet available for config errors)
+    let color_stderr_early = env::var("NO_COLOR").is_err()
+        && is_terminal::is_terminal(std::io::stderr());
+
     let mut config = match config::load_config() {
         Ok(c) => c,
         Err(e) => {
-            eprintln!("Error: {e}");
-            eprintln!("Hint: {}", e.remediation());
+            if color_stderr_early {
+                eprintln!("{} {e}", "Error:".red());
+                eprintln!("{} {}", "Hint:".yellow(), e.remediation());
+            } else {
+                eprintln!("Error: {e}");
+                eprintln!("Hint: {}", e.remediation());
+            }
             std::process::exit(e.exit_code());
         }
     };
@@ -756,11 +766,21 @@ fn main() {
 
     tracing::debug!(config = ?config, "Configuration loaded");
 
+    // Post-cli colour check (includes --color flag)
+    let color_stderr = cli.color != ColorChoice::Never
+        && env::var("NO_COLOR").is_err()
+        && is_terminal::is_terminal(std::io::stderr());
+
     match run(&config, &cli) {
         Ok(()) => std::process::exit(shrug::exit_codes::OK),
         Err(e) => {
-            eprintln!("Error: {e}");
-            eprintln!("Hint: {}", e.remediation());
+            if color_stderr {
+                eprintln!("{} {e}", "Error:".red());
+                eprintln!("{} {}", "Hint:".yellow(), e.remediation());
+            } else {
+                eprintln!("Error: {e}");
+                eprintln!("Hint: {}", e.remediation());
+            }
             std::process::exit(e.exit_code());
         }
     }

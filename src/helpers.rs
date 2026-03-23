@@ -226,7 +226,58 @@ fn helper_search(
     // Make HTTP request
     let response = send_json_request(client, reqwest::Method::GET, &url, credential, None)?;
 
-    // Format and display results
+    // Enriched table output for TTY (extract key, summary, status, assignee)
+    if *format == OutputFormat::Table {
+        if let Some(issues) = response.get("issues").and_then(|i| i.as_array()) {
+            let total = response
+                .get("total")
+                .and_then(|t| t.as_u64())
+                .unwrap_or(issues.len() as u64);
+
+            if issues.is_empty() {
+                println!("No issues found.");
+                return Ok(());
+            }
+
+            let hdr = format!("{:<12} {:<14} {:<20} {}", "KEY", "STATUS", "ASSIGNEE", "SUMMARY");
+            println!("{hdr}");
+            println!("{}", "\u{2500}".repeat(72));
+            for issue in issues {
+                let key = issue
+                    .get("key")
+                    .and_then(|k| k.as_str())
+                    .unwrap_or("-");
+                let status = issue
+                    .pointer("/fields/status/name")
+                    .and_then(|s| s.as_str())
+                    .unwrap_or("-");
+                let assignee = issue
+                    .pointer("/fields/assignee/displayName")
+                    .and_then(|a| a.as_str())
+                    .unwrap_or("Unassigned");
+                let summary_raw = issue
+                    .pointer("/fields/summary")
+                    .and_then(|s| s.as_str())
+                    .unwrap_or("-");
+                // Truncate long summaries
+                let summary = if summary_raw.len() > 50 {
+                    format!("{}...", &summary_raw[..47])
+                } else {
+                    summary_raw.to_string()
+                };
+                println!("{:<12} {:<14} {:<20} {}", key, status, assignee, summary);
+            }
+            let showing = issues.len() as u64;
+            if showing < total {
+                println!("\n{} issue(s) shown of {} total.", showing, total);
+            } else {
+                println!("\n{} issue(s) found.", total);
+            }
+            return Ok(());
+        }
+    }
+
+    // Fallback: JSON/CSV or non-issue response — pass through generic formatter
     let body_str = serde_json::to_string(&response).unwrap_or_else(|_| response.to_string());
     let formatted = output::format_response(&body_str, format, is_tty, color_enabled, fields);
     output::print_with_pager(&formatted, pager, is_tty);
