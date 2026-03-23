@@ -42,6 +42,7 @@ impl SpecCache {
     }
 
     /// Save a parsed spec to the cache with metadata.
+    /// Writes both JSON (for metadata/TTL) and binary (for fast loading).
     pub fn save(&self, product: &str, spec: &ApiSpec) -> Result<(), ShrugError> {
         validate_cache_key(product)?;
 
@@ -58,7 +59,6 @@ impl SpecCache {
             .map_err(|e| ShrugError::SpecError(format!("Failed to serialize spec cache: {e}")))?;
 
         let target = self.spec_path(product);
-        // Atomic write: write to temp file with PID suffix, then rename
         let tmp = self
             .specs_dir
             .join(format!("{product}.json.tmp.{}", std::process::id()));
@@ -66,17 +66,23 @@ impl SpecCache {
             ShrugError::SpecError(format!("Failed to write spec cache temp file: {e}"))
         })?;
         fs::rename(&tmp, &target).map_err(|e| {
-            // Clean up tmp on rename failure
             let _ = fs::remove_file(&tmp);
             ShrugError::SpecError(format!("Failed to rename spec cache file: {e}"))
         })?;
+
+        // Dual-write: also save binary cache for fast loading
+        if let Err(e) = self.save_binary(product, spec) {
+            tracing::warn!(product = product, "Failed to write binary cache (non-fatal): {e}");
+        }
 
         Ok(())
     }
 
     /// Load a cached spec if it exists and TTL has not expired.
+    /// Tries binary cache first (fast), falls back to JSON cache.
     /// Returns None on cache miss or expiration (stale file is preserved).
     pub fn load(&self, product: &str, ttl_hours: u32) -> Result<Option<ApiSpec>, ShrugError> {
+        // Check TTL via JSON metadata first
         let entry = match self.load_entry(product)? {
             Some(e) => e,
             None => return Ok(None),
@@ -87,22 +93,44 @@ impl SpecCache {
             return Ok(None);
         }
 
+        // TTL is fresh — try binary cache (fast path)
+        match self.load_binary(product) {
+            Ok(Some(spec)) => {
+                tracing::debug!(product = product, "Loaded spec from binary cache");
+                return Ok(Some(spec));
+            }
+            Ok(None) => {
+                tracing::debug!(product = product, "No binary cache, using JSON");
+            }
+            Err(e) => {
+                tracing::debug!(product = product, "Binary cache failed, using JSON: {e}");
+            }
+        }
+
+        // Fall back to JSON
         Ok(Some(entry.spec))
     }
 
     /// Load a cached spec regardless of TTL (serve-stale pattern).
+    /// Tries binary cache first, falls back to JSON.
     /// Returns None only if no cache file exists.
     pub fn load_stale(&self, product: &str) -> Result<Option<ApiSpec>, ShrugError> {
+        // Try binary first
+        if let Ok(Some(spec)) = self.load_binary(product) {
+            return Ok(Some(spec));
+        }
+        // Fall back to JSON
         Ok(self.load_entry(product)?.map(|e| e.spec))
     }
 
-    /// Delete the cached spec for a product. Idempotent.
+    /// Delete the cached spec for a product (both JSON and binary). Idempotent.
     pub fn invalidate(&self, product: &str) -> Result<(), ShrugError> {
         let path = self.spec_path(product);
         if path.exists() {
             fs::remove_file(&path)
                 .map_err(|e| ShrugError::SpecError(format!("Failed to delete cached spec: {e}")))?;
         }
+        self.invalidate_binary(product)?;
         Ok(())
     }
 
@@ -160,8 +188,73 @@ impl SpecCache {
         &self.specs_dir
     }
 
+    /// Save a parsed spec to binary (rkyv) cache for fast loading.
+    pub fn save_binary(&self, product: &str, spec: &ApiSpec) -> Result<(), ShrugError> {
+        validate_cache_key(product)?;
+
+        let bytes = rkyv::to_bytes::<rkyv::rancor::Error>(spec)
+            .map_err(|e| ShrugError::SpecError(format!("Failed to serialize spec to rkyv: {e}")))?;
+
+        let target = self.binary_path(product);
+        let tmp = self
+            .specs_dir
+            .join(format!("{product}.rkyv.tmp.{}", std::process::id()));
+        fs::write(&tmp, &bytes).map_err(|e| {
+            ShrugError::SpecError(format!("Failed to write binary spec cache: {e}"))
+        })?;
+        fs::rename(&tmp, &target).map_err(|e| {
+            let _ = fs::remove_file(&tmp);
+            ShrugError::SpecError(format!("Failed to rename binary spec cache: {e}"))
+        })?;
+
+        Ok(())
+    }
+
+    /// Load a spec from binary (rkyv) cache. Returns None if no binary cache exists.
+    pub fn load_binary(&self, product: &str) -> Result<Option<ApiSpec>, ShrugError> {
+        let path = self.binary_path(product);
+        if !path.exists() {
+            return Ok(None);
+        }
+
+        let bytes = fs::read(&path).map_err(|e| {
+            ShrugError::SpecError(format!(
+                "Failed to read binary spec cache '{}': {e}",
+                path.display()
+            ))
+        })?;
+
+        let spec = rkyv::from_bytes::<ApiSpec, rkyv::rancor::Error>(&bytes).map_err(|e| {
+            tracing::warn!(
+                product = product,
+                "Corrupted binary spec cache, will fall back to JSON: {e}"
+            );
+            ShrugError::SpecError(format!(
+                "Corrupted binary spec cache '{}': {e}",
+                path.display()
+            ))
+        })?;
+
+        Ok(Some(spec))
+    }
+
+    /// Delete binary cache for a product. Idempotent.
+    pub fn invalidate_binary(&self, product: &str) -> Result<(), ShrugError> {
+        let path = self.binary_path(product);
+        if path.exists() {
+            fs::remove_file(&path).map_err(|e| {
+                ShrugError::SpecError(format!("Failed to delete binary spec cache: {e}"))
+            })?;
+        }
+        Ok(())
+    }
+
     fn spec_path(&self, product: &str) -> PathBuf {
         self.specs_dir.join(format!("{product}.json"))
+    }
+
+    fn binary_path(&self, product: &str) -> PathBuf {
+        self.specs_dir.join(format!("{product}.rkyv"))
     }
 
     fn load_entry(&self, product: &str) -> Result<Option<CacheEntry>, ShrugError> {
@@ -397,5 +490,111 @@ mod tests {
         // Use a path that can't be created on any OS
         let result = SpecCache::new(PathBuf::from("\0invalid\0path\0that\0cannot\0exist"));
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn binary_save_and_load_roundtrip() {
+        let (_tmp, cache) = make_cache();
+        let spec = test_spec("1.0.0");
+
+        cache.save_binary("test-api", &spec).unwrap();
+        let loaded = cache.load_binary("test-api").unwrap();
+
+        assert!(loaded.is_some());
+        let loaded = loaded.unwrap();
+        assert_eq!(loaded.title, "Test API");
+        assert_eq!(loaded.version, "1.0.0");
+        assert_eq!(loaded.operations.len(), 1);
+        assert_eq!(loaded.operations[0].operation_id, "testOp");
+    }
+
+    #[test]
+    fn binary_load_returns_none_when_no_file() {
+        let (_tmp, cache) = make_cache();
+        let loaded = cache.load_binary("nonexistent").unwrap();
+        assert!(loaded.is_none());
+    }
+
+    #[test]
+    fn save_writes_both_json_and_binary() {
+        let (_tmp, cache) = make_cache();
+        let spec = test_spec("1.0.0");
+
+        cache.save("test-api", &spec).unwrap();
+
+        // Both files should exist
+        assert!(cache.spec_path("test-api").exists(), "JSON cache should exist");
+        assert!(cache.binary_path("test-api").exists(), "Binary cache should exist");
+    }
+
+    #[test]
+    fn load_prefers_binary_over_json() {
+        let (_tmp, cache) = make_cache();
+        let spec = test_spec("1.0.0");
+
+        // Save both formats
+        cache.save("test-api", &spec).unwrap();
+
+        // Load should succeed (uses binary internally)
+        let loaded = cache.load("test-api", 24).unwrap();
+        assert!(loaded.is_some());
+        assert_eq!(loaded.unwrap().title, "Test API");
+    }
+
+    #[test]
+    fn load_falls_back_to_json_when_no_binary() {
+        let (_tmp, cache) = make_cache();
+        let spec = test_spec("1.0.0");
+
+        // Save only JSON (bypass dual-write by writing directly)
+        let entry = CacheEntry {
+            metadata: CacheMetadata {
+                cached_at: Utc::now(),
+                spec_version: "1.0.0".to_string(),
+                etag: None,
+            },
+            spec: spec.clone(),
+        };
+        let json = serde_json::to_string_pretty(&entry).unwrap();
+        fs::write(cache.spec_path("test-api"), json).unwrap();
+
+        // No binary file
+        assert!(!cache.binary_path("test-api").exists());
+
+        // Should still load via JSON fallback
+        let loaded = cache.load("test-api", 24).unwrap();
+        assert!(loaded.is_some());
+        assert_eq!(loaded.unwrap().title, "Test API");
+    }
+
+    #[test]
+    fn invalidate_removes_both_json_and_binary() {
+        let (_tmp, cache) = make_cache();
+        let spec = test_spec("1.0.0");
+
+        cache.save("test-api", &spec).unwrap();
+        assert!(cache.spec_path("test-api").exists());
+        assert!(cache.binary_path("test-api").exists());
+
+        cache.invalidate("test-api").unwrap();
+        assert!(!cache.spec_path("test-api").exists());
+        assert!(!cache.binary_path("test-api").exists());
+    }
+
+    #[test]
+    fn corrupted_binary_falls_back_to_json() {
+        let (_tmp, cache) = make_cache();
+        let spec = test_spec("1.0.0");
+
+        // Save properly (both formats)
+        cache.save("test-api", &spec).unwrap();
+
+        // Corrupt the binary file
+        fs::write(cache.binary_path("test-api"), b"corrupted data").unwrap();
+
+        // load should still work via JSON fallback
+        let loaded = cache.load("test-api", 24).unwrap();
+        assert!(loaded.is_some());
+        assert_eq!(loaded.unwrap().title, "Test API");
     }
 }
