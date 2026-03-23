@@ -49,17 +49,17 @@ jobs:
       RUSTUP_TOOLCHAIN: stable
     steps:
       - uses: actions/checkout@v4
-      - uses: rustsec/audit-check@v2
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
+      - uses: dtolnay/rust-toolchain@stable
+      - run: cargo install cargo-audit --quiet
+      - run: cargo audit
 
   msrv:
     name: MSRV Check
     runs-on: ubuntu-latest
     env:
-      RUSTUP_TOOLCHAIN: "1.80"
+      RUSTUP_TOOLCHAIN: "1.85"
     steps:
       - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@1.80
+      - uses: dtolnay/rust-toolchain@1.85
       - uses: Swatinem/rust-cache@v2
       - run: cargo check
