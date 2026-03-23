@@ -7,6 +7,7 @@ Completed milestone log for this project.
 | v0.1 MVP | 2026-03-21 | 1 day | 8 phases, 24 plans |
 | v0.2 E2E Validation | 2026-03-23 | 1 day | 4 phases, 8 plans |
 | v0.3 Test Coverage & Entity Expansion | 2026-03-23 | 1 day | 5 phases, 9 plans |
+| v0.4 Performance & UX Polish | 2026-03-23 | 1 day | 3 phases, 4 plans |
 
 ---
 
