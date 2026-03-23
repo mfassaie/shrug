@@ -5,7 +5,9 @@ use clap::Parser;
 use shrug::auth::credentials::{CredentialStore, ResolvedCredential};
 use shrug::auth::oauth;
 use shrug::auth::profile::{AuthType, Profile, ProfileStore};
-use shrug::cli::{AuthCommands, Cli, ColorChoice, Commands, OutputFormat, ProfileCommands};
+use shrug::cli::{
+    AuthCommands, CacheCommands, Cli, ColorChoice, Commands, OutputFormat, ProfileCommands,
+};
 use shrug::cmd::router;
 use shrug::completions;
 use shrug::config::{self, ShrugConfig, ShrugPaths};
@@ -424,6 +426,65 @@ fn handle_profile(
     Ok(())
 }
 
+fn handle_cache(command: &CacheCommands, config: &ShrugConfig) -> Result<(), ShrugError> {
+    let paths = ShrugPaths::new()
+        .ok_or_else(|| ShrugError::SpecError("Could not determine cache directory".into()))?;
+    let cache = SpecCache::new(paths.cache_dir().to_path_buf())?;
+    let loader = SpecLoader::new(cache, config.cache_ttl_hours);
+
+    match command {
+        CacheCommands::Refresh { product: None } => {
+            let results = loader.refresh_all();
+            let mut ok_count = 0;
+            let mut err_count = 0;
+            for (product, result) in &results {
+                match result {
+                    Ok(spec) => {
+                        println!(
+                            "  {} — {} operations",
+                            product.info().display_name,
+                            spec.operations.len()
+                        );
+                        ok_count += 1;
+                    }
+                    Err(e) => {
+                        eprintln!("  {} — failed: {}", product.info().display_name, e);
+                        err_count += 1;
+                    }
+                }
+            }
+            println!(
+                "\nRefreshed {} specs ({} failed).",
+                ok_count, err_count
+            );
+            if err_count > 0 {
+                return Err(ShrugError::SpecError(format!(
+                    "{} spec(s) failed to refresh",
+                    err_count
+                )));
+            }
+        }
+        CacheCommands::Refresh {
+            product: Some(name),
+        } => {
+            let product = Product::from_cli_prefix(name).ok_or_else(|| {
+                ShrugError::UsageError(format!(
+                    "Unknown product '{}'. Valid products: jira, jira-software, confluence, jsm, bitbucket",
+                    name
+                ))
+            })?;
+            let spec = loader.refresh(&product)?;
+            println!(
+                "{} — {} operations",
+                product.info().display_name,
+                spec.operations.len()
+            );
+        }
+    }
+
+    Ok(())
+}
+
 fn get_paths() -> Result<ShrugPaths, ShrugError> {
     ShrugPaths::new()
         .ok_or_else(|| ShrugError::ProfileError("Could not determine config directory".into()))
@@ -594,10 +655,7 @@ fn run(config: &ShrugConfig, cli: &Cli) -> Result<(), ShrugError> {
             let cred_store = get_credential_store(&paths)?;
             handle_profile(command, &profile_store, &cred_store)
         }
-        Some(Commands::Cache { .. }) => {
-            eprintln!("Cache: not yet implemented");
-            Ok(())
-        }
+        Some(Commands::Cache { command }) => handle_cache(command, config),
         Some(Commands::Completions { shell }) => {
             completions::generate_completions(shell, &mut std::io::stdout())
         }

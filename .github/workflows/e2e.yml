@@ -1,4 +1,4 @@
-name: E2E Smoke Tests
+name: E2E Tests
 
 on:
   workflow_dispatch:
@@ -7,18 +7,30 @@ on:
         description: "Atlassian site URL (e.g., mysite.atlassian.net)"
         required: true
         type: string
+      jira_project:
+        description: "Jira project key for tests"
+        required: false
+        default: "TEST"
+        type: string
+      confluence_space:
+        description: "Confluence space key for tests"
+        required: false
+        default: "TEST"
+        type: string
 
 permissions:
   contents: read
 
 jobs:
-  smoke-test:
+  e2e-tests:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     env:
-      SHRUG_SITE: ${{ inputs.site_url }}
-      SHRUG_EMAIL: ${{ secrets.SHRUG_EMAIL }}
-      SHRUG_API_TOKEN: ${{ secrets.SHRUG_API_TOKEN }}
+      SHRUG_E2E_SITE: ${{ inputs.site_url }}
+      SHRUG_E2E_EMAIL: ${{ secrets.SHRUG_EMAIL }}
+      SHRUG_E2E_TOKEN: ${{ secrets.SHRUG_API_TOKEN }}
+      SHRUG_E2E_JIRA_PROJECT: ${{ inputs.jira_project }}
+      SHRUG_E2E_CONFLUENCE_SPACE: ${{ inputs.confluence_space }}
 
     steps:
       - uses: actions/checkout@v4
@@ -38,21 +50,5 @@ jobs:
       - name: Build shrug
         run: cargo build --release
 
-      - name: Smoke test - version
-        run: ./target/release/shrug --version
-
-      - name: Smoke test - help
-        run: |
-          output=$(./target/release/shrug --help)
-          echo "$output"
-          echo "$output" | grep -q "Atlassian"
-
-      - name: Smoke test - jira help (spec loading)
-        run: ./target/release/shrug jira --help
-
-      - name: Smoke test - live API (list issues)
-        if: env.SHRUG_API_TOKEN != ''
-        run: |
-          output=$(./target/release/shrug jira issues searchForIssuesUsingJql --maxResults 1 --output json 2>&1) || true
-          echo "$output"
-          echo "Live API smoke test completed (exit code may vary based on permissions)"
+      - name: Run E2E tests
+        run: cargo test --test e2e --release -- --test-threads=1
