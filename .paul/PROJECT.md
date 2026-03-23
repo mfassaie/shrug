@@ -12,8 +12,8 @@ Users and AI agents can interact with all Atlassian Cloud products from the comm
 
 | Attribute | Value |
 |-----------|-------|
-| Version | 0.1.0 |
-| Status | v0.1 MVP complete |
+| Version | 0.2.0 |
+| Status | v0.2 E2E Validation complete |
 | Last Updated | 2026-03-21 |
 | Phase | 8 of 8 complete — all phases shipped |
 
@@ -331,4 +331,4 @@ Users and AI agents can interact with all Atlassian Cloud products from the comm
 
 ---
 *PROJECT.md — Updated when requirements or context change*
-*Last updated: 2026-03-23 after Phase 9 (Test Infrastructure & Auth)*
+*Last updated: 2026-03-23 after v0.2 E2E Validation milestone completion*
