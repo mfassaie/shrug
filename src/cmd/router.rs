@@ -1,3 +1,6 @@
+use std::collections::HashMap;
+
+use crate::cmd::crud::{self, CrudMapping};
 use crate::cmd::tree;
 use crate::error::ShrugError;
 use crate::spec::model::{ApiSpec, Operation};
@@ -61,10 +64,12 @@ pub fn operations_for_tag<'a>(spec: &'a ApiSpec, tag: &str) -> Vec<&'a Operation
 
 /// Resolve a command from args: [tag, operation, ...remaining].
 ///
+/// Tries CRUD verbs (list, get, delete) first, then falls back to raw operation ID matching.
 /// Returns the matched Operation and any remaining args for parameter extraction.
 pub fn resolve_command(
     spec: &ApiSpec,
     args: &[String],
+    crud_mappings: &HashMap<String, CrudMapping>,
 ) -> Result<(Operation, Vec<String>), ShrugError> {
     let tags = available_tags(spec);
 
@@ -109,14 +114,48 @@ pub fn resolve_command(
     if args.len() < 2 {
         return Err(ShrugError::UsageError(format!(
             "No operation specified for '{tag}'.\n\n{}",
-            tree::format_operations(spec, &tag)
+            tree::format_operations_with_crud(spec, &tag, crud_mappings)
         )));
     }
 
     let op_input = &args[1];
 
-    // Find matching operation by command name
-    let matched_op = ops.iter().find(|op| {
+    // Try CRUD verb first
+    if crud::is_crud_verb(op_input) {
+        if let Some(mapping) = crud_mappings.get(&tag) {
+            if let Some(op) = mapping.resolve(op_input) {
+                let mut remaining = args[2..].to_vec();
+
+                // For get/delete: treat next positional arg as entity ID
+                if CrudMapping::verb_needs_id(op_input) {
+                    if let Some(id_param) = &mapping.id_param {
+                        if let Some(id_value) = remaining.first().filter(|a| !a.starts_with('-')) {
+                            let id_value = id_value.clone();
+                            remaining.remove(0);
+                            remaining.insert(0, id_value);
+                            remaining.insert(0, format!("--{}", id_param));
+                        }
+                    }
+                }
+
+                return Ok((op.clone(), remaining));
+            }
+        }
+        return Err(ShrugError::UsageError(format!(
+            "'{tag}' does not support '{op_input}'.\n\n{}",
+            tree::format_operations_with_crud(spec, &tag, crud_mappings)
+        )));
+    }
+
+    // Fall through to raw operation ID matching — only for operations NOT mapped to CRUD verbs
+    let crud_op_ids = crud_mapped_operation_ids(crud_mappings, &tag);
+    let unmapped_ops: Vec<&Operation> = ops
+        .iter()
+        .filter(|op| !crud_op_ids.contains(&op.operation_id))
+        .copied()
+        .collect();
+
+    let matched_op = unmapped_ops.iter().find(|op| {
         let cmd_name = operation_to_command_name(&op.operation_id);
         cmd_name == *op_input
     });
@@ -124,8 +163,8 @@ pub fn resolve_command(
     match matched_op {
         Some(op) => Ok(((*op).clone(), args[2..].to_vec())),
         None => {
-            // Suggest close matches
-            let op_names: Vec<String> = ops
+            // Suggest close matches from unmapped operations only
+            let op_names: Vec<String> = unmapped_ops
                 .iter()
                 .map(|op| operation_to_command_name(&op.operation_id))
                 .collect();
@@ -144,25 +183,49 @@ pub fn resolve_command(
             };
             Err(ShrugError::UsageError(format!(
                 "Unknown operation '{op_input}' in '{tag}'.{suggestion_msg}\n\n{}",
-                tree::format_operations(spec, &tag)
+                tree::format_operations_with_crud(spec, &tag, crud_mappings)
             )))
         }
     }
 }
 
 /// Route a product command: resolve product + spec + args into a ResolvedCommand.
+///
+/// Builds CRUD mappings from the spec and passes them to the resolver,
+/// which tries CRUD verbs before raw operation ID matching.
 pub fn route_product(
     product: &Product,
     spec: &ApiSpec,
     args: &[String],
 ) -> Result<ResolvedCommand, ShrugError> {
-    let (operation, remaining_args) = resolve_command(spec, args)?;
+    let crud_mappings = crud::build_crud_mappings(spec);
+    let (operation, remaining_args) = resolve_command(spec, args, &crud_mappings)?;
     Ok(ResolvedCommand {
         product: *product,
         operation,
         server_url: spec.server_url.clone(),
         remaining_args,
     })
+}
+
+/// Collect operation IDs that are mapped to CRUD verbs for a given tag.
+fn crud_mapped_operation_ids(
+    crud_mappings: &HashMap<String, CrudMapping>,
+    tag: &str,
+) -> Vec<String> {
+    let mut ids = Vec::new();
+    if let Some(mapping) = crud_mappings.get(tag) {
+        if let Some(op) = &mapping.list {
+            ids.push(op.operation_id.clone());
+        }
+        if let Some(op) = &mapping.get {
+            ids.push(op.operation_id.clone());
+        }
+        if let Some(op) = &mapping.delete {
+            ids.push(op.operation_id.clone());
+        }
+    }
+    ids
 }
 
 /// Find a tag match with case-insensitive + hyphen/space normalization.
@@ -313,10 +376,14 @@ mod tests {
             .any(|o| o.operation_id == "searchForIssuesUsingJql"));
     }
 
+    fn empty_crud() -> HashMap<String, CrudMapping> {
+        HashMap::new()
+    }
+
     #[test]
     fn resolve_command_matches_tag_and_operation() {
         let spec = test_spec();
-        let (op, remaining) = resolve_command(&spec, &args(&["issues", "get-issue"])).unwrap();
+        let (op, remaining) = resolve_command(&spec, &args(&["issues", "get-issue"]), &empty_crud()).unwrap();
         assert_eq!(op.operation_id, "getIssue");
         assert!(remaining.is_empty());
     }
@@ -325,7 +392,7 @@ mod tests {
     fn resolve_command_returns_remaining_args() {
         let spec = test_spec();
         let (op, remaining) =
-            resolve_command(&spec, &args(&["issues", "get-issue", "--expand", "names"])).unwrap();
+            resolve_command(&spec, &args(&["issues", "get-issue", "--expand", "names"]), &empty_crud()).unwrap();
         assert_eq!(op.operation_id, "getIssue");
         assert_eq!(remaining, vec!["--expand", "names"]);
     }
@@ -333,7 +400,7 @@ mod tests {
     #[test]
     fn resolve_command_error_on_empty_args_lists_tags() {
         let spec = test_spec();
-        let err = resolve_command(&spec, &args(&[])).unwrap_err();
+        let err = resolve_command(&spec, &args(&[]), &empty_crud()).unwrap_err();
         let msg = format!("{err}");
         assert!(msg.contains("issues"), "Should list tags: {msg}");
         assert!(msg.contains("projects"), "Should list tags: {msg}");
@@ -342,7 +409,7 @@ mod tests {
     #[test]
     fn resolve_command_error_on_unknown_tag() {
         let spec = test_spec();
-        let err = resolve_command(&spec, &args(&["nonexistent"])).unwrap_err();
+        let err = resolve_command(&spec, &args(&["nonexistent"]), &empty_crud()).unwrap_err();
         let msg = format!("{err}");
         assert!(
             msg.contains("Unknown command group"),
@@ -354,7 +421,7 @@ mod tests {
     #[test]
     fn resolve_command_error_on_unknown_operation() {
         let spec = test_spec();
-        let err = resolve_command(&spec, &args(&["issues", "nonexistent"])).unwrap_err();
+        let err = resolve_command(&spec, &args(&["issues", "nonexistent"]), &empty_crud()).unwrap_err();
         let msg = format!("{err}");
         assert!(
             msg.contains("Unknown operation"),
@@ -369,7 +436,7 @@ mod tests {
     #[test]
     fn resolve_command_tag_only_lists_operations() {
         let spec = test_spec();
-        let err = resolve_command(&spec, &args(&["issues"])).unwrap_err();
+        let err = resolve_command(&spec, &args(&["issues"]), &empty_crud()).unwrap_err();
         let msg = format!("{err}");
         assert!(msg.contains("No operation specified"), "{msg}");
         assert!(msg.contains("create-issue"), "Should list ops: {msg}");
@@ -379,14 +446,14 @@ mod tests {
     #[test]
     fn resolve_command_case_insensitive_tag() {
         let spec = test_spec();
-        let result = resolve_command(&spec, &args(&["Issues", "get-issue"]));
+        let result = resolve_command(&spec, &args(&["Issues", "get-issue"]), &empty_crud());
         assert!(result.is_ok(), "Tag matching should be case-insensitive");
     }
 
     #[test]
     fn resolve_command_suggests_close_matches() {
         let spec = test_spec();
-        let err = resolve_command(&spec, &args(&["issue"])).unwrap_err();
+        let err = resolve_command(&spec, &args(&["issue"]), &empty_crud()).unwrap_err();
         let msg = format!("{err}");
         assert!(
             msg.contains("Did you mean"),

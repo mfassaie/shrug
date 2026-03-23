@@ -1,3 +1,6 @@
+use std::collections::HashMap;
+
+use crate::cmd::crud::{self, CrudMapping};
 use crate::cmd::router::{available_tags, operation_to_command_name, operations_for_tag};
 use crate::spec::model::{ApiSpec, Operation, Parameter};
 
@@ -31,13 +34,52 @@ pub fn format_tag_list(spec: &ApiSpec) -> String {
 
 /// Format the list of operations for a specific tag.
 pub fn format_operations(spec: &ApiSpec, tag: &str) -> String {
+    let crud_mappings = crud::build_crud_mappings(spec);
+    format_operations_with_crud(spec, tag, &crud_mappings)
+}
+
+/// Format operations with CRUD verbs shown at the top, followed by raw operations.
+pub fn format_operations_with_crud(
+    spec: &ApiSpec,
+    tag: &str,
+    crud_mappings: &HashMap<String, CrudMapping>,
+) -> String {
     let ops = operations_for_tag(spec, tag);
     if ops.is_empty() {
         return format!("No operations available for '{tag}'.");
     }
 
     let mut lines = vec![format!("Operations for '{tag}':")];
+
+    // Show CRUD verbs at the top if any are mapped
+    if let Some(mapping) = crud_mappings.get(tag) {
+        let mut has_crud = false;
+        for verb in crud::CRUD_VERBS {
+            if let Some(line) = crud::format_crud_line(verb, mapping) {
+                lines.push(line);
+                has_crud = true;
+            }
+        }
+        if has_crud {
+            lines.push("  ─────────────────────────────────".to_string());
+        }
+    }
+
+    // Show only unmapped raw operations below (hide CRUD-mapped ones)
+    let crud_op_ids: Vec<String> = if let Some(mapping) = crud_mappings.get(tag) {
+        let mut ids = Vec::new();
+        if let Some(op) = &mapping.list { ids.push(op.operation_id.clone()); }
+        if let Some(op) = &mapping.get { ids.push(op.operation_id.clone()); }
+        if let Some(op) = &mapping.delete { ids.push(op.operation_id.clone()); }
+        ids
+    } else {
+        Vec::new()
+    };
+
     for op in &ops {
+        if crud_op_ids.contains(&op.operation_id) {
+            continue;
+        }
         let name = operation_to_command_name(&op.operation_id);
         let method = format!("{}", op.method);
         let summary = op.summary.as_deref().unwrap_or("");
@@ -204,13 +246,14 @@ mod tests {
     }
 
     #[test]
-    fn format_operations_shows_command_names_and_methods() {
+    fn format_operations_shows_crud_and_raw() {
         let spec = test_spec();
         let output = format_operations(&spec, "issues");
-        assert!(output.contains("create-issue"));
+        // CRUD-mapped ops appear as verbs, not raw IDs
+        assert!(output.contains("get <"), "Should show CRUD get: {output}");
+        // Non-CRUD ops still show as raw
+        assert!(output.contains("create-issue"), "Should show unmapped raw op: {output}");
         assert!(output.contains("POST"));
-        assert!(output.contains("get-issue"));
-        assert!(output.contains("GET"));
     }
 
     #[test]
