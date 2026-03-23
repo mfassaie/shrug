@@ -71,4 +71,48 @@ mod tests {
             None => std::env::remove_var(key),
         }
     }
+
+    #[test]
+    fn color_auto_without_no_color_depends_on_tty() {
+        let key = "NO_COLOR";
+        let original = std::env::var(key).ok();
+        std::env::remove_var(key);
+
+        // Without NO_COLOR, result depends on is_terminal (false in test context)
+        let result = should_use_color(&ColorChoice::Auto);
+        // In test context (not a TTY), should be false
+        assert!(!result);
+
+        if let Some(v) = original {
+            std::env::set_var(key, v);
+        }
+    }
+
+    #[test]
+    fn color_always_ignores_no_color() {
+        let key = "NO_COLOR";
+        let original = std::env::var(key).ok();
+        std::env::set_var(key, "1");
+
+        // Always should return true even with NO_COLOR set
+        assert!(should_use_color(&ColorChoice::Always));
+
+        match original {
+            Some(v) => std::env::set_var(key, v),
+            None => std::env::remove_var(key),
+        }
+    }
+
+    #[test]
+    fn color_never_ignores_no_color() {
+        let key = "NO_COLOR";
+        let original = std::env::var(key).ok();
+        std::env::remove_var(key);
+
+        assert!(!should_use_color(&ColorChoice::Never));
+
+        if let Some(v) = original {
+            std::env::set_var(key, v);
+        }
+    }
 }

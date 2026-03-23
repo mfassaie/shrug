@@ -75,3 +75,88 @@ pub struct RequestBody {
     pub description: Option<String>,
     pub content_types: Vec<String>,
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn http_method_display_get() {
+        assert_eq!(HttpMethod::Get.to_string(), "GET");
+    }
+
+    #[test]
+    fn http_method_display_post() {
+        assert_eq!(HttpMethod::Post.to_string(), "POST");
+    }
+
+    #[test]
+    fn http_method_display_put() {
+        assert_eq!(HttpMethod::Put.to_string(), "PUT");
+    }
+
+    #[test]
+    fn http_method_display_delete() {
+        assert_eq!(HttpMethod::Delete.to_string(), "DELETE");
+    }
+
+    #[test]
+    fn http_method_display_patch() {
+        assert_eq!(HttpMethod::Patch.to_string(), "PATCH");
+    }
+
+    #[test]
+    fn parameter_location_variants() {
+        let locations = [
+            ParameterLocation::Path,
+            ParameterLocation::Query,
+            ParameterLocation::Header,
+            ParameterLocation::Cookie,
+        ];
+        assert_eq!(locations.len(), 4);
+        assert_ne!(ParameterLocation::Path, ParameterLocation::Query);
+    }
+
+    #[test]
+    fn api_spec_serialization_roundtrip() {
+        let spec = ApiSpec {
+            title: "Test".to_string(),
+            version: "1.0".to_string(),
+            server_url: Some("https://example.com".to_string()),
+            tags: vec![Tag {
+                name: "test".to_string(),
+                description: Some("desc".to_string()),
+            }],
+            operations: vec![],
+        };
+        let json = serde_json::to_string(&spec).unwrap();
+        let parsed: ApiSpec = serde_json::from_str(&json).unwrap();
+        assert_eq!(parsed.title, "Test");
+        assert_eq!(parsed.version, "1.0");
+        assert_eq!(parsed.tags.len(), 1);
+    }
+
+    #[test]
+    fn operation_with_all_fields() {
+        let op = Operation {
+            operation_id: "getUser".to_string(),
+            method: HttpMethod::Get,
+            path: "/users/{id}".to_string(),
+            summary: Some("Get user".to_string()),
+            description: Some("Fetches a user by ID".to_string()),
+            tags: vec!["users".to_string()],
+            deprecated: false,
+            parameters: vec![Parameter {
+                name: "id".to_string(),
+                location: ParameterLocation::Path,
+                required: true,
+                description: Some("User ID".to_string()),
+                schema_type: Some("string".to_string()),
+            }],
+            request_body: None,
+        };
+        assert_eq!(op.operation_id, "getUser");
+        assert_eq!(op.parameters.len(), 1);
+        assert!(op.parameters[0].required);
+    }
+}

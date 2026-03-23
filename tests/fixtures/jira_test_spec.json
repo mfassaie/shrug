@@ -21,7 +21,7 @@
     },
     "/rest/api/3/search": {
       "get": {
-        "operationId": "searchForIssuesUsingJql",
+        "operationId": "search-and-reconsile-issues-using-jql",
         "summary": "Search for issues using JQL",
         "tags": ["issue search"],
         "parameters": [

@@ -8,13 +8,13 @@ A dynamic CLI for Atlassian Cloud — commands generated at runtime from OpenAPI
 
 **v0.3 Test Coverage & Entity Expansion** (v0.3.0)
 Status: In Progress
-Phases: 0 of 5 complete
+Phases: 1 of 5 complete
 
 ## Phases
 
 | Phase | Name | Plans | Status | Completed |
 |-------|------|-------|--------|-----------|
-| 13 | Unit Test Gaps + Bug Fixes + Clippy | TBD | Not started | - |
+| 13 | Unit Test Gaps + Bug Fixes + Clippy | 1 | Complete | 2026-03-23 |
 | 14 | Jira Platform Top 20 | TBD | Not started | - |
 | 15 | Jira Software Full Coverage | TBD | Not started | - |
 | 16 | Confluence Top 20 | TBD | Not started | - |

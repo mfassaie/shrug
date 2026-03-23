@@ -596,7 +596,29 @@ fn run(config: &ShrugConfig, cli: &Cli) -> Result<(), ShrugError> {
             // Intercept helper commands (+create, +search, +transition)
             if helpers::is_helper_command(&effective_args) {
                 let helper_name = effective_args[0].trim_start_matches('+');
-                let helper_remaining = &effective_args[1..];
+                // Forward global shorthand flags to helper args so they're available
+                // to the helper's argument parser (clap captures them as global flags,
+                // preventing them from reaching the helper via trailing args).
+                let mut helper_args: Vec<String> = effective_args[1..].to_vec();
+                if let Some(ref proj) = cli.project {
+                    if !helper_args.iter().any(|a| a == "--project") {
+                        helper_args.push("--project".to_string());
+                        helper_args.push(proj.clone());
+                    }
+                }
+                if let Some(ref assignee) = cli.assignee {
+                    if !helper_args.iter().any(|a| a == "--assignee") {
+                        helper_args.push("--assignee".to_string());
+                        helper_args.push(assignee.clone());
+                    }
+                }
+                if let Some(ref status) = cli.status {
+                    if !helper_args.iter().any(|a| a == "--status") {
+                        helper_args.push("--status".to_string());
+                        helper_args.push(status.clone());
+                    }
+                }
+                let helper_remaining = &helper_args;
 
                 let paths = ShrugPaths::new().ok_or_else(|| {
                     ShrugError::SpecError("Could not determine cache directory".into())

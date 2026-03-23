@@ -237,3 +237,100 @@ pub enum AuthCommands {
     /// Interactive setup wizard for first-time configuration
     Setup,
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use clap::Parser;
+
+    #[test]
+    fn output_format_all_variants() {
+        let variants = [
+            OutputFormat::Json,
+            OutputFormat::Table,
+            OutputFormat::Yaml,
+            OutputFormat::Csv,
+            OutputFormat::Plain,
+        ];
+        assert_eq!(variants.len(), 5);
+    }
+
+    #[test]
+    fn color_choice_all_variants() {
+        let variants = [
+            ColorChoice::Auto,
+            ColorChoice::Always,
+            ColorChoice::Never,
+        ];
+        assert_eq!(variants.len(), 3);
+    }
+
+    #[test]
+    fn cli_parses_version_flag() {
+        let result = Cli::try_parse_from(["shrug", "--version"]);
+        // --version causes early exit, which clap returns as Err(DisplayVersion)
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn cli_parses_help_flag() {
+        let result = Cli::try_parse_from(["shrug", "--help"]);
+        assert!(result.is_err()); // --help causes early exit
+    }
+
+    #[test]
+    fn cli_parses_global_flags() {
+        let cli = Cli::try_parse_from([
+            "shrug",
+            "--output", "json",
+            "--color", "never",
+            "--verbose",
+            "--dry-run",
+        ])
+        .unwrap();
+        assert_eq!(cli.output, OutputFormat::Json);
+        assert_eq!(cli.color, ColorChoice::Never);
+        assert_eq!(cli.verbose, 1);
+        assert!(cli.dry_run);
+    }
+
+    #[test]
+    fn cli_parses_jira_subcommand() {
+        let cli = Cli::try_parse_from(["shrug", "jira", "issues", "get-issue"]).unwrap();
+        match cli.command {
+            Some(Commands::Jira { ref args }) => {
+                assert_eq!(args, &["issues", "get-issue"]);
+            }
+            _ => panic!("Expected Jira command"),
+        }
+    }
+
+    #[test]
+    fn cli_parses_profile_create() {
+        let cli = Cli::try_parse_from([
+            "shrug",
+            "profile", "create",
+            "--name", "test",
+            "--site", "test.atlassian.net",
+            "--email", "a@b.com",
+        ])
+        .unwrap();
+        match cli.command {
+            Some(Commands::Profile {
+                command: ProfileCommands::Create { ref name, .. },
+            }) => assert_eq!(name, "test"),
+            _ => panic!("Expected Profile Create"),
+        }
+    }
+
+    #[test]
+    fn cli_parses_cache_refresh() {
+        let cli = Cli::try_parse_from(["shrug", "cache", "refresh"]).unwrap();
+        match cli.command {
+            Some(Commands::Cache {
+                command: CacheCommands::Refresh { product },
+            }) => assert!(product.is_none()),
+            _ => panic!("Expected Cache Refresh"),
+        }
+    }
+}

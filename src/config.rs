@@ -265,8 +265,10 @@ mod tests {
 
     #[test]
     fn merge_overwrites_only_present_fields() {
-        let mut config = ShrugConfig::default();
-        config.page_size = 25; // Set by prior layer
+        let mut config = ShrugConfig {
+            page_size: 25, // Set by prior layer
+            ..ShrugConfig::default()
+        };
 
         let partial: ShrugConfigPartial = toml::from_str(r#"output_format = "json""#).unwrap();
         config.merge(partial);
@@ -312,8 +314,10 @@ mod tests {
 
     #[test]
     fn cli_override_applies() {
-        let mut config = ShrugConfig::default();
-        config.output_format = OutputFormat::Json; // From file
+        let mut config = ShrugConfig {
+            output_format: OutputFormat::Json, // From file
+            ..ShrugConfig::default()
+        };
 
         config.apply_cli_overrides(
             &OutputFormat::Table,
