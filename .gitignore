@@ -10,6 +10,10 @@
 .carl/
 .claude/
 
+# Logo concept drafts
+assets/logo-concepts/
+assets/ref-*
+
 # OS files
 .DS_Store
 Thumbs.db
