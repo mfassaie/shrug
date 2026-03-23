@@ -1,6 +1,6 @@
 [package]
 name = "shrug"
-version = "0.7.1"
+version = "0.7.2"
 edition = "2021"
 description = "A dynamic CLI for Atlassian Cloud"
 license = "MIT"
@@ -14,7 +14,7 @@ rust-version = "1.90"
 clap = { version = "4", features = ["derive", "env"] }
 clap_complete = "4"
 tokio = { version = "1", features = ["full"] }
-reqwest = { version = "0.12", features = ["json", "rustls-tls", "blocking"] }
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls", "blocking"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = { version = "1", features = ["preserve_order"] }
 toml = "0.8"
