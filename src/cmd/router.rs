@@ -27,10 +27,14 @@ pub fn operation_to_command_name(operation_id: &str) -> String {
     result
 }
 
-/// Get unique tag names from a spec, sorted alphabetically.
+/// Get unique tag names from a spec, sorted alphabetically, lowercased.
 pub fn available_tags(spec: &ApiSpec) -> Vec<String> {
     if !spec.tags.is_empty() {
-        let mut tags: Vec<String> = spec.tags.iter().map(|t| t.name.clone()).collect();
+        let mut tags: Vec<String> = spec
+            .tags
+            .iter()
+            .map(|t| t.name.to_lowercase())
+            .collect();
         tags.sort();
         tags.dedup();
         tags
@@ -39,7 +43,7 @@ pub fn available_tags(spec: &ApiSpec) -> Vec<String> {
         let mut tags: Vec<String> = spec
             .operations
             .iter()
-            .flat_map(|op| op.tags.iter().cloned())
+            .flat_map(|op| op.tags.iter().map(|t| t.to_lowercase()))
             .collect();
         tags.sort();
         tags.dedup();

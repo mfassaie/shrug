@@ -13,7 +13,7 @@ pub fn format_tag_list(spec: &ApiSpec) -> String {
         let description = spec
             .tags
             .iter()
-            .find(|t| t.name == *tag_name)
+            .find(|t| t.name.eq_ignore_ascii_case(tag_name))
             .and_then(|t| t.description.as_deref())
             .unwrap_or("");
         let count = operations_for_tag(spec, tag_name).len();
