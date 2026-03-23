@@ -8,14 +8,14 @@ A dynamic CLI for Atlassian Cloud — commands generated at runtime from OpenAPI
 
 **v0.4 Performance & UX Polish** (v0.4.0)
 Status: In Progress
-Phases: 1 of 3 complete
+Phases: 2 of 3 complete
 
 ## Phases
 
 | Phase | Name | Plans | Status | Completed |
 |-------|------|-------|--------|-----------|
 | 18 | Spec Performance | 2 | Complete | 2026-03-23 |
-| 19 | Confluence Helper | TBD | Not started | - |
+| 19 | Confluence Helper | 1 | Complete | 2026-03-23 |
 | 20 | Dynamic Completions | TBD | Not started | - |
 
 ## Phase Details

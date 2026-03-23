@@ -14,13 +14,17 @@ use crate::cli::OutputFormat;
 use crate::error::ShrugError;
 use crate::jql::JqlShorthand;
 use crate::markdown_to_adf;
+use crate::markdown_to_storage;
 use crate::output;
 use crate::spec::analysis;
 use crate::spec::model::{ApiSpec, Operation};
 use crate::spec::registry::Product;
 
-/// Available helper commands.
-const AVAILABLE_HELPERS: &[&str] = &["+create", "+search", "+transition"];
+/// Available Jira helper commands.
+const JIRA_HELPERS: &[&str] = &["+create", "+search", "+transition"];
+
+/// Available Confluence helper commands.
+const CONFLUENCE_HELPERS: &[&str] = &["+create"];
 
 /// Check if the first arg is a helper command (starts with "+").
 pub fn is_helper_command(args: &[String]) -> bool {
@@ -45,11 +49,29 @@ pub fn dispatch_helper(
     no_pager: bool,
     dry_run: bool,
 ) -> Result<(), ShrugError> {
-    // Product validation: helpers are only available for Jira and Jira Software
-    if !matches!(product, Product::Jira | Product::JiraSoftware) {
-        return Err(ShrugError::UsageError(
-            "Helper commands are only available for Jira and Jira Software.".to_string(),
-        ));
+    // Route by product
+    match product {
+        Product::Confluence => {
+            return match helper_name {
+                "create" => helper_confluence_create(remaining_args, client, credential, dry_run),
+                _ => Err(ShrugError::UsageError(format!(
+                    "Unknown Confluence helper '+{}'.\n\nAvailable Confluence helpers:\n{}",
+                    helper_name,
+                    CONFLUENCE_HELPERS
+                        .iter()
+                        .map(|h| format!("  {h}"))
+                        .collect::<Vec<_>>()
+                        .join("\n")
+                ))),
+            };
+        }
+        Product::Jira | Product::JiraSoftware => {}
+        _ => {
+            return Err(ShrugError::UsageError(format!(
+                "Helper commands are not available for {}.",
+                product.info().display_name
+            )));
+        }
     }
 
     match helper_name {
@@ -70,9 +92,9 @@ pub fn dispatch_helper(
         ),
         "transition" => helper_transition(remaining_args, spec, client, credential, dry_run),
         _ => Err(ShrugError::UsageError(format!(
-            "Unknown helper command '+{}'.\n\nAvailable helpers:\n{}",
+            "Unknown Jira helper '+{}'.\n\nAvailable Jira helpers:\n{}",
             helper_name,
-            AVAILABLE_HELPERS
+            JIRA_HELPERS
                 .iter()
                 .map(|h| format!("  {h}"))
                 .collect::<Vec<_>>()
@@ -474,6 +496,149 @@ fn send_json_request(
     })
 }
 
+// --- Confluence helper implementations ---
+
+fn helper_confluence_create(
+    args: &[String],
+    client: &Client,
+    credential: Option<&ResolvedCredential>,
+    dry_run: bool,
+) -> Result<(), ShrugError> {
+    let parsed = parse_helper_args(args);
+
+    let space_key = require_arg(&parsed, "space", "confluence +create")?;
+    let title = require_arg(&parsed, "title", "confluence +create")?;
+
+    // Get content from --body or --file
+    let markdown_content = if let Some(body) = parsed.get("body") {
+        body.clone()
+    } else if let Some(file_path) = parsed.get("file") {
+        std::fs::read_to_string(file_path).map_err(|e| {
+            ShrugError::UsageError(format!("Failed to read file '{}': {}", file_path, e))
+        })?
+    } else {
+        return Err(ShrugError::UsageError(
+            "confluence +create requires --body or --file.\n\n\
+             Usage: shrug confluence +create --space KEY --title \"Page Title\" --body \"# Content\"\n\
+             Usage: shrug confluence +create --space KEY --title \"Page Title\" --file page.md"
+                .to_string(),
+        ));
+    };
+
+    // Convert Markdown to Confluence storage format
+    let storage_body = markdown_to_storage::markdown_to_storage(&markdown_content);
+
+    // Resolve space key to space ID
+    let base_url = resolve_confluence_base_url(credential);
+    let space_id = resolve_space_id(client, credential, &base_url, &space_key)?;
+
+    // Build request body
+    let mut body = serde_json::json!({
+        "spaceId": space_id,
+        "title": title,
+        "body": {
+            "representation": "storage",
+            "value": storage_body
+        },
+        "status": "current"
+    });
+
+    if let Some(parent_id) = parsed.get("parent-id") {
+        body["parentId"] = serde_json::json!(parent_id);
+    }
+
+    let body_str = serde_json::to_string(&body)
+        .map_err(|e| ShrugError::UsageError(format!("Failed to build request body: {}", e)))?;
+
+    let url = format!("{}/wiki/api/v2/pages", base_url);
+
+    if dry_run {
+        eprintln!("POST {}", url);
+        eprintln!("Body: {}", body_str);
+        return Ok(());
+    }
+
+    let response = send_json_request(
+        client,
+        reqwest::Method::POST,
+        &url,
+        credential,
+        Some(&body_str),
+    )?;
+
+    if let Some(id) = response.get("id").and_then(|v| v.as_str()) {
+        let page_url = response
+            .pointer("/_links/webui")
+            .and_then(|v| v.as_str())
+            .map(|path| format!("{}/wiki{}", base_url, path))
+            .unwrap_or_default();
+        if page_url.is_empty() {
+            println!("Created page: {}", id);
+        } else {
+            println!("Created page: {} ({})", id, page_url);
+        }
+    } else {
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&response).unwrap_or_else(|_| response.to_string())
+        );
+    }
+
+    Ok(())
+}
+
+/// Resolve a Confluence space key to its numeric space ID.
+fn resolve_space_id(
+    client: &Client,
+    credential: Option<&ResolvedCredential>,
+    base_url: &str,
+    space_key: &str,
+) -> Result<String, ShrugError> {
+    let url = format!("{}/wiki/api/v2/spaces?keys={}", base_url, space_key);
+
+    let response = send_json_request(client, reqwest::Method::GET, &url, credential, None)?;
+
+    let results = response
+        .get("results")
+        .and_then(|r| r.as_array())
+        .ok_or_else(|| {
+            ShrugError::UsageError(format!(
+                "Could not resolve space key '{}'. Check the key is correct.",
+                space_key
+            ))
+        })?;
+
+    let space = results.first().ok_or_else(|| {
+        ShrugError::UsageError(format!(
+            "Space '{}' not found. Check the key is correct.",
+            space_key
+        ))
+    })?;
+
+    space
+        .get("id")
+        .and_then(|v| v.as_str())
+        .map(|s| s.to_string())
+        .ok_or_else(|| {
+            ShrugError::UsageError(format!(
+                "Space '{}' found but has no ID. Unexpected API response.",
+                space_key
+            ))
+        })
+}
+
+/// Resolve the base URL for Confluence API requests.
+fn resolve_confluence_base_url(credential: Option<&ResolvedCredential>) -> String {
+    if let Some(cred) = credential {
+        let site = &cred.site;
+        if site.starts_with("http://") || site.starts_with("https://") {
+            return site.clone();
+        }
+        return format!("https://{}", site);
+    }
+    "https://your-domain.atlassian.net".to_string()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -655,7 +820,7 @@ mod tests {
     }
 
     #[test]
-    fn unknown_helper_lists_available() {
+    fn unknown_jira_helper_lists_available() {
         let result = dispatch_helper(
             "unknown",
             &Product::Jira,
@@ -684,9 +849,9 @@ mod tests {
     }
 
     #[test]
-    fn dispatch_rejects_non_jira_product() {
+    fn unknown_confluence_helper_lists_available() {
         let result = dispatch_helper(
-            "create",
+            "unknown",
             &Product::Confluence,
             &[],
             &make_empty_spec(),
@@ -704,8 +869,59 @@ mod tests {
         let err = result.unwrap_err();
         let msg = err.to_string();
         assert!(
-            msg.contains("only available for Jira"),
-            "Should mention Jira-only: {}",
+            msg.contains("Confluence"),
+            "Should mention Confluence: {}",
+            msg
+        );
+        assert!(msg.contains("+create"), "Should list +create: {}", msg);
+    }
+
+    #[test]
+    fn dispatch_rejects_unsupported_product() {
+        let result = dispatch_helper(
+            "create",
+            &Product::BitBucket,
+            &[],
+            &make_empty_spec(),
+            &Client::new(),
+            None,
+            &JqlShorthand::default(),
+            None,
+            &OutputFormat::Json,
+            false,
+            false,
+            None,
+            false,
+            false,
+        );
+        let err = result.unwrap_err();
+        let msg = err.to_string();
+        assert!(
+            msg.contains("not available"),
+            "Should say not available: {}",
+            msg
+        );
+    }
+
+    #[test]
+    fn confluence_create_requires_body_or_file() {
+        // Missing both --body and --file
+        let result = helper_confluence_create(
+            &[
+                "--space".to_string(),
+                "TEST".to_string(),
+                "--title".to_string(),
+                "My Page".to_string(),
+            ],
+            &Client::new(),
+            None,
+            true, // dry_run avoids actual HTTP
+        );
+        let err = result.unwrap_err();
+        let msg = err.to_string();
+        assert!(
+            msg.contains("--body or --file"),
+            "Should require --body or --file: {}",
             msg
         );
     }

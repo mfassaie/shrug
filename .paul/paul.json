@@ -7,8 +7,8 @@
     "status": "in_progress"
   },
   "phase": {
-    "number": 19,
-    "name": "19-confluence-helper",
+    "number": 20,
+    "name": "20-dynamic-completions",
     "status": "not_started"
   },
   "loop": {
