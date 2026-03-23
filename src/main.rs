@@ -39,7 +39,7 @@ fn handle_product(
     output_format: &OutputFormat,
     color: &ColorChoice,
     fields: Option<&[String]>,
-    no_pager: bool,
+    pager: bool,
 ) -> Result<(), ShrugError> {
     let paths = ShrugPaths::new()
         .ok_or_else(|| ShrugError::SpecError("Could not determine cache directory".into()))?;
@@ -72,7 +72,7 @@ fn handle_product(
         is_tty,
         color_enabled,
         fields,
-        no_pager,
+        pager,
     )
 }
 
@@ -146,24 +146,18 @@ fn handle_auth(
                 return Err(ShrugError::AuthError("API token cannot be empty".into()));
             }
 
-            // Try keychain first
+            // Try keychain first, then token file fallback
             if CredentialStore::store_keychain(&name, &token) {
                 println!("Token stored for profile '{}' (keychain).", name);
             } else {
-                // Keychain unavailable — use encrypted file fallback
-                tracing::debug!("Keychain unavailable, falling back to encrypted file");
-                eprintln!("Keychain unavailable. Using encrypted file storage.");
-                let password =
-                    rpassword::prompt_password("Encryption password: ").map_err(|e| {
-                        ShrugError::AuthError(format!("Failed to read password: {}", e))
-                    })?;
-                if password.is_empty() {
-                    return Err(ShrugError::AuthError(
-                        "Encryption password cannot be empty".into(),
-                    ));
-                }
-                cred_store.store_encrypted(&name, &token, &password)?;
-                println!("Token stored for profile '{}' (encrypted file).", name);
+                // Keychain unavailable — use token file fallback (chmod 600)
+                tracing::debug!("Keychain unavailable, falling back to token file");
+                cred_store.store_token_file(&name, &token)?;
+                println!("Token stored for profile '{}' (token-file).", name);
+                eprintln!(
+                    "Note: Stored in a permission-restricted file. \
+                     For stronger security, configure an OS keychain."
+                );
             }
         }
         AuthCommands::Status { profile } => {
@@ -296,18 +290,12 @@ fn handle_setup(
             } else if CredentialStore::store_keychain(&name, &token) {
                 println!("Token stored (keychain).");
             } else {
-                eprintln!("Keychain unavailable. Using encrypted file storage.");
-                let password =
-                    rpassword::prompt_password("Encryption password: ").map_err(|e| {
-                        ShrugError::AuthError(format!("Failed to read password: {}", e))
-                    })?;
-                if password.is_empty() {
-                    return Err(ShrugError::AuthError(
-                        "Encryption password cannot be empty".into(),
-                    ));
-                }
-                cred_store.store_encrypted(&name, &token, &password)?;
-                println!("Token stored (encrypted file).");
+                cred_store.store_token_file(&name, &token)?;
+                println!("Token stored (token-file).");
+                eprintln!(
+                    "Note: Stored in a permission-restricted file. \
+                     For stronger security, configure an OS keychain."
+                );
             }
         }
         AuthType::OAuth2 => {
@@ -638,7 +626,7 @@ fn run(config: &ShrugConfig, cli: &Cli) -> Result<(), ShrugError> {
                     is_tty,
                     color_enabled,
                     parsed_fields.as_deref(),
-                    cli.no_pager,
+                    cli.pager,
                     cli.dry_run,
                 );
             }
@@ -656,7 +644,7 @@ fn run(config: &ShrugConfig, cli: &Cli) -> Result<(), ShrugError> {
                 &config.output_format,
                 &config.color,
                 parsed_fields.as_deref(),
-                cli.no_pager,
+                cli.pager,
             )
         }
         Some(Commands::Auth { command }) => {

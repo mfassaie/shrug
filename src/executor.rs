@@ -398,7 +398,7 @@ pub fn execute(
     is_tty: bool,
     color_enabled: bool,
     fields: Option<&[String]>,
-    no_pager: bool,
+    pager: bool,
 ) -> Result<(), ShrugError> {
     let base_url = resolve_base_url(command.server_url.as_deref(), credential);
     let full_url = build_full_url(
@@ -472,7 +472,7 @@ pub fn execute(
             if let Some(body) = response_body {
                 let formatted =
                     output::format_response(&body, format, is_tty, color_enabled, fields);
-                output::print_with_pager(&formatted, !no_pager, is_tty);
+                output::print_with_pager(&formatted, pager, is_tty);
             }
             Ok(())
         }

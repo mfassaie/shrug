@@ -42,9 +42,9 @@ pub struct Cli {
     #[arg(long, global = true)]
     pub fields: Option<String>,
 
-    /// Disable pager for output
+    /// Pipe output through a pager (e.g., less)
     #[arg(long, global = true)]
-    pub no_pager: bool,
+    pub pager: bool,
 
     /// Enable trace-level logging (full diagnostic output)
     #[arg(long, global = true)]

@@ -201,13 +201,13 @@ fn test_trace() {
 // ─── Other Flag Tests ────────────────────────────────────────────────────
 
 #[test]
-fn test_no_pager() {
+fn test_pager_flag() {
     let config = skip_unless_binary!();
     let runner = SmokeRunner::new(config);
-    let name = unique_name("smoke-nopager");
+    let name = unique_name("smoke-pager");
     create_test_profile(&runner, &name);
 
-    let result = runner.run(&["--no-pager", "profile", "list"]);
+    let result = runner.run(&["--pager", "profile", "list"]);
     result.assert_success();
 
     delete_test_profile(&runner, &name);

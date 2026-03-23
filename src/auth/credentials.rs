@@ -15,6 +15,8 @@ pub enum CredentialSource {
     Keychain,
     /// From encrypted file fallback
     EncryptedFile,
+    /// From permission-restricted token file (chmod 600)
+    TokenFile,
     /// From environment variables
     Environment,
 }
@@ -24,6 +26,7 @@ impl std::fmt::Display for CredentialSource {
         match self {
             CredentialSource::Keychain => write!(f, "keychain"),
             CredentialSource::EncryptedFile => write!(f, "encrypted-file"),
+            CredentialSource::TokenFile => write!(f, "token-file"),
             CredentialSource::Environment => write!(f, "environment"),
         }
     }
@@ -72,12 +75,18 @@ impl CredentialStore {
 
     // --- API Token Storage (Basic Auth) ---
 
-    /// Store token in OS keychain. Returns true if stored, false if keychain unavailable.
+    /// Store token in OS keychain. Returns true if stored and verified, false if
+    /// keychain unavailable or the write did not persist (common on Linux when
+    /// the Secret Service daemon is not running or the keyring is locked).
     pub fn store_keychain(profile_name: &str, token: &str) -> bool {
-        match keyring::Entry::new("shrug", profile_name) {
-            Ok(entry) => entry.set_password(token).is_ok(),
-            Err(_) => false,
+        let Ok(entry) = keyring::Entry::new("shrug", profile_name) else {
+            return false;
+        };
+        if entry.set_password(token).is_err() {
+            return false;
         }
+        // Verify the write persisted by reading it back
+        Self::retrieve_keychain(profile_name).is_some()
     }
 
     /// Store token encrypted with a password (fallback when keychain unavailable).
@@ -106,6 +115,48 @@ impl CredentialStore {
         })?;
 
         Ok(())
+    }
+
+    /// Store token in a permission-restricted file (chmod 600).
+    /// Fallback when keychain is unavailable and the user doesn't want
+    /// an encryption password. Less secure than keychain but works everywhere.
+    pub fn store_token_file(
+        &self,
+        profile_name: &str,
+        token: &str,
+    ) -> Result<(), ShrugError> {
+        let path = self.token_file_path(profile_name);
+        let tmp = self
+            .credentials_dir
+            .join(format!("{}.token.tmp", profile_name));
+
+        fs::write(&tmp, token).map_err(|e| {
+            ShrugError::AuthError(format!("Failed to write token file: {}", e))
+        })?;
+
+        // Set file permissions to owner-only (Unix)
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            let perms = std::fs::Permissions::from_mode(0o600);
+            fs::set_permissions(&tmp, perms).map_err(|e| {
+                let _ = fs::remove_file(&tmp);
+                ShrugError::AuthError(format!("Failed to set token file permissions: {}", e))
+            })?;
+        }
+
+        fs::rename(&tmp, &path).map_err(|e| {
+            let _ = fs::remove_file(&tmp);
+            ShrugError::AuthError(format!("Failed to save token file: {}", e))
+        })?;
+
+        Ok(())
+    }
+
+    /// Retrieve token from permission-restricted file.
+    pub fn retrieve_token_file(&self, profile_name: &str) -> Option<String> {
+        let path = self.token_file_path(profile_name);
+        fs::read_to_string(&path).ok().map(|s| s.trim().to_string())
     }
 
     /// Try to retrieve token from OS keychain.
@@ -299,6 +350,10 @@ impl CredentialStore {
         if self.enc_file_path(profile_name).exists() {
             return Ok(true);
         }
+        // Check API token file
+        if self.token_file_path(profile_name).exists() {
+            return Ok(true);
+        }
         // Check OAuth tokens
         if Self::retrieve_keychain_entry("shrug-oauth", profile_name).is_some() {
             return Ok(true);
@@ -317,6 +372,9 @@ impl CredentialStore {
         }
         if self.enc_file_path(profile_name).exists() {
             return Some(CredentialSource::EncryptedFile);
+        }
+        if self.token_file_path(profile_name).exists() {
+            return Some(CredentialSource::TokenFile);
         }
         // OAuth token sources
         if Self::retrieve_keychain_entry("shrug-oauth", profile_name).is_some() {
@@ -337,6 +395,8 @@ impl CredentialStore {
         }
         // API token encrypted file
         let _ = fs::remove_file(self.enc_file_path(profile_name));
+        // API token file
+        let _ = fs::remove_file(self.token_file_path(profile_name));
 
         // OAuth tokens keychain + file
         if let Ok(entry) = keyring::Entry::new("shrug-oauth", profile_name) {
@@ -415,7 +475,19 @@ impl CredentialStore {
                     }));
                 }
 
-                // 3. Encrypted file (requires password)
+                // 3. Token file (permission-restricted, no password needed)
+                if let Some(token) = self.retrieve_token_file(&profile.name) {
+                    return Ok(Some(ResolvedCredential {
+                        site,
+                        source: CredentialSource::TokenFile,
+                        scheme: AuthScheme::Basic {
+                            email,
+                            api_token: token,
+                        },
+                    }));
+                }
+
+                // 4. Encrypted file (requires password)
                 if let Some(password) = encryption_password {
                     if let Some(token) = self.retrieve_encrypted(&profile.name, password)? {
                         return Ok(Some(ResolvedCredential {
@@ -485,6 +557,11 @@ impl CredentialStore {
         self.credentials_dir.join(format!("{}.enc", profile_name))
     }
 
+    fn token_file_path(&self, profile_name: &str) -> PathBuf {
+        self.credentials_dir
+            .join(format!("{}.token", profile_name))
+    }
+
     fn oauth_token_file_path(&self, profile_name: &str) -> PathBuf {
         self.credentials_dir
             .join(format!("{}.oauth.enc", profile_name))
@@ -496,11 +573,15 @@ impl CredentialStore {
     }
 
     /// Store a value in keychain under a given service name.
+    /// Verifies the write persisted by reading it back.
     fn store_keychain_entry(service: &str, profile_name: &str, value: &str) -> bool {
-        match keyring::Entry::new(service, profile_name) {
-            Ok(entry) => entry.set_password(value).is_ok(),
-            Err(_) => false,
+        let Ok(entry) = keyring::Entry::new(service, profile_name) else {
+            return false;
+        };
+        if entry.set_password(value).is_err() {
+            return false;
         }
+        Self::retrieve_keychain_entry(service, profile_name).is_some()
     }
 
     /// Retrieve a value from keychain under a given service name.

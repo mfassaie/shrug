@@ -46,7 +46,7 @@ pub fn dispatch_helper(
     is_tty: bool,
     color_enabled: bool,
     fields: Option<&[String]>,
-    no_pager: bool,
+    pager: bool,
     dry_run: bool,
 ) -> Result<(), ShrugError> {
     // Route by product
@@ -81,7 +81,7 @@ pub fn dispatch_helper(
             is_tty,
             color_enabled,
             fields,
-            no_pager,
+            pager,
             dry_run,
         ),
         "transition" => helper_transition(remaining_args, spec, client, credential, dry_run),
@@ -193,7 +193,7 @@ fn helper_search(
     is_tty: bool,
     color_enabled: bool,
     fields: Option<&[String]>,
-    no_pager: bool,
+    pager: bool,
     dry_run: bool,
 ) -> Result<(), ShrugError> {
     // Build JQL: use shorthand, raw JQL, or default
@@ -229,7 +229,7 @@ fn helper_search(
     // Format and display results
     let body_str = serde_json::to_string(&response).unwrap_or_else(|_| response.to_string());
     let formatted = output::format_response(&body_str, format, is_tty, color_enabled, fields);
-    output::print_with_pager(&formatted, !no_pager, is_tty);
+    output::print_with_pager(&formatted, pager, is_tty);
 
     Ok(())
 }
@@ -387,19 +387,15 @@ fn find_operation(
 }
 
 /// Resolve the base URL for helper requests.
+///
+/// Prefers the credential's site URL (the user's actual Atlassian instance)
+/// over the spec's server URL, which is typically a placeholder like
+/// `https://your-domain.atlassian.net`.
 fn resolve_helper_base_url(
     spec_server_url: Option<&str>,
     credential: Option<&ResolvedCredential>,
 ) -> Option<String> {
-    // Try spec server URL first (strip variable templates)
-    if let Some(url) = spec_server_url {
-        let stripped = strip_server_variables(url);
-        if !stripped.is_empty() && stripped != "/" {
-            return Some(stripped);
-        }
-    }
-
-    // Fall back to credential's site URL
+    // Prefer credential's site URL (actual instance)
     if let Some(cred) = credential {
         let site = &cred.site;
         if site.starts_with("http://") || site.starts_with("https://") {
@@ -408,7 +404,15 @@ fn resolve_helper_base_url(
         return Some(format!("https://{}", site));
     }
 
-    spec_server_url.map(|s| s.to_string())
+    // Fall back to spec server URL (strip variable templates)
+    if let Some(url) = spec_server_url {
+        let stripped = strip_server_variables(url);
+        if !stripped.is_empty() && stripped != "/" {
+            return Some(stripped);
+        }
+    }
+
+    None
 }
 
 /// Strip `{variable}` templates from server URLs.

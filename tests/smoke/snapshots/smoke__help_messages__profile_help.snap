@@ -25,7 +25,7 @@ Options:
       --page-all                 Fetch all pages of paginated results
       --limit <LIMIT>            Maximum number of results to fetch (used with --page-all)
       --fields <FIELDS>          Select specific fields for table/CSV output (comma-separated)
-      --no-pager                 Disable pager for output
+      --pager                    Pipe output through a pager (e.g., less)
       --trace                    Enable trace-level logging (full diagnostic output)
       --markdown                 Convert Markdown fields in --json body to ADF before sending
       --jql <JQL>                Raw JQL query string (Jira/Jira Software only)
