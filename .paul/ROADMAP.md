@@ -8,7 +8,7 @@ A dynamic CLI for Atlassian Cloud — commands generated at runtime from OpenAPI
 
 **v0.2 E2E Validation** (v0.2.0)
 Status: In Progress
-Phases: 3 of 4 complete
+Phases: 4 of 4 complete
 
 ## Phases
 
@@ -17,7 +17,7 @@ Phases: 3 of 4 complete
 | 9 | Test Infrastructure & Auth | 3 | Complete | 2026-03-23 |
 | 10 | Jira CRUD Tests | 2 | Complete | 2026-03-23 |
 | 11 | Confluence CRUD Tests | 1 | Complete | 2026-03-23 |
-| 12 | CLI Feature Tests | TBD | Not started | - |
+| 12 | CLI Feature Tests | 1 | Complete | 2026-03-23 |
 
 ## Phase Details
 
