@@ -16,6 +16,7 @@
 #[macro_use]
 mod harness;
 mod auth;
+mod confluence;
 mod fixtures;
 mod jira;
 mod smoke;
