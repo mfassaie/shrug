@@ -11,6 +11,7 @@ pub mod helpers;
 pub mod jql;
 pub mod logging;
 pub mod markdown_to_adf;
+pub mod markdown_to_storage;
 pub mod output;
 pub mod quirks;
 pub mod resolve;

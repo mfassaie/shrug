@@ -70,7 +70,7 @@ Users and AI agents can interact with all Atlassian Cloud products from the comm
 - [x] `shrug jira +create` — simplified issue creation with Markdown description — Phase 7
 - [x] `shrug jira +search` — shorthand flags (`--project`, `--assignee me`, `--status`) — Phase 7
 - [x] `shrug jira +transition` — resolve transition by name, not ID — Phase 7
-- [ ] `shrug confluence +create` — create page from Markdown file
+- [x] `shrug confluence +create` — create page from Markdown file — Phase 19
 - [x] Custom field name resolution (human name → customfield_ID via metadata cache) — Phase 7
 - [x] User lookup by display name → accountId resolution — Phase 7
 
@@ -331,4 +331,4 @@ Users and AI agents can interact with all Atlassian Cloud products from the comm
 
 ---
 *PROJECT.md — Updated when requirements or context change*
-*Last updated: 2026-03-23 after Phase 18 (Spec Performance)*
+*Last updated: 2026-03-23 after Phase 19 (Confluence Helper)*
