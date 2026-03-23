@@ -8,7 +8,7 @@ repository = "https://github.com/mfassaie/shrug"
 readme = "README.md"
 keywords = ["atlassian", "jira", "confluence", "cli", "cloud"]
 categories = ["command-line-utilities"]
-rust-version = "1.87"
+rust-version = "1.90"
 
 [dependencies]
 clap = { version = "4", features = ["derive", "env"] }
