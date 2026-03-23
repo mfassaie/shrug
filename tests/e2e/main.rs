@@ -17,6 +17,7 @@
 mod harness;
 mod auth;
 mod confluence;
+mod features;
 mod fixtures;
 mod jira;
 mod smoke;
