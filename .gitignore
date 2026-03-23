@@ -1,5 +1,24 @@
 /target
+/man
 *.rs.bk
 .env
 .env.*
 *.enc
+
+# Internal development tooling
+.paul/
+.carl/
+.claude/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE directories
+.idea/
+.vscode/
+
+# Editor swap/backup files
+*.swp
+*.swo
+*~

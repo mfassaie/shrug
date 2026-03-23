@@ -714,6 +714,37 @@ fn run(config: &ShrugConfig, cli: &Cli) -> Result<(), ShrugError> {
             }
             Ok(())
         }
+        Some(Commands::GenerateMan { output_dir }) => {
+            let out = std::path::Path::new(&output_dir);
+            std::fs::create_dir_all(out)
+                .map_err(|e| ShrugError::ConfigError(format!("Failed to create {output_dir}: {e}")))?;
+            let cmd = <Cli as clap::CommandFactory>::command();
+            let man = clap_mangen::Man::new(cmd.clone());
+            let mut buf = Vec::new();
+            man.render(&mut buf)
+                .map_err(|e| ShrugError::ConfigError(format!("Failed to render man page: {e}")))?;
+            let path = out.join("shrug.1");
+            std::fs::write(&path, buf)
+                .map_err(|e| ShrugError::ConfigError(format!("Failed to write {}: {e}", path.display())))?;
+            eprintln!("Generated: {}", path.display());
+
+            // Generate man pages for subcommands
+            for sub in cmd.get_subcommands() {
+                if sub.is_hide_set() {
+                    continue;
+                }
+                let name = format!("shrug-{}", sub.get_name());
+                let man = clap_mangen::Man::new(sub.clone());
+                let mut buf = Vec::new();
+                if man.render(&mut buf).is_ok() {
+                    let path = out.join(format!("{name}.1"));
+                    if std::fs::write(&path, &buf).is_ok() {
+                        eprintln!("Generated: {}", path.display());
+                    }
+                }
+            }
+            Ok(())
+        }
         None => {
             eprintln!("Run `shrug --help` for usage information.");
             Ok(())
