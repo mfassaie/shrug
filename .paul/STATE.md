@@ -5,26 +5,26 @@
 See: .paul/PROJECT.md (updated 2026-03-23)
 
 **Core value:** Users and AI agents can interact with Atlassian Cloud products from the command line without context-switching to a browser.
-**Current focus:** v0.4 Performance & UX Polish — Dynamic Completions next
+**Current focus:** v0.4 Performance & UX Polish — MILESTONE COMPLETE
 
 ## Current Position
 
-Milestone: v0.4 Performance & UX Polish (v0.4.0)
-Phase: 20 of 20 (Dynamic Completions)
-Plan: Not started
-Status: Ready to plan
-Last activity: 2026-03-23 — Phase 19 complete, transitioned to Phase 20
+Milestone: v0.4 Performance & UX Polish (v0.4.0) — COMPLETE
+Phase: 20 of 20 (Dynamic Completions) — Complete
+Plan: All plans complete
+Status: Milestone complete
+Last activity: 2026-03-23 — Phase 20 complete, v0.4 milestone done
 
 Progress:
-- v0.4 Performance & UX Polish: [██████░░░░] 67%
-- Phase 20: [░░░░░░░░░░] 0%
+- v0.4 Performance & UX Polish: [██████████] 100%
+- Phase 20: [██████████] 100%
 
 ## Loop Position
 
 Current loop state:
 ```
 PLAN ──▶ APPLY ──▶ UNIFY
-  ○        ○        ○     [Ready for PLAN]
+  ✓        ✓        ✓     [All loops closed]
 ```
 
 ## Accumulated Context
@@ -41,26 +41,28 @@ PLAN ──▶ APPLY ──▶ UNIFY
 | Phase 17: 4 feature tests (pagination, verbose, trace, ADF) | Phase 17 | All v0.3 E2E gaps closed |
 | Phase 18: rkyv binary cache + ETag serve-stale | Phase 18 | Binary-preferred load, background refresh, conditional fetch |
 | Phase 19: confluence +create helper | Phase 19 | Markdown → storage format, product-routed dispatch |
+| Phase 20: dynamic completions | Phase 20 | Hidden _complete subcommand, file-cached, all 4 shells |
 
 ### Deferred Issues
 None.
 
 ### Git State
-Last commit: 710b4f6
+Last commit: c0125a0
 Branch: main
 Tags: v0.1.0, v0.2.0, v0.3.0
 
 ## Session Continuity
 
 Last session: 2026-03-23
-Stopped at: Phase 19 complete, ready to plan Phase 20
-Next action: /paul:plan for Phase 20
+Stopped at: v0.4 milestone complete
+Next action: /paul:complete-milestone or /paul:discuss-milestone for v0.5
 Resume file: .paul/ROADMAP.md
 Resume context:
-- Phase 18 complete: rkyv binary cache + ETag serve-stale
-- Phase 19 complete: confluence +create helper with storage format conversion
-- 518 tests pass, zero clippy warnings
-- Phase 20: Dynamic shell completions (last phase in v0.4)
+- v0.4 Performance & UX Polish milestone complete (3 phases, 4 plans)
+- Phase 18: rkyv binary cache + ETag serve-stale
+- Phase 19: confluence +create helper
+- Phase 20: dynamic completions
+- 529 tests pass, zero clippy warnings
 
 ---
 *STATE.md — Updated after every significant action*

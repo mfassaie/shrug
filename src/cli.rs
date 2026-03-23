@@ -152,6 +152,18 @@ pub enum Commands {
     Completions {
         /// Shell to generate completions for
         shell: String,
+        /// Generate dynamic completions with live Atlassian lookups
+        #[arg(long)]
+        dynamic: bool,
+    },
+    /// Internal: output completion values for dynamic tab-completion
+    #[command(name = "_complete", hide = true)]
+    Complete {
+        /// Completion type: projects, spaces, issues
+        completion_type: String,
+        /// Extra arguments (e.g. --project FOO)
+        #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
+        args: Vec<String>,
     },
 }
 

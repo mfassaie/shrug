@@ -11,6 +11,7 @@ use shrug::cli::{
 use shrug::cmd::router;
 use shrug::completions;
 use shrug::config::{self, ShrugConfig, ShrugPaths};
+use shrug::dynamic_completions;
 use shrug::error::ShrugError;
 use shrug::executor;
 use shrug::helpers;
@@ -678,8 +679,40 @@ fn run(config: &ShrugConfig, cli: &Cli) -> Result<(), ShrugError> {
             handle_profile(command, &profile_store, &cred_store)
         }
         Some(Commands::Cache { command }) => handle_cache(command, config),
-        Some(Commands::Completions { shell }) => {
-            completions::generate_completions(shell, &mut std::io::stdout())
+        Some(Commands::Completions { shell, dynamic }) => {
+            if *dynamic {
+                completions::generate_dynamic_completions(shell, &mut std::io::stdout())
+            } else {
+                completions::generate_completions(shell, &mut std::io::stdout())
+            }
+        }
+        Some(Commands::Complete {
+            completion_type,
+            args,
+        }) => {
+            let paths = ShrugPaths::new()
+                .ok_or_else(|| ShrugError::SpecError("Could not determine cache directory".into()))?;
+            let comp_cache = dynamic_completions::CompletionCache::new(
+                paths.cache_dir().to_path_buf(),
+            )?;
+            let profile_store = get_profile_store(&paths)?;
+            let cred_store = get_credential_store(&paths)?;
+            let credential = match resolve_profile(&cli.profile, config, &profile_store) {
+                Ok(Some(ref profile)) => cred_store.resolve(profile, None).ok().flatten(),
+                _ => None,
+            };
+            let comp_client = executor::create_client()?;
+            let values = dynamic_completions::complete(
+                completion_type,
+                &comp_client,
+                credential.as_ref(),
+                &comp_cache,
+                args,
+            );
+            for value in values {
+                println!("{}", value);
+            }
+            Ok(())
         }
         None => {
             eprintln!("Run `shrug --help` for usage information.");
