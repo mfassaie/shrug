@@ -17,4 +17,5 @@
 mod harness;
 mod auth;
 mod fixtures;
+mod jira;
 mod smoke;

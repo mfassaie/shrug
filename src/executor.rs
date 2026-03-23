@@ -149,21 +149,24 @@ fn resolve_base_url(
     spec_server_url: Option<&str>,
     credential: Option<&ResolvedCredential>,
 ) -> Option<String> {
-    // If spec has a usable server URL (not empty after variable stripping), use it
+    // Prefer credential's site URL — the user's actual Atlassian instance.
+    // Spec server URLs are typically placeholders (e.g., "your-domain.atlassian.net").
+    if let Some(cred) = credential {
+        let site = &cred.site;
+        if !site.is_empty() {
+            if site.starts_with("http://") || site.starts_with("https://") {
+                return Some(site.trim_end_matches('/').to_string());
+            }
+            return Some(format!("https://{}", site.trim_end_matches('/')));
+        }
+    }
+
+    // Fall back to spec server URL (stripped of template variables)
     if let Some(url) = spec_server_url {
         let stripped = strip_server_variables(url);
         if !stripped.is_empty() && stripped != "/" {
             return Some(stripped);
         }
-    }
-
-    // Fall back to credential's site URL
-    if let Some(cred) = credential {
-        let site = &cred.site;
-        if site.starts_with("http://") || site.starts_with("https://") {
-            return Some(site.clone());
-        }
-        return Some(format!("https://{}", site));
     }
 
     spec_server_url.map(|s| s.to_string())
@@ -1057,7 +1060,7 @@ mod tests {
     }
 
     #[test]
-    fn resolve_base_url_falls_back_to_credential_site() {
+    fn resolve_base_url_prefers_credential_over_spec() {
         let cred = ResolvedCredential {
             site: "mysite.atlassian.net".to_string(),
             source: crate::auth::credentials::CredentialSource::Environment,
@@ -1065,8 +1068,8 @@ mod tests {
                 access_token: "tok".to_string(),
             },
         };
-        // {baseUrl} gets stripped to empty
-        let url = resolve_base_url(Some("{baseUrl}"), Some(&cred));
+        // Credential site should always win over spec URL
+        let url = resolve_base_url(Some("https://your-domain.atlassian.net"), Some(&cred));
         assert_eq!(url.unwrap(), "https://mysite.atlassian.net");
     }
 
