@@ -1,6 +1,6 @@
 [package]
 name = "shrug"
-version = "0.5.0"
+version = "0.7.1"
 edition = "2021"
 description = "A dynamic CLI for Atlassian Cloud"
 license = "MIT"
