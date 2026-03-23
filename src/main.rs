@@ -14,7 +14,7 @@ use shrug::dynamic_completions;
 use shrug::error::ShrugError;
 use shrug::executor;
 use shrug::helpers;
-use shrug::jql::JqlShorthand;
+use shrug::jql::{self, JqlShorthand};
 use shrug::logging;
 use shrug::output;
 use shrug::spec::registry::Product;
@@ -537,51 +537,21 @@ fn run(config: &ShrugConfig, cli: &Cli) -> Result<(), ShrugError> {
 
             let client = executor::create_client()?;
 
-            // Build JQL from shorthand flags (Jira/JiraSoftware only)
-            let mut effective_args = args.clone();
-            let shorthand = JqlShorthand {
-                project: cli.project.clone(),
-                assignee: cli.assignee.clone(),
-                status: cli.status.clone(),
-                issue_type: cli.type_.clone(),
-                priority: cli.priority.clone(),
-                label: cli.label.clone(),
-            };
-            if (!shorthand.is_empty() || cli.jql.is_some())
-                && matches!(product, Product::Jira | Product::JiraSoftware)
-            {
-                if let Some(jql) = shorthand.build_jql(cli.jql.as_deref()) {
-                    effective_args.push("--jql".to_string());
-                    effective_args.push(jql);
-                }
-            }
-
             // Intercept helper commands (+create, +search, +transition)
-            if helpers::is_helper_command(&effective_args) {
-                let helper_name = effective_args[0].trim_start_matches('+');
-                // Forward global shorthand flags to helper args so they're available
-                // to the helper's argument parser (clap captures them as global flags,
-                // preventing them from reaching the helper via trailing args).
-                let mut helper_args: Vec<String> = effective_args[1..].to_vec();
-                if let Some(ref proj) = cli.project {
-                    if !helper_args.iter().any(|a| a == "--project") {
-                        helper_args.push("--project".to_string());
-                        helper_args.push(proj.clone());
-                    }
-                }
-                if let Some(ref assignee) = cli.assignee {
-                    if !helper_args.iter().any(|a| a == "--assignee") {
-                        helper_args.push("--assignee".to_string());
-                        helper_args.push(assignee.clone());
-                    }
-                }
-                if let Some(ref status) = cli.status {
-                    if !helper_args.iter().any(|a| a == "--status") {
-                        helper_args.push("--status".to_string());
-                        helper_args.push(status.clone());
-                    }
-                }
-                let helper_remaining = &helper_args;
+            if helpers::is_helper_command(args) {
+                let helper_name = args[0].trim_start_matches('+');
+                let helper_args = &args[1..];
+
+                // Only extract JQL flags for +search helper.
+                // +create and +transition use --project etc. for their own purposes.
+                let (shorthand, raw_jql) = if helper_name == "search"
+                    && matches!(product, Product::Jira | Product::JiraSoftware)
+                {
+                    let (sh, rj, _remaining) = jql::extract_jql_flags(helper_args);
+                    (sh, rj)
+                } else {
+                    (JqlShorthand::default(), None)
+                };
 
                 let paths = ShrugPaths::new().ok_or_else(|| {
                     ShrugError::SpecError("Could not determine cache directory".into())
@@ -597,12 +567,12 @@ fn run(config: &ShrugConfig, cli: &Cli) -> Result<(), ShrugError> {
                 return helpers::dispatch_helper(
                     helper_name,
                     &product,
-                    helper_remaining,
+                    helper_args,
                     &spec,
                     &client,
                     credential.as_ref(),
                     &shorthand,
-                    cli.jql.as_deref(),
+                    raw_jql.as_deref(),
                     &effective_format,
                     is_tty,
                     color_enabled,
@@ -611,6 +581,27 @@ fn run(config: &ShrugConfig, cli: &Cli) -> Result<(), ShrugError> {
                     cli.dry_run,
                 );
             }
+
+            // For Jira/JiraSoftware: extract JQL flags only for `list` verb
+            let effective_args = if matches!(product, Product::Jira | Product::JiraSoftware)
+                && args.len() >= 2
+                && args[1] == "list"
+            {
+                let (shorthand, raw_jql, cleaned) = jql::extract_jql_flags(&args[2..]);
+                if !shorthand.is_empty() || raw_jql.is_some() {
+                    let mut new_args = vec![args[0].clone(), args[1].clone()];
+                    if let Some(jql_str) = shorthand.build_jql(raw_jql.as_deref()) {
+                        new_args.push("--jql".to_string());
+                        new_args.push(jql_str);
+                    }
+                    new_args.extend(cleaned);
+                    new_args
+                } else {
+                    args.clone()
+                }
+            } else {
+                args.clone()
+            };
 
             handle_product(
                 product,

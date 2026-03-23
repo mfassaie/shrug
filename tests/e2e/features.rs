@@ -166,7 +166,7 @@ fn test_jql_shorthand_search() {
     // Note: +search helper uses the deprecated search endpoint which returns HTTP 410.
     // This is a known bug — the helpers need updating to use the new enhanced search API.
     // For now, verify the command runs and produces a meaningful error (not a crash).
-    let result = runner.run_json(&["--project", project, "jira", "+search"]);
+    let result = runner.run_json(&["jira", "+search", "--project", project]);
     if result.exit_code == 0 {
         assert!(
             result.json.is_some(),
@@ -196,12 +196,12 @@ fn test_helper_create_and_delete() {
     let profile = setup_profile(&runner);
     let project = runner.config().jira_project.as_str();
 
-    // +create with --project as global flag (must come before subcommand)
+    // +create with --project as trailing arg (demoted from global)
     let result = runner.run_json(&[
-        "--project",
-        project,
         "jira",
         "+create",
+        "--project",
+        project,
         "--summary",
         "E2E feature test issue",
     ]);

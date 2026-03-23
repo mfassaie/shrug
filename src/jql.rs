@@ -73,6 +73,113 @@ impl JqlShorthand {
     }
 }
 
+/// Extract JQL shorthand flags from an arg list.
+///
+/// Scans for --jql, --project, --assignee, --status, --type, --priority, --label
+/// and removes them (with their values) from the arg list.
+/// Respects the `--` separator: stops extracting after encountering it.
+///
+/// Returns (JqlShorthand, Option<raw_jql>, remaining_args).
+pub fn extract_jql_flags(args: &[String]) -> (JqlShorthand, Option<String>, Vec<String>) {
+    let mut shorthand = JqlShorthand::default();
+    let mut raw_jql: Option<String> = None;
+    let mut remaining = Vec::new();
+    let mut i = 0;
+    let mut past_separator = false;
+
+    while i < args.len() {
+        let arg = &args[i];
+
+        // Once we see --, everything after passes through unchanged
+        if arg == "--" {
+            past_separator = true;
+            remaining.push(arg.clone());
+            i += 1;
+            continue;
+        }
+
+        if past_separator {
+            remaining.push(arg.clone());
+            i += 1;
+            continue;
+        }
+
+        // Try --flag=value form
+        if let Some((flag, value)) = arg.strip_prefix("--").and_then(|s| {
+            let (f, v) = s.split_once('=')?;
+            Some((f.to_string(), v.to_string()))
+        }) {
+            if assign_jql_field(&flag, &value, &mut shorthand, &mut raw_jql) {
+                i += 1;
+                continue;
+            }
+        }
+
+        // Try --flag value form (space-separated)
+        if let Some(flag) = arg.strip_prefix("--") {
+            if is_jql_flag(flag) && i + 1 < args.len() {
+                let value = args[i + 1].clone();
+                assign_jql_field(flag, &value, &mut shorthand, &mut raw_jql);
+                i += 2;
+                continue;
+            }
+        }
+
+        remaining.push(arg.clone());
+        i += 1;
+    }
+
+    (shorthand, raw_jql, remaining)
+}
+
+/// Check if a flag name is a JQL shorthand flag.
+fn is_jql_flag(flag: &str) -> bool {
+    matches!(
+        flag,
+        "jql" | "project" | "assignee" | "status" | "type" | "priority" | "label"
+    )
+}
+
+/// Assign a value to the appropriate JQL field. Returns true if the flag was recognised.
+fn assign_jql_field(
+    flag: &str,
+    value: &str,
+    shorthand: &mut JqlShorthand,
+    raw_jql: &mut Option<String>,
+) -> bool {
+    match flag {
+        "jql" => {
+            *raw_jql = Some(value.to_string());
+            true
+        }
+        "project" => {
+            shorthand.project = Some(value.to_string());
+            true
+        }
+        "assignee" => {
+            shorthand.assignee = Some(value.to_string());
+            true
+        }
+        "status" => {
+            shorthand.status = Some(value.to_string());
+            true
+        }
+        "type" => {
+            shorthand.issue_type = Some(value.to_string());
+            true
+        }
+        "priority" => {
+            shorthand.priority = Some(value.to_string());
+            true
+        }
+        "label" => {
+            shorthand.label = Some(value.to_string());
+            true
+        }
+        _ => false,
+    }
+}
+
 /// Escape double quotes in a JQL value.
 fn escape_jql_value(value: &str) -> String {
     value.replace('"', "\\\"")
@@ -180,6 +287,82 @@ mod tests {
         };
         assert!(!s.is_empty());
     }
+
+    // --- extract_jql_flags tests ---
+
+    fn s(vals: &[&str]) -> Vec<String> {
+        vals.iter().map(|v| v.to_string()).collect()
+    }
+
+    #[test]
+    fn extract_single_flag() {
+        let (sh, jql, remaining) = extract_jql_flags(&s(&["--project", "KAN"]));
+        assert_eq!(sh.project.as_deref(), Some("KAN"));
+        assert!(jql.is_none());
+        assert!(remaining.is_empty());
+    }
+
+    #[test]
+    fn extract_multiple_flags() {
+        let (sh, jql, remaining) =
+            extract_jql_flags(&s(&["--project", "KAN", "--status", "Open", "--assignee", "me"]));
+        assert_eq!(sh.project.as_deref(), Some("KAN"));
+        assert_eq!(sh.status.as_deref(), Some("Open"));
+        assert_eq!(sh.assignee.as_deref(), Some("me"));
+        assert!(jql.is_none());
+        assert!(remaining.is_empty());
+    }
+
+    #[test]
+    fn extract_equals_style() {
+        let (sh, jql, remaining) =
+            extract_jql_flags(&s(&["--project=KAN", "--jql=priority = High"]));
+        assert_eq!(sh.project.as_deref(), Some("KAN"));
+        assert_eq!(jql.as_deref(), Some("priority = High"));
+        assert!(remaining.is_empty());
+    }
+
+    #[test]
+    fn extract_mixed_with_non_jql_flags() {
+        let (sh, _jql, remaining) = extract_jql_flags(&s(&[
+            "--expand", "names", "--project", "KAN", "--fields", "summary",
+        ]));
+        assert_eq!(sh.project.as_deref(), Some("KAN"));
+        assert_eq!(remaining, s(&["--expand", "names", "--fields", "summary"]));
+    }
+
+    #[test]
+    fn extract_no_jql_flags() {
+        let (sh, jql, remaining) = extract_jql_flags(&s(&["--expand", "names", "--limit", "50"]));
+        assert!(sh.is_empty());
+        assert!(jql.is_none());
+        assert_eq!(remaining, s(&["--expand", "names", "--limit", "50"]));
+    }
+
+    #[test]
+    fn extract_type_maps_to_issue_type() {
+        let (sh, _, _) = extract_jql_flags(&s(&["--type", "Bug"]));
+        assert_eq!(sh.issue_type.as_deref(), Some("Bug"));
+    }
+
+    #[test]
+    fn extract_raw_jql() {
+        let (sh, jql, remaining) = extract_jql_flags(&s(&["--jql", "project = BAR"]));
+        assert!(sh.is_empty());
+        assert_eq!(jql.as_deref(), Some("project = BAR"));
+        assert!(remaining.is_empty());
+    }
+
+    #[test]
+    fn extract_stops_at_separator() {
+        let (sh, _, remaining) =
+            extract_jql_flags(&s(&["--project", "KAN", "--", "--status", "Open"]));
+        assert_eq!(sh.project.as_deref(), Some("KAN"));
+        assert!(sh.status.is_none(), "--status after -- should not be extracted");
+        assert_eq!(remaining, s(&["--", "--status", "Open"]));
+    }
+
+    // --- existing build_jql tests ---
 
     #[test]
     fn all_fields_combined() {

@@ -38,34 +38,6 @@ pub struct Cli {
     #[arg(short = 'q', long, global = true)]
     pub quiet: bool,
 
-    /// Raw JQL query string (Jira/Jira Software only)
-    #[arg(long, global = true)]
-    pub jql: Option<String>,
-
-    /// JQL shorthand: filter by project key
-    #[arg(long, global = true)]
-    pub project: Option<String>,
-
-    /// JQL shorthand: filter by assignee ("me" for current user)
-    #[arg(long, global = true)]
-    pub assignee: Option<String>,
-
-    /// JQL shorthand: filter by status
-    #[arg(long, global = true)]
-    pub status: Option<String>,
-
-    /// JQL shorthand: filter by issue type
-    #[arg(long = "type", global = true)]
-    pub type_: Option<String>,
-
-    /// JQL shorthand: filter by priority
-    #[arg(long, global = true)]
-    pub priority: Option<String>,
-
-    /// JQL shorthand: filter by label
-    #[arg(long, global = true)]
-    pub label: Option<String>,
-
     #[command(subcommand)]
     pub command: Option<Commands>,
 }
@@ -318,8 +290,27 @@ mod tests {
     }
 
     #[test]
-    fn cli_parses_type_flag() {
-        let cli = Cli::try_parse_from(["shrug", "--type", "Bug"]).unwrap();
-        assert_eq!(cli.type_, Some("Bug".to_string()));
+    fn jql_flags_not_global() {
+        // After demotion, --project should be rejected as a global flag
+        let result = Cli::try_parse_from(["shrug", "--project", "KAN"]);
+        assert!(result.is_err(), "JQL flags should no longer be global");
+    }
+
+    #[test]
+    fn jql_flags_pass_through_trailing_args() {
+        // JQL flags after product subcommand should appear in trailing args
+        let cli = Cli::try_parse_from([
+            "shrug", "jira", "issues", "list", "--project", "KAN", "--status", "Open",
+        ])
+        .unwrap();
+        match cli.command {
+            Some(Commands::Jira { ref args }) => {
+                assert_eq!(
+                    args,
+                    &["issues", "list", "--project", "KAN", "--status", "Open"]
+                );
+            }
+            _ => panic!("Expected Jira command"),
+        }
     }
 }
