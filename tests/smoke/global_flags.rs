@@ -15,7 +15,6 @@ fn create_test_profile(runner: &SmokeRunner, name: &str) {
     let result = runner.run(&[
         "profile",
         "create",
-        "--name",
         name,
         "--site",
         "test.atlassian.net",
@@ -32,7 +31,7 @@ fn create_test_profile(runner: &SmokeRunner, name: &str) {
 
 /// Delete a test profile (best-effort, no panic on failure).
 fn delete_test_profile(runner: &SmokeRunner, name: &str) {
-    let _ = runner.run(&["profile", "delete", "--name", name]);
+    let _ = runner.run(&["profile", "delete", name]);
 }
 
 // ─── Output Format Tests ─────────────────────────────────────────────────

@@ -121,7 +121,7 @@ fn resolve_profile_name(
     match profile_store.get_default()? {
         Some(p) => Ok(p.name),
         None => Err(ShrugError::UsageError(
-            "No profile specified and no default profile set. Use --profile <name> or run: shrug profile use --name <name>".into(),
+            "No profile specified and no default profile set. Use --profile <name> or create a profile named 'default'.".into(),
         )),
     }
 }
@@ -368,7 +368,7 @@ fn handle_profile(
         ProfileCommands::List => {
             let profiles = store.list()?;
             if profiles.is_empty() {
-                println!("No profiles configured. Create one with: shrug profile create --name <name> --site <site> --email <email>");
+                println!("No profiles configured. Create one with: shrug profile create <name> --site <site> --email <email>");
                 return Ok(());
             }
             let header = format!(
@@ -385,7 +385,7 @@ fn handle_profile(
                 );
             }
         }
-        ProfileCommands::Show { name } => {
+        ProfileCommands::Get { name } => {
             let profile = store.get(name)?;
             let is_default = store.is_default(name);
             let token_status = match cred_store.has_credential(name) {
@@ -405,10 +405,6 @@ fn handle_profile(
             cred_store.delete(name);
             println!("Profile '{}' deleted.", name);
         }
-        ProfileCommands::Use { name } => {
-            store.set_default(name)?;
-            println!("Now using profile '{}'.", name);
-        }
     }
     Ok(())
 }
@@ -417,10 +413,74 @@ fn handle_cache(command: &CacheCommands, config: &ShrugConfig) -> Result<(), Shr
     let paths = ShrugPaths::new()
         .ok_or_else(|| ShrugError::SpecError("Could not determine cache directory".into()))?;
     let cache = SpecCache::new(paths.cache_dir().to_path_buf())?;
-    let loader = SpecLoader::new(cache, config.cache_ttl_hours);
 
     match command {
+        CacheCommands::List => {
+            let keys = cache.list_cached();
+            if keys.is_empty() {
+                println!("No cached specs. Run `shrug cache refresh` to download.");
+                return Ok(());
+            }
+            let header = format!("{:<20} {:<12} {:<20} {}", "PRODUCT", "VERSION", "CACHED", "STATUS");
+            println!("{header}");
+            println!("{}", "-".repeat(60));
+            for key in &keys {
+                match cache.load_metadata(key) {
+                    Ok(Some(meta)) => {
+                        let age = chrono::Utc::now() - meta.cached_at;
+                        let age_str = if age.num_hours() < 1 {
+                            format!("{}m ago", age.num_minutes())
+                        } else if age.num_hours() < 48 {
+                            format!("{}h ago", age.num_hours())
+                        } else {
+                            format!("{}d ago", age.num_days())
+                        };
+                        let status = if age.num_hours() < config.cache_ttl_hours as i64 {
+                            "fresh"
+                        } else {
+                            "stale"
+                        };
+                        println!(
+                            "{:<20} {:<12} {:<20} {}",
+                            key, meta.spec_version, age_str, status
+                        );
+                    }
+                    _ => {
+                        let line = format!("{:<20} {:<12} {:<20} {}", key, "?", "?", "unknown");
+                        println!("{line}");
+                    }
+                }
+            }
+            return Ok(());
+        }
+        CacheCommands::Clear { product: None } => {
+            let keys = cache.list_cached();
+            let mut count = 0;
+            for key in &keys {
+                let _ = cache.invalidate(key);
+                let _ = cache.invalidate_binary(key);
+                count += 1;
+            }
+            println!("Cleared {} cached spec(s).", count);
+            return Ok(());
+        }
+        CacheCommands::Clear {
+            product: Some(name),
+        } => {
+            let product = Product::from_cli_prefix(name).ok_or_else(|| {
+                ShrugError::UsageError(format!(
+                    "Unknown product '{}'. Valid products: jira, jira-software, confluence",
+                    name
+                ))
+            })?;
+            let cache_key = product.info().cache_key;
+            cache.invalidate(cache_key)?;
+            let _ = cache.invalidate_binary(cache_key);
+            println!("Cleared cache for {}.", product.info().display_name);
+            return Ok(());
+        }
         CacheCommands::Refresh { product: None } => {
+            let loader = SpecLoader::new(cache, config.cache_ttl_hours);
             let results = loader.refresh_all();
             let mut ok_count = 0;
             let mut err_count = 0;
@@ -451,6 +511,7 @@ fn handle_cache(command: &CacheCommands, config: &ShrugConfig) -> Result<(), Shr
         CacheCommands::Refresh {
             product: Some(name),
         } => {
+            let loader = SpecLoader::new(cache, config.cache_ttl_hours);
             let product = Product::from_cli_prefix(name).ok_or_else(|| {
                 ShrugError::UsageError(format!(
                     "Unknown product '{}'. Valid products: jira, jira-software, confluence",

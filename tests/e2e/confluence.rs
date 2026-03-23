@@ -8,7 +8,6 @@ fn setup_profile(runner: &ShrugRunner) -> String {
     let result = runner.run(&[
         "profile",
         "create",
-        "--name",
         &name,
         "--site",
         runner.config().site.as_str(),
@@ -20,12 +19,11 @@ fn setup_profile(runner: &ShrugRunner) -> String {
         "Failed to create profile: {}",
         result.stderr
     );
-    let _ = runner.run(&["profile", "use", "--name", &name]);
     name
 }
 
 fn teardown_profile(runner: &ShrugRunner, name: &str) {
-    let _ = runner.run(&["profile", "delete", "--name", name]);
+    let _ = runner.run(&["profile", "delete", name]);
 }
 
 /// Get the space ID for the configured Confluence space key.

@@ -168,6 +168,11 @@ impl SpecCache {
             .unwrap_or_default()
     }
 
+    /// Load cache metadata without the full spec (for cache list display).
+    pub fn load_metadata(&self, product: &str) -> Result<Option<CacheMetadata>, ShrugError> {
+        Ok(self.load_entry(product)?.map(|e| e.metadata))
+    }
+
     /// Get the cached spec version without loading the full spec.
     pub fn cached_version(&self, product: &str) -> Result<Option<String>, ShrugError> {
         Ok(self.load_entry(product)?.map(|e| e.metadata.spec_version))

@@ -49,7 +49,6 @@ fn test_live_api_connection() {
     let create_result = runner.run(&[
         "profile",
         "create",
-        "--name",
         "e2e-temp",
         "--site",
         runner.config().site.as_str(),
@@ -63,7 +62,7 @@ fn test_live_api_connection() {
     );
 
     // Set this as the default profile
-    let _ = runner.run(&["profile", "use", "--name", "e2e-temp"]);
+    // profile use removed — default is hardcoded to "default" profile name
 
     // Use the Jira project from E2E config to build a bounded JQL query
     let jql = format!(
@@ -88,7 +87,7 @@ fn test_live_api_connection() {
     );
 
     // Clean up temp profile
-    let _ = runner.run(&["profile", "delete", "--name", "e2e-temp"]);
+    let _ = runner.run(&["profile", "delete", "e2e-temp"]);
 
     harness::rate_limit_delay(runner.config());
 }

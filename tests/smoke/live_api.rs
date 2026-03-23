@@ -16,7 +16,7 @@ fn unique_name(prefix: &str) -> String {
 fn setup_profile(runner: &SmokeRunner, e2e: &crate::harness::E2eConfig) -> String {
     let name = unique_name("live");
     let result = runner.run(&[
-        "profile", "create", "--name", &name, "--site", &e2e.site, "--email", &e2e.email,
+        "profile", "create", &name, "--site", &e2e.site, "--email", &e2e.email,
     ]);
     assert!(
         result.exit_code == 0 || result.stderr.contains("already exists"),
@@ -24,13 +24,13 @@ fn setup_profile(runner: &SmokeRunner, e2e: &crate::harness::E2eConfig) -> Strin
         name,
         result.stderr
     );
-    let _ = runner.run(&["profile", "use", "--name", &name]);
+    // Default profile is now hardcoded to "default" name — no `use` command needed
     name
 }
 
 /// Delete a temp profile (best-effort).
 fn teardown_profile(runner: &SmokeRunner, name: &str) {
-    let _ = runner.run(&["profile", "delete", "--name", name]);
+    let _ = runner.run(&["profile", "delete", name]);
 }
 
 // ─── Jira Issue CRUD ─────────────────────────────────────────────────────

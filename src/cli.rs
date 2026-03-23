@@ -84,7 +84,7 @@ pub enum Commands {
         #[command(subcommand)]
         command: AuthCommands,
     },
-    /// Profile management (create, list, show, delete, use)
+    /// Profile management (create, list, get, delete)
     Profile {
         #[command(subcommand)]
         command: ProfileCommands,
@@ -110,7 +110,6 @@ pub enum ProfileCommands {
     /// Create a new profile
     Create {
         /// Profile name (lowercase, alphanumeric, hyphens)
-        #[arg(long)]
         name: String,
 
         /// Atlassian site URL (e.g., mysite.atlassian.net)
@@ -130,32 +129,33 @@ pub enum ProfileCommands {
     List,
 
     /// Show details of a profile
-    Show {
+    Get {
         /// Profile name
-        #[arg(long)]
         name: String,
     },
 
     /// Delete a profile
     Delete {
         /// Profile name
-        #[arg(long)]
-        name: String,
-    },
-
-    /// Set a profile as the default
-    Use {
-        /// Profile name to set as default
-        #[arg(long)]
         name: String,
     },
 }
 
 #[derive(Subcommand)]
 pub enum CacheCommands {
+    /// Show cached API specs with age and status
+    List,
+
     /// Download/refresh API specs from Atlassian CDN
     Refresh {
         /// Product to refresh (jira, jira-software, confluence). All if not specified.
+        #[arg(long)]
+        product: Option<String>,
+    },
+
+    /// Delete cached API specs (all or by product)
+    Clear {
+        /// Product to clear (jira, jira-software, confluence). All if not specified.
         #[arg(long)]
         product: Option<String>,
     },
@@ -264,7 +264,6 @@ mod tests {
             "shrug",
             "profile",
             "create",
-            "--name",
             "test",
             "--site",
             "test.atlassian.net",
@@ -278,6 +277,23 @@ mod tests {
             }) => assert_eq!(name, "test"),
             _ => panic!("Expected Profile Create"),
         }
+    }
+
+    #[test]
+    fn cli_parses_profile_get() {
+        let cli = Cli::try_parse_from(["shrug", "profile", "get", "myprofile"]).unwrap();
+        match cli.command {
+            Some(Commands::Profile {
+                command: ProfileCommands::Get { ref name },
+            }) => assert_eq!(name, "myprofile"),
+            _ => panic!("Expected Profile Get"),
+        }
+    }
+
+    #[test]
+    fn cli_rejects_profile_use() {
+        let result = Cli::try_parse_from(["shrug", "profile", "use", "test"]);
+        assert!(result.is_err(), "profile use should be rejected");
     }
 
     #[test]

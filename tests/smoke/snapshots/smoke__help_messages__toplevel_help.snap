@@ -12,7 +12,7 @@ Commands:
   jira-software  Jira Software operations (boards, sprints, backlogs) [aliases: jsw]
   confluence     Confluence operations [aliases: c, conf]
   auth           Authentication management (set-token, status)
-  profile        Profile management (create, list, show, delete, use)
+  profile        Profile management (create, list, get, delete)
   cache          Cache management (refresh specs)
   help           Print this message or the help of the given subcommand(s)
 

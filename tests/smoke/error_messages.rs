@@ -12,7 +12,7 @@ fn test_error_nonexistent_profile_show() {
     let config = skip_unless_binary!();
     let runner = SmokeRunner::new(config);
 
-    let result = runner.run(&["profile", "show", "--name", "nonexistent-xyz-999"]);
+    let result = runner.run(&["profile", "get", "nonexistent-xyz-999"]);
     assert_ne!(
         result.exit_code, 0,
         "Showing nonexistent profile should fail"
@@ -34,7 +34,7 @@ fn test_error_nonexistent_profile_delete() {
     let config = skip_unless_binary!();
     let runner = SmokeRunner::new(config);
 
-    let result = runner.run(&["profile", "delete", "--name", "nonexistent-xyz-999"]);
+    let result = runner.run(&["profile", "delete", "nonexistent-xyz-999"]);
     assert_ne!(
         result.exit_code, 0,
         "Deleting nonexistent profile should fail"
@@ -86,7 +86,7 @@ fn test_error_missing_required_arg() {
         "profile create without args should fail"
     );
     assert!(
-        result.stderr.contains("required") || result.stderr.contains("--name"),
+        result.stderr.contains("required") || result.stderr.contains("<NAME>"),
         "Error should mention required arguments.\nstderr: {}",
         result.stderr
     );
@@ -117,7 +117,7 @@ fn test_error_hint_present_on_profile_error() {
     let config = skip_unless_binary!();
     let runner = SmokeRunner::new(config);
 
-    let result = runner.run(&["profile", "show", "--name", "nonexistent-xyz-999"]);
+    let result = runner.run(&["profile", "get", "nonexistent-xyz-999"]);
     assert_ne!(result.exit_code, 0);
     // Verify the error follows the "Error: ...\nHint: ..." pattern
     assert!(
@@ -140,7 +140,7 @@ fn test_exit_codes_nonzero_on_error() {
     // Multiple error scenarios should all exit non-zero
     let scenarios: Vec<(&[&str], &str)> = vec![
         (
-            &["profile", "show", "--name", "nonexistent"],
+            &["profile", "get", "nonexistent"],
             "nonexistent profile show",
         ),
         (&["--output", "bad", "--help"], "invalid output format"),

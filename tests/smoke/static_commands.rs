@@ -15,7 +15,6 @@ fn create_test_profile(runner: &SmokeRunner, name: &str) {
     let result = runner.run(&[
         "profile",
         "create",
-        "--name",
         name,
         "--site",
         "test.atlassian.net",
@@ -32,7 +31,7 @@ fn create_test_profile(runner: &SmokeRunner, name: &str) {
 
 /// Delete a test profile (best-effort, no panic on failure).
 fn delete_test_profile(runner: &SmokeRunner, name: &str) {
-    let _ = runner.run(&["profile", "delete", "--name", name]);
+    let _ = runner.run(&["profile", "delete", name]);
 }
 
 // ─── Profile Lifecycle Tests ─────────────────────────────────────────────
@@ -53,37 +52,20 @@ fn test_profile_create_and_list() {
 }
 
 #[test]
-fn test_profile_show_details() {
+fn test_profile_get_details() {
     let config = skip_unless_binary!();
     let runner = SmokeRunner::new(config);
-    let name = unique_name("smoke-show");
+    let name = unique_name("smoke-get");
 
     create_test_profile(&runner, &name);
 
-    let result = runner.run(&["profile", "show", "--name", &name]);
+    let result = runner.run(&["profile", "get", &name]);
     result.assert_success();
     result.assert_stdout_contains(&name);
     result.assert_stdout_contains("test.atlassian.net");
     result.assert_stdout_contains("test@example.com");
 
     delete_test_profile(&runner, &name);
-}
-
-#[test]
-fn test_profile_use_sets_default() {
-    let config = skip_unless_binary!();
-    let runner = SmokeRunner::new(config);
-    let name_a = unique_name("smoke-use-a");
-    let name_b = unique_name("smoke-use-b");
-
-    create_test_profile(&runner, &name_a);
-    create_test_profile(&runner, &name_b);
-
-    let result = runner.run(&["profile", "use", "--name", &name_b]);
-    result.assert_success();
-
-    delete_test_profile(&runner, &name_a);
-    delete_test_profile(&runner, &name_b);
 }
 
 #[test]
@@ -94,7 +76,7 @@ fn test_profile_delete_removes() {
 
     create_test_profile(&runner, &name);
 
-    let del = runner.run(&["profile", "delete", "--name", &name]);
+    let del = runner.run(&["profile", "delete", &name]);
     del.assert_success();
 
     let list = runner.run(&["profile", "list"]);

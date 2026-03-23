@@ -13,7 +13,6 @@ fn create_profile(runner: &ShrugRunner, name: &str) -> String {
     let result = runner.run(&[
         "profile",
         "create",
-        "--name",
         name,
         "--site",
         runner.config().site.as_str(),
@@ -31,7 +30,7 @@ fn create_profile(runner: &ShrugRunner, name: &str) -> String {
 
 /// Helper: delete a profile (best-effort, no panic on failure).
 fn delete_profile(runner: &ShrugRunner, name: &str) {
-    let result = runner.run(&["profile", "delete", "--name", name]);
+    let result = runner.run(&["profile", "delete", name]);
     if result.exit_code != 0 {
         eprintln!(
             "Warning: failed to delete profile '{}': {}",
@@ -52,7 +51,6 @@ fn test_profile_create_and_list() {
     let result = runner.run(&[
         "profile",
         "create",
-        "--name",
         &name,
         "--site",
         runner.config().site.as_str(),
@@ -79,7 +77,7 @@ fn test_profile_show_details() {
 
     create_profile(&runner, &name);
 
-    let result = runner.run(&["profile", "show", "--name", &name]);
+    let result = runner.run(&["profile", "get", &name]);
     result.assert_success();
     result.assert_stdout_contains(&name);
     // Site may have trailing slash stripped by profile storage
@@ -91,24 +89,6 @@ fn test_profile_show_details() {
 }
 
 #[test]
-fn test_profile_use_sets_default() {
-    let config = skip_unless_e2e!();
-    let runner = ShrugRunner::new(config);
-    let name_a = unique_name("e2e-use-a");
-    let name_b = unique_name("e2e-use-b");
-
-    create_profile(&runner, &name_a);
-    create_profile(&runner, &name_b);
-
-    let result = runner.run(&["profile", "use", "--name", &name_b]);
-    result.assert_success();
-    result.assert_stdout_contains("Now using");
-
-    delete_profile(&runner, &name_a);
-    delete_profile(&runner, &name_b);
-}
-
-#[test]
 fn test_profile_delete() {
     let config = skip_unless_e2e!();
     let runner = ShrugRunner::new(config);
@@ -116,7 +96,7 @@ fn test_profile_delete() {
 
     create_profile(&runner, &name);
 
-    let del = runner.run(&["profile", "delete", "--name", &name]);
+    let del = runner.run(&["profile", "delete", &name]);
     del.assert_success();
 
     let list = runner.run(&["profile", "list"]);
@@ -138,7 +118,7 @@ fn test_env_var_auth_works() {
     let name = unique_name("e2e-envauth");
 
     create_profile(&runner, &name);
-    let _ = runner.run(&["profile", "use", "--name", &name]);
+    // Profile use removed — tests use --profile flag for non-default profiles
 
     // Env vars (SHRUG_API_TOKEN, SHRUG_EMAIL, SHRUG_SITE) are set by ShrugRunner.
     // The profile exists, so credential resolution uses env var token.
@@ -229,7 +209,7 @@ fn test_profile_flag_override() {
     let _ = runner.run(&["profile", "use", "--name", &name_a]);
 
     // Use --profile flag to override default
-    let result = runner.run(&["--profile", &name_b, "profile", "show", "--name", &name_b]);
+    let result = runner.run(&["--profile", &name_b, "profile", "get", &name_b]);
     result.assert_success();
     result.assert_stdout_contains(&name_b);
 
