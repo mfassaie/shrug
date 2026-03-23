@@ -682,13 +682,15 @@ mod tests {
     fn has_credential_checks_encrypted_file() {
         let dir = tempfile::tempdir().unwrap();
         let store = make_store(&dir);
+        let name = "test-hascred-encfile";
+        store.delete(name);
 
-        assert!(!store.has_credential("test-profile").unwrap());
+        assert!(!store.has_credential(name).unwrap());
 
-        store
-            .store_encrypted("test-profile", "token", "pass")
-            .unwrap();
-        assert!(store.has_credential("test-profile").unwrap());
+        store.store_encrypted(name, "token", "pass").unwrap();
+        assert!(store.has_credential(name).unwrap());
+
+        store.delete(name);
     }
 
     #[test]
@@ -732,7 +734,9 @@ mod tests {
         let _guard = ENV_LOCK.lock().unwrap();
         let dir = tempfile::tempdir().unwrap();
         let store = make_store(&dir);
-        let profile = make_profile("test");
+        let name = "test-env-override";
+        store.delete(name);
+        let profile = make_profile(name);
 
         let orig_token = env::var("SHRUG_API_TOKEN").ok();
         let orig_email = env::var("SHRUG_EMAIL").ok();
@@ -773,9 +777,11 @@ mod tests {
         let _guard = ENV_LOCK.lock().unwrap();
         let dir = tempfile::tempdir().unwrap();
         let store = make_store(&dir);
-        let profile = make_profile("test");
+        let name = "test-env-skips";
+        store.delete(name);
+        let profile = make_profile(name);
 
-        store.store_encrypted("test", "file-token", "pass").unwrap();
+        store.store_encrypted(name, "file-token", "pass").unwrap();
 
         let orig = env::var("SHRUG_API_TOKEN").ok();
         env::set_var("SHRUG_API_TOKEN", "env-token");
@@ -798,7 +804,9 @@ mod tests {
     fn resolve_returns_none_when_no_credentials() {
         let dir = tempfile::tempdir().unwrap();
         let store = make_store(&dir);
-        let profile = make_profile("test");
+        let name = "test-resolve-none-cred";
+        store.delete(name);
+        let profile = make_profile(name);
 
         let orig = env::var("SHRUG_API_TOKEN").ok();
         env::remove_var("SHRUG_API_TOKEN");
@@ -816,13 +824,15 @@ mod tests {
     fn resolve_encrypted_file_with_password() {
         let dir = tempfile::tempdir().unwrap();
         let store = make_store(&dir);
-        let profile = make_profile("test");
+        let name = "test-resolve-encfile";
+        store.delete(name);
+        let profile = make_profile(name);
 
         let orig = env::var("SHRUG_API_TOKEN").ok();
         env::remove_var("SHRUG_API_TOKEN");
 
         store
-            .store_encrypted("test", "encrypted-token", "mypass")
+            .store_encrypted(name, "encrypted-token", "mypass")
             .unwrap();
 
         let result = store.resolve(&profile, Some("mypass")).unwrap().unwrap();
@@ -848,7 +858,9 @@ mod tests {
     fn has_credential_returns_result() {
         let dir = tempfile::tempdir().unwrap();
         let store = make_store(&dir);
-        let result: Result<bool, ShrugError> = store.has_credential("test");
+        let name = "test-hascred-result";
+        store.delete(name);
+        let result: Result<bool, ShrugError> = store.has_credential(name);
         assert!(result.is_ok());
     }
 
@@ -858,6 +870,8 @@ mod tests {
     fn oauth_tokens_store_retrieve_roundtrip_encrypted() {
         let dir = tempfile::tempdir().unwrap();
         let store = make_store(&dir);
+        let name = "test-oauth-roundtrip";
+        store.delete(name);
 
         let tokens = OAuthTokens {
             access_token: "access-123".to_string(),
@@ -866,20 +880,21 @@ mod tests {
             scopes: vec!["read:jira-work".to_string()],
         };
 
-        store.store_oauth_tokens("test-profile", &tokens).unwrap();
+        store.store_oauth_tokens(name, &tokens).unwrap();
 
-        let retrieved = store
-            .retrieve_oauth_tokens("test-profile")
-            .unwrap()
-            .unwrap();
+        let retrieved = store.retrieve_oauth_tokens(name).unwrap().unwrap();
         assert_eq!(retrieved.access_token, "access-123");
         assert_eq!(retrieved.refresh_token, "refresh-456");
+
+        store.delete(name);
     }
 
     #[test]
     fn oauth_tokens_no_plaintext_json_files() {
         let dir = tempfile::tempdir().unwrap();
         let store = make_store(&dir);
+        let name = "test-oauth-plaintext";
+        store.delete(name);
 
         let tokens = OAuthTokens {
             access_token: "secret".to_string(),
@@ -888,23 +903,27 @@ mod tests {
             scopes: vec![],
         };
 
-        store.store_oauth_tokens("test-profile", &tokens).unwrap();
+        store.store_oauth_tokens(name, &tokens).unwrap();
 
         // Verify no .oauth.json file exists (plaintext)
         let plaintext_path = dir
             .path()
             .join("credentials")
-            .join("test-profile.oauth.json");
+            .join(format!("{}.oauth.json", name));
         assert!(
             !plaintext_path.exists(),
             "Plaintext .oauth.json should NOT exist"
         );
+
+        store.delete(name);
     }
 
     #[test]
     fn oauth_config_store_retrieve_roundtrip() {
         let dir = tempfile::tempdir().unwrap();
         let store = make_store(&dir);
+        let name = "test-oauth-config";
+        store.delete(name);
 
         let config = OAuthConfig {
             client_id: "client-id-123".to_string(),
@@ -912,20 +931,21 @@ mod tests {
             redirect_port: 9000,
         };
 
-        store.store_oauth_config("test-profile", &config).unwrap();
+        store.store_oauth_config(name, &config).unwrap();
 
-        let retrieved = store
-            .retrieve_oauth_config("test-profile")
-            .unwrap()
-            .unwrap();
+        let retrieved = store.retrieve_oauth_config(name).unwrap().unwrap();
         assert_eq!(retrieved.client_id, "client-id-123");
         assert_eq!(retrieved.client_secret, "secret-456");
+
+        store.delete(name);
     }
 
     #[test]
     fn delete_cleans_up_oauth_files() {
         let dir = tempfile::tempdir().unwrap();
         let store = make_store(&dir);
+        let name = "test-delete-cleanup";
+        store.delete(name);
 
         let tokens = OAuthTokens {
             access_token: "a".to_string(),
@@ -939,26 +959,22 @@ mod tests {
             redirect_port: 8456,
         };
 
-        store.store_oauth_tokens("test-profile", &tokens).unwrap();
-        store.store_oauth_config("test-profile", &config).unwrap();
+        store.store_oauth_tokens(name, &tokens).unwrap();
+        store.store_oauth_config(name, &config).unwrap();
 
-        store.delete("test-profile");
+        store.delete(name);
 
-        assert!(store
-            .retrieve_oauth_tokens("test-profile")
-            .unwrap()
-            .is_none());
-        assert!(store
-            .retrieve_oauth_config("test-profile")
-            .unwrap()
-            .is_none());
+        assert!(store.retrieve_oauth_tokens(name).unwrap().is_none());
+        assert!(store.retrieve_oauth_config(name).unwrap().is_none());
     }
 
     #[test]
     fn resolve_oauth2_profile_returns_bearer_scheme() {
         let dir = tempfile::tempdir().unwrap();
         let store = make_store(&dir);
-        let profile = make_oauth_profile("oauth-test");
+        let name = "test-resolve-bearer";
+        let profile = make_oauth_profile(name);
+        store.delete(name);
 
         let tokens = OAuthTokens {
             access_token: "bearer-token-123".to_string(),
@@ -967,7 +983,7 @@ mod tests {
             scopes: vec![],
         };
 
-        store.store_oauth_tokens("oauth-test", &tokens).unwrap();
+        store.store_oauth_tokens(name, &tokens).unwrap();
 
         let result = store.resolve(&profile, None).unwrap().unwrap();
         match &result.scheme {
@@ -976,13 +992,17 @@ mod tests {
             }
             _ => panic!("Expected Bearer scheme for OAuth2 profile"),
         }
+
+        store.delete(name);
     }
 
     #[test]
     fn resolve_oauth2_no_tokens_returns_none() {
         let dir = tempfile::tempdir().unwrap();
         let store = make_store(&dir);
-        let profile = make_oauth_profile("oauth-test");
+        let name = "test-resolve-none";
+        let profile = make_oauth_profile(name);
+        store.delete(name);
 
         let result = store.resolve(&profile, None).unwrap();
         assert!(result.is_none());
@@ -992,7 +1012,9 @@ mod tests {
     fn ensure_fresh_tokens_skips_basic_auth() {
         let dir = tempfile::tempdir().unwrap();
         let store = make_store(&dir);
-        let profile = make_profile("basic-test");
+        let name = "test-fresh-basic";
+        let profile = make_profile(name);
+        store.delete(name);
 
         let result = store.ensure_fresh_tokens(&profile).unwrap();
         assert!(!result);
@@ -1002,7 +1024,9 @@ mod tests {
     fn ensure_fresh_tokens_skips_when_not_expired() {
         let dir = tempfile::tempdir().unwrap();
         let store = make_store(&dir);
-        let profile = make_oauth_profile("oauth-test");
+        let name = "test-fresh-notexpired";
+        let profile = make_oauth_profile(name);
+        store.delete(name);
 
         let tokens = OAuthTokens {
             access_token: "still-valid".to_string(),
@@ -1010,18 +1034,22 @@ mod tests {
             expires_at: Some(chrono::Utc::now() + chrono::Duration::hours(1)),
             scopes: vec![],
         };
-        store.store_oauth_tokens("oauth-test", &tokens).unwrap();
+        store.store_oauth_tokens(name, &tokens).unwrap();
 
         let result = store.ensure_fresh_tokens(&profile).unwrap();
         assert!(!result);
+
+        store.delete(name);
     }
 
     #[test]
     fn has_credential_detects_oauth_tokens() {
         let dir = tempfile::tempdir().unwrap();
         let store = make_store(&dir);
+        let name = "test-hascred-oauth";
+        store.delete(name);
 
-        assert!(!store.has_credential("oauth-test").unwrap());
+        assert!(!store.has_credential(name).unwrap());
 
         let tokens = OAuthTokens {
             access_token: "a".to_string(),
@@ -1029,8 +1057,10 @@ mod tests {
             expires_at: None,
             scopes: vec![],
         };
-        store.store_oauth_tokens("oauth-test", &tokens).unwrap();
+        store.store_oauth_tokens(name, &tokens).unwrap();
 
-        assert!(store.has_credential("oauth-test").unwrap());
+        assert!(store.has_credential(name).unwrap());
+
+        store.delete(name);
     }
 }

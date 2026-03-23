@@ -350,7 +350,7 @@ fn handle_setup(
         "\nProfile '{}' configured! You're ready to use shrug.",
         name
     );
-    println!("Try: shrug jira issues list --project YOUR_PROJECT_KEY");
+    println!("Try: shrug jira +search --project YOUR_PROJECT_KEY");
 
     Ok(())
 }

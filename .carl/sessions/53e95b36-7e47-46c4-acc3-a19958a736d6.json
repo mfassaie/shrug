@@ -1,0 +1,15 @@
+{
+  "uuid": "53e95b36-7e47-46c4-acc3-a19958a736d6",
+  "started": "2026-03-23T19:11:32.573191",
+  "cwd": "C:\\Users\\Falconer\\Development\\mfassaie\\shrug",
+  "label": "shrug",
+  "title": "<local-command-caveat>Caveat: The messages below were gen...",
+  "prompt_count": 14,
+  "last_activity": "2026-03-23T20:15:25.119898",
+  "overrides": {
+    "DEVMODE": null,
+    "GLOBAL_STATE": null,
+    "CONTEXT_STATE": null,
+    "COMMANDS_STATE": null
+  }
+}

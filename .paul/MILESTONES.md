@@ -8,6 +8,7 @@ Completed milestone log for this project.
 | v0.2 E2E Validation | 2026-03-23 | 1 day | 4 phases, 8 plans |
 | v0.3 Test Coverage & Entity Expansion | 2026-03-23 | 1 day | 5 phases, 9 plans |
 | v0.4 Performance & UX Polish | 2026-03-23 | 1 day | 3 phases, 4 plans |
+| v0.5 Windows E2E Smoke Tests | 2026-03-23 | 1 day | 4 phases, 4 plans |
 
 ---
 
@@ -135,6 +136,42 @@ Completed milestone log for this project.
 | Attachment test falls back to read-only | 14 | CLI executor sends JSON, not multipart/form-data |
 | Vote test graceful early return on own-issue | 14 | Jira blocks voting on reporter's issues (API constraint) |
 | Board creation requires Jira Platform filter | 15 | JSW boards need a filter ID from the Platform API |
+
+## v0.5 Windows E2E Smoke Tests
+
+**Completed:** 2026-03-23
+**Duration:** 1 day
+**Version:** 0.5.0
+
+### Stats
+
+| Metric | Value |
+|--------|-------|
+| Phases | 4 |
+| Plans | 4 |
+| New smoke tests | 47 (45 offline + 2 live API) |
+| Total tests | 576 (452 unit + 70 E2E + 7 integration + 47 smoke) |
+| Enterprise audits | 2 (Phase 21, Phase 22) |
+
+### Key Accomplishments
+
+- **Installed binary test harness:** SmokeRunner finds shrug.exe on PATH (or via SHRUG_E2E_BINARY env var) using `which` crate. try_resolve()/resolve() pattern for graceful skip vs hard failure. env_remove() isolates offline tests from credential leakage. ResourceTracker adapted for panic-safe cleanup.
+- **Static command smoke tests (12 tests):** Profile CRUD lifecycle (create, list, show, use, delete), auth help and status, cache help, shell completions for all 4 shells (bash, zsh, fish, PowerShell). All offline, no API access needed.
+- **Global flag smoke tests (13 tests):** All 5 output formats (json, table, yaml, csv, plain), all 3 colour modes (auto, always, never), verbose levels (-v, -vv, --trace), --no-pager, --dry-run, --fields. Verified against installed binary.
+- **Help message snapshots (10 tests):** 4 insta golden-file snapshots (top-level, auth, profile, cache help). 6 structure validation tests confirming help lists all products, commands, flags, and subcommands. Version format validation (shrug X.Y.Z).
+- **Error message validation (8 tests):** Error:/Hint: pattern verified across error types. Exit code verification for nonexistent profiles, invalid flags, missing required args. Graceful auth failure handling.
+- **Live API CRUD smoke tests (2 tests):** Jira issue create → verify → delete. Confluence page create → verify → delete. Gated behind E2E credentials, skipped when not available.
+
+### Key Decisions
+
+| Decision | Phase | Rationale |
+|----------|-------|-----------|
+| try_resolve() + resolve() pattern | 21 | Skip macros need graceful failure, not panics |
+| assert_cmd::Command::new() not cargo_bin | 21 | Tests installed binary experience, not build output |
+| env_remove() for offline credential isolation | 21 | Prevents offline tests from accidentally hitting live API |
+| Module-scoped unique_name prefixes (sc-, gf-, la-) | 22 | Prevents profile name collisions across test modules |
+| insta for help snapshots | 23 | Golden-file regression testing for help text changes |
+| Nonexistent profile triggers NotFound, not ProfileError | 23 | Discovery — hint says "+search" not "profile list" |
 
 ---
 *Milestones log — Updated on milestone completion*
