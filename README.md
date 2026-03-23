@@ -6,6 +6,10 @@
 
 A dynamic CLI for Atlassian Cloud. Commands are generated at runtime from Atlassian's OpenAPI specifications, so the binary ships with no hardcoded API knowledge and automatically supports every endpoint across Jira, Jira Software, and Confluence (~925 operations).
 
+<p align="center">
+  <img src="assets/demo.svg" alt="shrug demo" width="860">
+</p>
+
 ## Features
 
 - **Dynamic command generation** from OpenAPI 3.0.1 specs
