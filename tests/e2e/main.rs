@@ -20,4 +20,5 @@ mod confluence;
 mod features;
 mod fixtures;
 mod jira;
+mod jira_software;
 mod smoke;
