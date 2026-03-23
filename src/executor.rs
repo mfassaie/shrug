@@ -149,27 +149,53 @@ fn resolve_base_url(
     spec_server_url: Option<&str>,
     credential: Option<&ResolvedCredential>,
 ) -> Option<String> {
-    // Prefer credential's site URL — the user's actual Atlassian instance.
-    // Spec server URLs are typically placeholders (e.g., "your-domain.atlassian.net").
-    if let Some(cred) = credential {
-        let site = &cred.site;
-        if !site.is_empty() {
-            if site.starts_with("http://") || site.starts_with("https://") {
-                return Some(site.trim_end_matches('/').to_string());
-            }
-            return Some(format!("https://{}", site.trim_end_matches('/')));
+    // Build the credential site URL with https scheme
+    let cred_site = credential.and_then(|cred| {
+        let site = cred.site.trim_end_matches('/');
+        if site.is_empty() {
+            return None;
         }
-    }
+        if site.starts_with("http://") || site.starts_with("https://") {
+            Some(site.to_string())
+        } else {
+            Some(format!("https://{}", site))
+        }
+    });
 
-    // Fall back to spec server URL (stripped of template variables)
     if let Some(url) = spec_server_url {
         let stripped = strip_server_variables(url);
+
+        if let Some(ref site) = cred_site {
+            // Combine credential site with path prefix from spec URL.
+            // e.g., spec "https://{domain}/wiki/api/v2" + site "https://x.atlassian.net"
+            //     → "https://x.atlassian.net/wiki/api/v2"
+            let path = extract_path_after_host(&stripped);
+            if path.is_empty() || path == "/" {
+                return Some(site.clone());
+            }
+            return Some(format!("{}{}", site, path));
+        }
+
         if !stripped.is_empty() && stripped != "/" {
             return Some(stripped);
         }
     }
 
-    spec_server_url.map(|s| s.to_string())
+    cred_site
+}
+
+/// Extract the path portion from a URL after the scheme and host.
+/// e.g., "https:///wiki/api/v2" → "/wiki/api/v2"
+/// e.g., "https://host.com" → ""
+fn extract_path_after_host(url: &str) -> &str {
+    let after_scheme = url
+        .strip_prefix("https://")
+        .or_else(|| url.strip_prefix("http://"))
+        .unwrap_or(url);
+    match after_scheme.find('/') {
+        Some(pos) => &after_scheme[pos..],
+        None => "",
+    }
 }
 
 /// Strip `{variable}` templates from server URLs.

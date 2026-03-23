@@ -62,7 +62,7 @@ static CONFLUENCE_INFO: ProductInfo = ProductInfo {
     product: Product::Confluence,
     display_name: "Confluence",
     cli_prefix: "confluence",
-    spec_url: "https://dac-static.atlassian.com/cloud/confluence/swagger.v3.json",
+    spec_url: "https://dac-static.atlassian.com/cloud/confluence/openapi-v2.v3.json",
     spec_format: SpecFormat::V3,
     cache_key: "confluence",
 };
@@ -355,7 +355,7 @@ mod tests {
         assert!(Product::Confluence
             .info()
             .spec_url
-            .contains("confluence/swagger"));
+            .contains("confluence/openapi"));
         assert!(Product::JiraServiceManagement
             .info()
             .spec_url
