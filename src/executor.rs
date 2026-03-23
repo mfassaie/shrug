@@ -665,7 +665,7 @@ fn add_pagination_params(
 
 /// Count the number of results in a paginated JSON response.
 pub fn count_results(json: &serde_json::Value) -> u32 {
-    // Try known array fields: issues (Jira), values (BitBucket/Jira), results (Confluence)
+    // Try known array fields: issues (Jira), values (Jira), results (Confluence)
     for key in &["issues", "values", "results"] {
         if let Some(arr) = json.get(key).and_then(|v| v.as_array()) {
             return arr.len() as u32;
@@ -689,9 +689,9 @@ pub fn has_more_offset(json: &serde_json::Value, current_offset: u64, page_count
     page_count > 0
 }
 
-/// Check if there are more pages for page-based pagination (BitBucket).
+/// Check if there are more pages for page-based pagination.
 pub fn has_more_page(json: &serde_json::Value) -> bool {
-    // BitBucket uses a "next" field with the URL of the next page
+    // Uses a "next" field with the URL of the next page
     json.get("next").and_then(|v| v.as_str()).is_some()
 }
 

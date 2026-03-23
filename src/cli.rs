@@ -123,16 +123,6 @@ pub enum Commands {
         #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
         args: Vec<String>,
     },
-    /// Bitbucket Cloud operations
-    Bitbucket {
-        #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
-        args: Vec<String>,
-    },
-    /// Jira Service Management operations
-    Jsm {
-        #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
-        args: Vec<String>,
-    },
     /// Authentication management (set-token, status)
     Auth {
         #[command(subcommand)]
@@ -224,7 +214,7 @@ pub enum ProfileCommands {
 pub enum CacheCommands {
     /// Download/refresh API specs from Atlassian CDN
     Refresh {
-        /// Product to refresh (jira, jira-software, confluence, jsm, bitbucket). All if not specified.
+        /// Product to refresh (jira, jira-software, confluence). All if not specified.
         #[arg(long)]
         product: Option<String>,
     },

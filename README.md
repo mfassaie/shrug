@@ -1,11 +1,11 @@
 # shrug
 
-A dynamic CLI for Atlassian Cloud. Commands are generated at runtime from Atlassian's OpenAPI specifications, so the binary ships with no hardcoded API knowledge and automatically supports every endpoint across Jira, Jira Software, Confluence, Bitbucket, and Jira Service Management (~1,250 operations).
+A dynamic CLI for Atlassian Cloud. Commands are generated at runtime from Atlassian's OpenAPI specifications, so the binary ships with no hardcoded API knowledge and automatically supports every endpoint across Jira, Jira Software, and Confluence (~925 operations).
 
 ## Features
 
-- **Dynamic command generation** from OpenAPI 3.0.1 and Swagger 2.0 specs
-- **Five Atlassian products** with a single binary: Jira, Jira Software, Confluence, Bitbucket, JSM
+- **Dynamic command generation** from OpenAPI 3.0.1 specs
+- **Three Atlassian products** with a single binary: Jira, Jira Software, Confluence
 - **Multi-profile authentication** with OS keychain storage, OAuth 2.0 (PKCE), and encrypted file fallback
 - **Five output formats**: JSON, table, YAML, CSV, plain text with TTY detection
 - **Helper commands**: `+create`, `+search`, `+transition` shortcuts for common Jira workflows
@@ -109,8 +109,6 @@ For CI/CD, set `SHRUG_SITE`, `SHRUG_EMAIL`, and `SHRUG_API_TOKEN` environment va
 | Jira Platform | `shrug jira` | OpenAPI 3.0.1 | ~620 |
 | Jira Software | `shrug jira-software` | OpenAPI 3.0.1 | ~95 |
 | Confluence | `shrug confluence` | OpenAPI 3.0.1 | ~210 |
-| Jira Service Management | `shrug jsm` | OpenAPI 3.0.1 | ~70 |
-| Bitbucket | `shrug bitbucket` | Swagger 2.0 | ~335 |
 
 ## Shell completions
 

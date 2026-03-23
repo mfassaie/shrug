@@ -63,11 +63,6 @@ fn test_help_toplevel_lists_products() {
         stdout.contains("confluence"),
         "Help should list confluence product"
     );
-    assert!(
-        stdout.contains("bitbucket"),
-        "Help should list bitbucket product"
-    );
-    assert!(stdout.contains("jsm"), "Help should list jsm product");
 }
 
 #[test]

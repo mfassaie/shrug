@@ -66,12 +66,6 @@ pub fn dispatch_helper(
             };
         }
         Product::Jira | Product::JiraSoftware => {}
-        _ => {
-            return Err(ShrugError::UsageError(format!(
-                "Helper commands are not available for {}.",
-                product.info().display_name
-            )));
-        }
     }
 
     match helper_name {
@@ -874,33 +868,6 @@ mod tests {
             msg
         );
         assert!(msg.contains("+create"), "Should list +create: {}", msg);
-    }
-
-    #[test]
-    fn dispatch_rejects_unsupported_product() {
-        let result = dispatch_helper(
-            "create",
-            &Product::BitBucket,
-            &[],
-            &make_empty_spec(),
-            &Client::new(),
-            None,
-            &JqlShorthand::default(),
-            None,
-            &OutputFormat::Json,
-            false,
-            false,
-            None,
-            false,
-            false,
-        );
-        let err = result.unwrap_err();
-        let msg = err.to_string();
-        assert!(
-            msg.contains("not available"),
-            "Should say not available: {}",
-            msg
-        );
     }
 
     #[test]

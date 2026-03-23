@@ -11,7 +11,7 @@ pub enum PaginationStyle {
         start_param: String,
         limit_param: String,
     },
-    /// Page-based: page/pagelen (BitBucket)
+    /// Page-based: page/pagelen
     Page {
         page_param: String,
         size_param: String,
@@ -98,7 +98,7 @@ pub fn detect_pagination(operation: &Operation) -> Option<PaginationStyle> {
         });
     }
 
-    // BitBucket page pattern: page + pagelen
+    // Page pattern: page + pagelen
     if query_names.contains(&"page") && query_names.contains(&"pagelen") {
         return Some(PaginationStyle::Page {
             page_param: "page".to_string(),
@@ -296,14 +296,14 @@ mod tests {
             ("repo_slug".to_string(), "myrepo".to_string()),
         ]);
         let url = build_url(
-            Some("https://api.bitbucket.org/2.0"),
+            Some("https://api.example.com/2.0"),
             "/repositories/{workspace}/{repo_slug}",
             &params,
         )
         .unwrap();
         assert_eq!(
             url,
-            "https://api.bitbucket.org/2.0/repositories/myteam/myrepo"
+            "https://api.example.com/2.0/repositories/myteam/myrepo"
         );
     }
 
@@ -441,7 +441,7 @@ mod tests {
     }
 
     #[test]
-    fn detect_pagination_page_bitbucket() {
+    fn detect_pagination_page_based() {
         let op = make_op(
             "listRepos",
             HttpMethod::Get,
@@ -679,80 +679,6 @@ mod conformance {
         }"#
     }
 
-    fn bitbucket_fixture() -> &'static str {
-        r#"{
-            "swagger": "2.0",
-            "info": { "title": "Bitbucket", "version": "2.0" },
-            "host": "api.bitbucket.org",
-            "basePath": "/2.0",
-            "schemes": ["https"],
-            "tags": [
-                { "name": "repositories", "description": "Repository operations" },
-                { "name": "pullrequests", "description": "Pull request operations" }
-            ],
-            "paths": {
-                "/repositories/{workspace}": {
-                    "get": {
-                        "operationId": "listRepositories",
-                        "summary": "List repositories",
-                        "tags": ["repositories"],
-                        "parameters": [
-                            { "name": "workspace", "in": "path", "required": true, "type": "string" },
-                            { "name": "page", "in": "query", "required": false, "type": "integer" },
-                            { "name": "pagelen", "in": "query", "required": false, "type": "integer" }
-                        ]
-                    }
-                },
-                "/repositories/{workspace}/{repo_slug}": {
-                    "parameters": [
-                        { "name": "workspace", "in": "path", "required": true, "type": "string" },
-                        { "name": "repo_slug", "in": "path", "required": true, "type": "string" }
-                    ],
-                    "get": {
-                        "operationId": "getRepository",
-                        "summary": "Get a repository",
-                        "tags": ["repositories"]
-                    },
-                    "post": {
-                        "operationId": "createRepository",
-                        "summary": "Create a repository",
-                        "tags": ["repositories"],
-                        "parameters": [
-                            { "name": "body", "in": "body", "required": true, "schema": { "type": "object" } }
-                        ]
-                    }
-                },
-                "/repositories/{workspace}/{repo_slug}/pullrequests": {
-                    "get": {
-                        "operationId": "listPullRequests",
-                        "summary": "List pull requests",
-                        "tags": ["pullrequests"],
-                        "parameters": [
-                            { "name": "workspace", "in": "path", "required": true, "type": "string" },
-                            { "name": "repo_slug", "in": "path", "required": true, "type": "string" },
-                            { "name": "page", "in": "query", "required": false, "type": "integer" },
-                            { "name": "pagelen", "in": "query", "required": false, "type": "integer" }
-                        ]
-                    }
-                },
-                "/repositories/{workspace}/{repo_slug}/src": {
-                    "post": {
-                        "operationId": "uploadFile",
-                        "summary": "Upload a file",
-                        "tags": ["repositories"],
-                        "consumes": ["multipart/form-data"],
-                        "parameters": [
-                            { "name": "workspace", "in": "path", "required": true, "type": "string" },
-                            { "name": "repo_slug", "in": "path", "required": true, "type": "string" },
-                            { "name": "file", "in": "formData", "required": true, "type": "file" },
-                            { "name": "message", "in": "formData", "required": false, "type": "string" }
-                        ]
-                    }
-                }
-            }
-        }"#
-    }
-
     #[test]
     fn conformance_jira_v3_parse_and_analyze() {
         let spec = parse_spec(jira_fixture()).unwrap();
@@ -836,106 +762,4 @@ mod conformance {
         assert!(detect_pagination(create_issue).is_none());
     }
 
-    #[test]
-    fn conformance_bitbucket_v2_parse_and_analyze() {
-        let spec = parse_spec(bitbucket_fixture()).unwrap();
-
-        // Verify operation count
-        assert_eq!(
-            spec.operations.len(),
-            5,
-            "BitBucket fixture should have 5 operations"
-        );
-
-        // Verify server URL built correctly
-        assert_eq!(
-            spec.server_url,
-            Some("https://api.bitbucket.org/2.0".to_string())
-        );
-
-        // Validate path params for all operations
-        for op in &spec.operations {
-            let missing = validate_path_params(op);
-            assert!(
-                missing.is_empty(),
-                "Operation '{}' has missing path params: {:?}",
-                op.operation_id,
-                missing
-            );
-        }
-
-        // Build URLs for all operations
-        let server = spec.server_url.as_deref();
-        for op in &spec.operations {
-            let mut params = HashMap::new();
-            for p in path_params(op) {
-                params.insert(p.name.clone(), "sample".to_string());
-            }
-            let result = build_url(server, &op.path, &params);
-            assert!(
-                result.is_ok(),
-                "URL building failed for '{}': {:?}",
-                op.operation_id,
-                result.err()
-            );
-        }
-
-        // Verify pagination: listRepositories → Page
-        let list_repos = spec
-            .operations
-            .iter()
-            .find(|o| o.operation_id == "listRepositories")
-            .unwrap();
-        assert_eq!(
-            detect_pagination(list_repos),
-            Some(PaginationStyle::Page {
-                page_param: "page".to_string(),
-                size_param: "pagelen".to_string(),
-            })
-        );
-
-        // listPullRequests → also Page
-        let list_prs = spec
-            .operations
-            .iter()
-            .find(|o| o.operation_id == "listPullRequests")
-            .unwrap();
-        assert!(matches!(
-            detect_pagination(list_prs),
-            Some(PaginationStyle::Page { .. })
-        ));
-
-        // getRepository → no pagination
-        let get_repo = spec
-            .operations
-            .iter()
-            .find(|o| o.operation_id == "getRepository")
-            .unwrap();
-        assert!(detect_pagination(get_repo).is_none());
-    }
-
-    #[test]
-    fn conformance_cross_format_consistency() {
-        let v3 = parse_spec(jira_fixture()).unwrap();
-        let v2 = parse_spec(bitbucket_fixture()).unwrap();
-
-        // Both produce valid ApiSpec with operations
-        assert!(!v3.operations.is_empty());
-        assert!(!v2.operations.is_empty());
-
-        // Both have titles and versions
-        assert!(!v3.title.is_empty());
-        assert!(!v2.title.is_empty());
-
-        // Both have server URLs
-        assert!(v3.server_url.is_some());
-        assert!(v2.server_url.is_some());
-
-        // All operations from both formats work with analysis utilities
-        for op in v3.operations.iter().chain(v2.operations.iter()) {
-            assert!(!op.operation_id.is_empty());
-            // validate_path_params should pass for all
-            assert!(validate_path_params(op).is_empty());
-        }
-    }
 }
