@@ -4,12 +4,12 @@
   "milestone": {
     "name": "v0.2 E2E Validation",
     "version": "0.2.0",
-    "status": "in_progress"
+    "status": "complete"
   },
   "phase": {
-    "number": 9,
-    "name": "09-test-infrastructure-auth",
-    "status": "in_progress"
+    "number": 12,
+    "name": "12-cli-feature-tests",
+    "status": "complete"
   },
   "loop": {
     "plan": null,
