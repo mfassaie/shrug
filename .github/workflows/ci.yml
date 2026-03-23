@@ -13,6 +13,8 @@ jobs:
   fast-check:
     name: Format & Lint
     runs-on: ubuntu-latest
+    env:
+      RUSTUP_TOOLCHAIN: stable
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
@@ -26,6 +28,8 @@ jobs:
     name: Build & Test (${{ matrix.os }})
     needs: fast-check
     runs-on: ${{ matrix.os }}
+    env:
+      RUSTUP_TOOLCHAIN: stable
     strategy:
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
@@ -41,6 +45,8 @@ jobs:
   audit:
     name: Security Audit
     runs-on: ubuntu-latest
+    env:
+      RUSTUP_TOOLCHAIN: stable
     steps:
       - uses: actions/checkout@v4
       - uses: rustsec/audit-check@v2
@@ -50,6 +56,8 @@ jobs:
   msrv:
     name: MSRV Check
     runs-on: ubuntu-latest
+    env:
+      RUSTUP_TOOLCHAIN: "1.74"
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@1.74
