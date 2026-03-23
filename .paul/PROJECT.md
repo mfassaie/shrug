@@ -12,10 +12,10 @@ Users and AI agents can interact with all Atlassian Cloud products from the comm
 
 | Attribute | Value |
 |-----------|-------|
-| Version | 0.2.0 |
-| Status | v0.2 E2E Validation complete |
-| Last Updated | 2026-03-21 |
-| Phase | 8 of 8 complete — all phases shipped |
+| Version | 0.3.0-dev |
+| Status | v0.3 in progress — Phase 14 complete |
+| Last Updated | 2026-03-23 |
+| Phase | 14 of 17 complete (v0.3 milestone) |
 
 ## Requirements
 
@@ -331,4 +331,4 @@ Users and AI agents can interact with all Atlassian Cloud products from the comm
 
 ---
 *PROJECT.md — Updated when requirements or context change*
-*Last updated: 2026-03-23 after v0.2 E2E Validation milestone completion*
+*Last updated: 2026-03-23 after Phase 14 (Jira Platform Top 20)*
