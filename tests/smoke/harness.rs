@@ -56,9 +56,8 @@ impl SmokeConfig {
     /// For skip macros, use try_resolve() instead.
     #[allow(dead_code)]
     pub fn resolve() -> Self {
-        Self::try_resolve().expect(
-            "shrug not found on PATH. Set SHRUG_E2E_BINARY or install shrug.",
-        )
+        Self::try_resolve()
+            .expect("shrug not found on PATH. Set SHRUG_E2E_BINARY or install shrug.")
     }
 }
 
@@ -142,7 +141,8 @@ impl RunResult {
         assert!(
             self.stdout.contains(s),
             "Expected stdout to contain {:?}, but it was:\n{}",
-            s, self.stdout
+            s,
+            self.stdout
         );
     }
 
@@ -152,7 +152,8 @@ impl RunResult {
         assert!(
             self.stderr.contains(s),
             "Expected stderr to contain {:?}, but it was:\n{}",
-            s, self.stderr
+            s,
+            self.stderr
         );
     }
 

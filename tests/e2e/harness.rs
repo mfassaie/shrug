@@ -100,7 +100,8 @@ impl RunResult {
         assert!(
             self.stdout.contains(s),
             "Expected stdout to contain {:?}, but it was:\n{}",
-            s, self.stdout
+            s,
+            self.stdout
         );
     }
 

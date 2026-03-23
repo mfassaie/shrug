@@ -16,14 +16,7 @@ fn unique_name(prefix: &str) -> String {
 fn setup_profile(runner: &SmokeRunner, e2e: &crate::harness::E2eConfig) -> String {
     let name = unique_name("live");
     let result = runner.run(&[
-        "profile",
-        "create",
-        "--name",
-        &name,
-        "--site",
-        &e2e.site,
-        "--email",
-        &e2e.email,
+        "profile", "create", "--name", &name, "--site", &e2e.site, "--email", &e2e.email,
     ]);
     assert!(
         result.exit_code == 0 || result.stderr.contains("already exists"),
@@ -58,10 +51,7 @@ fn test_jira_issue_create_and_delete() {
         "Smoke test issue (auto-delete)",
     ]);
     if result.exit_code != 0 {
-        eprintln!(
-            "Skipping Jira CRUD: +create failed: {}",
-            result.stderr
-        );
+        eprintln!("Skipping Jira CRUD: +create failed: {}", result.stderr);
         teardown_profile(&runner, &profile);
         return;
     }
@@ -103,10 +93,7 @@ fn test_jira_issue_create_and_delete() {
     if del.exit_code == 0 {
         eprintln!("Deleted issue: {}", key);
     } else {
-        eprintln!(
-            "Warning: failed to delete issue '{}': {}",
-            key, del.stderr
-        );
+        eprintln!("Warning: failed to delete issue '{}': {}", key, del.stderr);
     }
     harness::rate_limit_delay(&e2e_config);
 
@@ -140,9 +127,8 @@ fn test_confluence_page_create_and_delete() {
         .and_then(|j| j.get("results"))
         .and_then(|r| r.as_array())
         .and_then(|arr| {
-            arr.iter().find(|s| {
-                s.get("key").and_then(|k| k.as_str()) == Some(space_key.as_str())
-            })
+            arr.iter()
+                .find(|s| s.get("key").and_then(|k| k.as_str()) == Some(space_key.as_str()))
         })
         .and_then(|s| s.get("id"))
         .and_then(|v| v.as_str());

@@ -3,8 +3,9 @@ use std::fmt;
 use serde::{Deserialize, Serialize};
 
 /// The parsed API specification — everything shrug needs for CLI generation.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[derive(rkyv::Archive, rkyv::Serialize, rkyv::Deserialize)]
+#[derive(
+    Debug, Clone, Serialize, Deserialize, rkyv::Archive, rkyv::Serialize, rkyv::Deserialize,
+)]
 pub struct ApiSpec {
     pub title: String,
     pub version: String,
@@ -13,15 +14,17 @@ pub struct ApiSpec {
     pub operations: Vec<Operation>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[derive(rkyv::Archive, rkyv::Serialize, rkyv::Deserialize)]
+#[derive(
+    Debug, Clone, Serialize, Deserialize, rkyv::Archive, rkyv::Serialize, rkyv::Deserialize,
+)]
 pub struct Tag {
     pub name: String,
     pub description: Option<String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[derive(rkyv::Archive, rkyv::Serialize, rkyv::Deserialize)]
+#[derive(
+    Debug, Clone, Serialize, Deserialize, rkyv::Archive, rkyv::Serialize, rkyv::Deserialize,
+)]
 pub struct Operation {
     pub operation_id: String,
     pub method: HttpMethod,
@@ -34,8 +37,16 @@ pub struct Operation {
     pub request_body: Option<RequestBody>,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[derive(rkyv::Archive, rkyv::Serialize, rkyv::Deserialize)]
+#[derive(
+    Debug,
+    Clone,
+    PartialEq,
+    Serialize,
+    Deserialize,
+    rkyv::Archive,
+    rkyv::Serialize,
+    rkyv::Deserialize,
+)]
 pub enum HttpMethod {
     Get,
     Post,
@@ -56,8 +67,9 @@ impl fmt::Display for HttpMethod {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[derive(rkyv::Archive, rkyv::Serialize, rkyv::Deserialize)]
+#[derive(
+    Debug, Clone, Serialize, Deserialize, rkyv::Archive, rkyv::Serialize, rkyv::Deserialize,
+)]
 pub struct Parameter {
     pub name: String,
     pub location: ParameterLocation,
@@ -66,8 +78,16 @@ pub struct Parameter {
     pub schema_type: Option<String>,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[derive(rkyv::Archive, rkyv::Serialize, rkyv::Deserialize)]
+#[derive(
+    Debug,
+    Clone,
+    PartialEq,
+    Serialize,
+    Deserialize,
+    rkyv::Archive,
+    rkyv::Serialize,
+    rkyv::Deserialize,
+)]
 pub enum ParameterLocation {
     Path,
     Query,
@@ -75,8 +95,9 @@ pub enum ParameterLocation {
     Cookie,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[derive(rkyv::Archive, rkyv::Serialize, rkyv::Deserialize)]
+#[derive(
+    Debug, Clone, Serialize, Deserialize, rkyv::Archive, rkyv::Serialize, rkyv::Deserialize,
+)]
 pub struct RequestBody {
     pub required: bool,
     pub description: Option<String>,

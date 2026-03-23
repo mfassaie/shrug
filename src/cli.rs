@@ -266,11 +266,7 @@ mod tests {
 
     #[test]
     fn color_choice_all_variants() {
-        let variants = [
-            ColorChoice::Auto,
-            ColorChoice::Always,
-            ColorChoice::Never,
-        ];
+        let variants = [ColorChoice::Auto, ColorChoice::Always, ColorChoice::Never];
         assert_eq!(variants.len(), 3);
     }
 
@@ -291,8 +287,10 @@ mod tests {
     fn cli_parses_global_flags() {
         let cli = Cli::try_parse_from([
             "shrug",
-            "--output", "json",
-            "--color", "never",
+            "--output",
+            "json",
+            "--color",
+            "never",
             "--verbose",
             "--dry-run",
         ])
@@ -318,10 +316,14 @@ mod tests {
     fn cli_parses_profile_create() {
         let cli = Cli::try_parse_from([
             "shrug",
-            "profile", "create",
-            "--name", "test",
-            "--site", "test.atlassian.net",
-            "--email", "a@b.com",
+            "profile",
+            "create",
+            "--name",
+            "test",
+            "--site",
+            "test.atlassian.net",
+            "--email",
+            "a@b.com",
         ])
         .unwrap();
         match cli.command {

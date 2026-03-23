@@ -46,7 +46,10 @@ fn test_output_json() {
 
     let result = runner.run(&["--output", "json", "profile", "list"]);
     result.assert_success();
-    assert!(!result.stdout.trim().is_empty(), "JSON output should not be empty");
+    assert!(
+        !result.stdout.trim().is_empty(),
+        "JSON output should not be empty"
+    );
 
     delete_test_profile(&runner, &name);
 }
@@ -60,7 +63,10 @@ fn test_output_table() {
 
     let result = runner.run(&["--output", "table", "profile", "list"]);
     result.assert_success();
-    assert!(!result.stdout.trim().is_empty(), "Table output should not be empty");
+    assert!(
+        !result.stdout.trim().is_empty(),
+        "Table output should not be empty"
+    );
 
     delete_test_profile(&runner, &name);
 }
@@ -74,7 +80,10 @@ fn test_output_yaml() {
 
     let result = runner.run(&["--output", "yaml", "profile", "list"]);
     result.assert_success();
-    assert!(!result.stdout.trim().is_empty(), "YAML output should not be empty");
+    assert!(
+        !result.stdout.trim().is_empty(),
+        "YAML output should not be empty"
+    );
 
     delete_test_profile(&runner, &name);
 }
@@ -88,7 +97,10 @@ fn test_output_csv() {
 
     let result = runner.run(&["--output", "csv", "profile", "list"]);
     result.assert_success();
-    assert!(!result.stdout.trim().is_empty(), "CSV output should not be empty");
+    assert!(
+        !result.stdout.trim().is_empty(),
+        "CSV output should not be empty"
+    );
 
     delete_test_profile(&runner, &name);
 }

@@ -8,13 +8,19 @@ use crate::harness::{self, ShrugRunner};
 fn setup_profile(runner: &ShrugRunner) -> String {
     let name = format!("e2e-jsw-{}", std::process::id());
     let result = runner.run(&[
-        "profile", "create", "--name", &name,
-        "--site", runner.config().site.as_str(),
-        "--email", runner.config().email.as_str(),
+        "profile",
+        "create",
+        "--name",
+        &name,
+        "--site",
+        runner.config().site.as_str(),
+        "--email",
+        runner.config().email.as_str(),
     ]);
     assert!(
         result.exit_code == 0 || result.stderr.contains("already exists"),
-        "Failed to create profile: {}", result.stderr
+        "Failed to create profile: {}",
+        result.stderr
     );
     let _ = runner.run(&["profile", "use", "--name", &name]);
     name
@@ -31,10 +37,7 @@ fn create_filter(runner: &ShrugRunner, project: &str) -> Option<String> {
         std::process::id(),
         project
     );
-    let result = runner.run_json_with_body(
-        &body,
-        &["jira", "Filters", "create-filter"],
-    );
+    let result = runner.run_json_with_body(&body, &["jira", "Filters", "create-filter"]);
     if result.exit_code != 0 {
         eprintln!("Failed to create filter: {}", result.stderr);
         return None;
@@ -52,7 +55,10 @@ fn delete_filter(runner: &ShrugRunner, id: &str) {
     if result.exit_code == 0 {
         eprintln!("Deleted filter: {}", id);
     } else {
-        eprintln!("Warning: failed to delete filter '{}': {}", id, result.stderr);
+        eprintln!(
+            "Warning: failed to delete filter '{}': {}",
+            id, result.stderr
+        );
     }
 }
 
@@ -110,12 +116,12 @@ fn test_board_crud_lifecycle() {
         r#"{{"name":"{}","type":"scrum","filterId":{}}}"#,
         board_name, filter_id
     );
-    let create = runner.run_json_with_body(
-        &body,
-        &["jira-software", "Board", "create-board"],
-    );
+    let create = runner.run_json_with_body(&body, &["jira-software", "Board", "create-board"]);
     if create.exit_code != 0 {
-        eprintln!("Skipping board test: create-board failed: {}", create.stderr);
+        eprintln!(
+            "Skipping board test: create-board failed: {}",
+            create.stderr
+        );
         delete_filter(&runner, &filter_id);
         harness::rate_limit_delay(runner.config());
         teardown_profile(&runner, &profile);
@@ -133,23 +139,38 @@ fn test_board_crud_lifecycle() {
 
     // GET board and verify name
     let read = runner.run_json(&[
-        "jira-software", "Board", "get-board", "--boardId", &board_id_str,
+        "jira-software",
+        "Board",
+        "get-board",
+        "--boardId",
+        &board_id_str,
     ]);
     read.assert_success();
-    let read_name = read.json_field("/name").and_then(|v| v.as_str()).unwrap_or("");
+    let read_name = read
+        .json_field("/name")
+        .and_then(|v| v.as_str())
+        .unwrap_or("");
     assert_eq!(read_name, board_name, "Board name should match");
     harness::rate_limit_delay(runner.config());
 
     // GET configuration
     let config_result = runner.run_json(&[
-        "jira-software", "Board", "get-configuration", "--boardId", &board_id_str,
+        "jira-software",
+        "Board",
+        "get-configuration",
+        "--boardId",
+        &board_id_str,
     ]);
     config_result.assert_success();
     harness::rate_limit_delay(runner.config());
 
     // DELETE board
     let del = runner.run(&[
-        "jira-software", "Board", "delete-board", "--boardId", &board_id_str,
+        "jira-software",
+        "Board",
+        "delete-board",
+        "--boardId",
+        &board_id_str,
     ]);
     assert!(del.exit_code == 0, "delete-board failed: {}", del.stderr);
     eprintln!("Deleted board: {}", board_id_str);
@@ -185,12 +206,13 @@ fn test_sprint_lifecycle() {
         r#"{{"name":"{}","type":"scrum","filterId":{}}}"#,
         board_name, filter_id
     );
-    let board_create = runner.run_json_with_body(
-        &body,
-        &["jira-software", "Board", "create-board"],
-    );
+    let board_create =
+        runner.run_json_with_body(&body, &["jira-software", "Board", "create-board"]);
     if board_create.exit_code != 0 {
-        eprintln!("Skipping sprint test: create-board failed: {}", board_create.stderr);
+        eprintln!(
+            "Skipping sprint test: create-board failed: {}",
+            board_create.stderr
+        );
         delete_filter(&runner, &filter_id);
         harness::rate_limit_delay(runner.config());
         teardown_profile(&runner, &profile);
@@ -212,13 +234,20 @@ fn test_sprint_lifecycle() {
         r#"{{"name":"{}","originBoardId":{}}}"#,
         sprint_name, board_id
     );
-    let sprint_create = runner.run_json_with_body(
-        &sprint_body,
-        &["jira-software", "Sprint", "create-sprint"],
-    );
+    let sprint_create =
+        runner.run_json_with_body(&sprint_body, &["jira-software", "Sprint", "create-sprint"]);
     if sprint_create.exit_code != 0 {
-        eprintln!("Skipping sprint test: create-sprint failed: {}", sprint_create.stderr);
-        let _ = runner.run(&["jira-software", "Board", "delete-board", "--boardId", &board_id_str]);
+        eprintln!(
+            "Skipping sprint test: create-sprint failed: {}",
+            sprint_create.stderr
+        );
+        let _ = runner.run(&[
+            "jira-software",
+            "Board",
+            "delete-board",
+            "--boardId",
+            &board_id_str,
+        ]);
         harness::rate_limit_delay(runner.config());
         delete_filter(&runner, &filter_id);
         harness::rate_limit_delay(runner.config());
@@ -237,31 +266,58 @@ fn test_sprint_lifecycle() {
 
     // GET sprint and verify name
     let read = runner.run_json(&[
-        "jira-software", "Sprint", "get-sprint", "--sprintId", &sprint_id_str,
+        "jira-software",
+        "Sprint",
+        "get-sprint",
+        "--sprintId",
+        &sprint_id_str,
     ]);
     read.assert_success();
-    let read_name = read.json_field("/name").and_then(|v| v.as_str()).unwrap_or("");
+    let read_name = read
+        .json_field("/name")
+        .and_then(|v| v.as_str())
+        .unwrap_or("");
     assert_eq!(read_name, sprint_name, "Sprint name should match");
     harness::rate_limit_delay(runner.config());
 
     // UPDATE sprint
     let upd = runner.run_with_body(
         r#"{"goal":"E2E test goal"}"#,
-        &["jira-software", "Sprint", "partially-update-sprint", "--sprintId", &sprint_id_str],
+        &[
+            "jira-software",
+            "Sprint",
+            "partially-update-sprint",
+            "--sprintId",
+            &sprint_id_str,
+        ],
     );
-    assert!(upd.exit_code == 0, "partially-update-sprint failed: {}", upd.stderr);
+    assert!(
+        upd.exit_code == 0,
+        "partially-update-sprint failed: {}",
+        upd.stderr
+    );
     harness::rate_limit_delay(runner.config());
 
     // DELETE sprint
     let del = runner.run(&[
-        "jira-software", "Sprint", "delete-sprint", "--sprintId", &sprint_id_str,
+        "jira-software",
+        "Sprint",
+        "delete-sprint",
+        "--sprintId",
+        &sprint_id_str,
     ]);
     assert!(del.exit_code == 0, "delete-sprint failed: {}", del.stderr);
     eprintln!("Deleted sprint: {}", sprint_id_str);
     harness::rate_limit_delay(runner.config());
 
     // Cleanup: board + filter
-    let _ = runner.run(&["jira-software", "Board", "delete-board", "--boardId", &board_id_str]);
+    let _ = runner.run(&[
+        "jira-software",
+        "Board",
+        "delete-board",
+        "--boardId",
+        &board_id_str,
+    ]);
     harness::rate_limit_delay(runner.config());
     delete_filter(&runner, &filter_id);
     harness::rate_limit_delay(runner.config());
@@ -278,7 +334,11 @@ fn test_list_boards() {
     let project = runner.config().jira_project.as_str();
 
     let result = runner.run_json(&[
-        "jira-software", "Board", "get-all-boards", "--projectKeyOrId", project,
+        "jira-software",
+        "Board",
+        "get-all-boards",
+        "--projectKeyOrId",
+        project,
     ]);
     result.assert_success();
     let board_count = result
@@ -328,14 +388,22 @@ fn test_epic_operations() {
 
     // GET epic via Jira Software API
     let get = runner.run_json(&[
-        "jira-software", "Epic", "get-epic", "--epicIdOrKey", &epic_key,
+        "jira-software",
+        "Epic",
+        "get-epic",
+        "--epicIdOrKey",
+        &epic_key,
     ]);
     get.assert_success();
     harness::rate_limit_delay(runner.config());
 
     // GET issues for epic (may be empty)
     let issues = runner.run_json(&[
-        "jira-software", "Epic", "get-issues-for-epic", "--epicIdOrKey", &epic_key,
+        "jira-software",
+        "Epic",
+        "get-issues-for-epic",
+        "--epicIdOrKey",
+        &epic_key,
     ]);
     issues.assert_success();
     harness::rate_limit_delay(runner.config());
@@ -359,7 +427,11 @@ fn test_jsw_issue_get() {
     harness::rate_limit_delay(runner.config());
 
     let get = runner.run_json(&[
-        "jira-software", "Issue", "get-issue", "--issueIdOrKey", &issue_key,
+        "jira-software",
+        "Issue",
+        "get-issue",
+        "--issueIdOrKey",
+        &issue_key,
     ]);
     get.assert_success();
     harness::rate_limit_delay(runner.config());

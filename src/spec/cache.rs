@@ -70,7 +70,10 @@ impl SpecCache {
 
         // Dual-write: also save binary cache for fast loading
         if let Err(e) = self.save_binary(product, spec) {
-            tracing::warn!(product = product, "Failed to write binary cache (non-fatal): {e}");
+            tracing::warn!(
+                product = product,
+                "Failed to write binary cache (non-fatal): {e}"
+            );
         }
 
         Ok(())
@@ -566,8 +569,14 @@ mod tests {
         cache.save("test-api", &spec).unwrap();
 
         // Both files should exist
-        assert!(cache.spec_path("test-api").exists(), "JSON cache should exist");
-        assert!(cache.binary_path("test-api").exists(), "Binary cache should exist");
+        assert!(
+            cache.spec_path("test-api").exists(),
+            "JSON cache should exist"
+        );
+        assert!(
+            cache.binary_path("test-api").exists(),
+            "Binary cache should exist"
+        );
     }
 
     #[test]

@@ -6,13 +6,19 @@ use crate::harness::{self, ShrugRunner};
 fn setup_profile(runner: &ShrugRunner) -> String {
     let name = format!("e2e-feat-{}", std::process::id());
     let result = runner.run(&[
-        "profile", "create", "--name", &name,
-        "--site", runner.config().site.as_str(),
-        "--email", runner.config().email.as_str(),
+        "profile",
+        "create",
+        "--name",
+        &name,
+        "--site",
+        runner.config().site.as_str(),
+        "--email",
+        runner.config().email.as_str(),
     ]);
     assert!(
         result.exit_code == 0 || result.stderr.contains("already exists"),
-        "Failed to create profile: {}", result.stderr
+        "Failed to create profile: {}",
+        result.stderr
     );
     let _ = runner.run(&["profile", "use", "--name", &name]);
     name
@@ -26,10 +32,13 @@ fn teardown_profile(runner: &ShrugRunner, name: &str) {
 fn search_args(project: &str) -> Vec<String> {
     let jql = format!("project = {} ORDER BY created DESC", project);
     vec![
-        "jira".into(), "Issue search".into(),
+        "jira".into(),
+        "Issue search".into(),
         "search-and-reconsile-issues-using-jql".into(),
-        "--jql".into(), jql,
-        "--maxResults".into(), "1".into(),
+        "--jql".into(),
+        jql,
+        "--maxResults".into(),
+        "1".into(),
     ]
 }
 
@@ -62,7 +71,10 @@ fn test_output_format_table() {
     let result = runner.run(&all);
     result.assert_success();
     // Table output should have some content
-    assert!(!result.stdout.trim().is_empty(), "Table output should not be empty");
+    assert!(
+        !result.stdout.trim().is_empty(),
+        "Table output should not be empty"
+    );
     harness::rate_limit_delay(runner.config());
     teardown_profile(&runner, &profile);
 }
@@ -78,7 +90,10 @@ fn test_output_format_yaml() {
     all.extend(args.iter().map(|s| s.as_str()));
     let result = runner.run(&all);
     result.assert_success();
-    assert!(!result.stdout.trim().is_empty(), "YAML output should not be empty");
+    assert!(
+        !result.stdout.trim().is_empty(),
+        "YAML output should not be empty"
+    );
     harness::rate_limit_delay(runner.config());
     teardown_profile(&runner, &profile);
 }
@@ -94,7 +109,10 @@ fn test_output_format_csv() {
     all.extend(args.iter().map(|s| s.as_str()));
     let result = runner.run(&all);
     result.assert_success();
-    assert!(!result.stdout.trim().is_empty(), "CSV output should not be empty");
+    assert!(
+        !result.stdout.trim().is_empty(),
+        "CSV output should not be empty"
+    );
     harness::rate_limit_delay(runner.config());
     teardown_profile(&runner, &profile);
 }
@@ -130,7 +148,8 @@ fn test_dry_run_mode() {
     assert!(
         result.stdout.contains("DRY RUN") || result.stderr.contains("DRY RUN"),
         "Dry run should show DRY RUN marker.\nstdout: {}\nstderr: {}",
-        result.stdout, result.stderr
+        result.stdout,
+        result.stderr
     );
     teardown_profile(&runner, &profile);
 }
@@ -147,12 +166,12 @@ fn test_jql_shorthand_search() {
     // Note: +search helper uses the deprecated search endpoint which returns HTTP 410.
     // This is a known bug — the helpers need updating to use the new enhanced search API.
     // For now, verify the command runs and produces a meaningful error (not a crash).
-    let result = runner.run_json(&[
-        "--project", project,
-        "jira", "+search",
-    ]);
+    let result = runner.run_json(&["--project", project, "jira", "+search"]);
     if result.exit_code == 0 {
-        assert!(result.json.is_some(), "JQL shorthand +search should return JSON");
+        assert!(
+            result.json.is_some(),
+            "JQL shorthand +search should return JSON"
+        );
     } else {
         eprintln!(
             "Note: +search returned exit {} (expected — uses deprecated API): {}",
@@ -160,7 +179,9 @@ fn test_jql_shorthand_search() {
         );
         // Verify it's the known deprecation error, not a crash
         assert!(
-            result.stderr.contains("410") || result.stderr.contains("removed") || result.stderr.contains("error"),
+            result.stderr.contains("410")
+                || result.stderr.contains("removed")
+                || result.stderr.contains("error"),
             "Should fail with a known error, not crash"
         );
     }
@@ -177,9 +198,12 @@ fn test_helper_create_and_delete() {
 
     // +create with --project as global flag (must come before subcommand)
     let result = runner.run_json(&[
-        "--project", project,
-        "jira", "+create",
-        "--summary", "E2E feature test issue",
+        "--project",
+        project,
+        "jira",
+        "+create",
+        "--summary",
+        "E2E feature test issue",
     ]);
     if result.exit_code != 0 {
         // +create may fail due to parameter routing between global and helper args.
@@ -192,7 +216,9 @@ fn test_helper_create_and_delete() {
         return;
     }
 
-    let key = result.json.as_ref()
+    let key = result
+        .json
+        .as_ref()
         .and_then(|j| j.get("key"))
         .and_then(|v| v.as_str())
         .expect("Expected issue key from +create");
@@ -235,9 +261,13 @@ fn test_pagination_limit() {
 
     let jql = format!("project = {} ORDER BY created DESC", project);
     let result = runner.run_json(&[
-        "jira", "Issue search", "search-and-reconsile-issues-using-jql",
-        "--jql", &jql,
-        "--maxResults", "2",
+        "jira",
+        "Issue search",
+        "search-and-reconsile-issues-using-jql",
+        "--jql",
+        &jql,
+        "--maxResults",
+        "2",
     ]);
     result.assert_success();
     let issue_count = result
@@ -247,7 +277,11 @@ fn test_pagination_limit() {
         .and_then(|i| i.as_array())
         .map(|arr| arr.len())
         .unwrap_or(0);
-    assert!(issue_count <= 2, "Expected at most 2 issues, got {}", issue_count);
+    assert!(
+        issue_count <= 2,
+        "Expected at most 2 issues, got {}",
+        issue_count
+    );
     eprintln!("Pagination limit test: got {} issues (max 2)", issue_count);
     harness::rate_limit_delay(runner.config());
     teardown_profile(&runner, &profile);
@@ -261,11 +295,12 @@ fn test_verbose_logging() {
     let runner = ShrugRunner::new(config);
     let profile = setup_profile(&runner);
 
-    let result = runner.run(&[
-        "-v",
-        "jira", "Issue types", "get-issue-all-types",
-    ]);
-    assert!(result.exit_code == 0, "Verbose command failed: {}", result.stderr);
+    let result = runner.run(&["-v", "jira", "Issue types", "get-issue-all-types"]);
+    assert!(
+        result.exit_code == 0,
+        "Verbose command failed: {}",
+        result.stderr
+    );
     // Tracing output goes to stderr — should contain log level indicator
     assert!(
         !result.stderr.is_empty(),
@@ -281,11 +316,12 @@ fn test_trace_logging() {
     let runner = ShrugRunner::new(config);
     let profile = setup_profile(&runner);
 
-    let result = runner.run(&[
-        "--trace",
-        "jira", "Issue types", "get-issue-all-types",
-    ]);
-    assert!(result.exit_code == 0, "Trace command failed: {}", result.stderr);
+    let result = runner.run(&["--trace", "jira", "Issue types", "get-issue-all-types"]);
+    assert!(
+        result.exit_code == 0,
+        "Trace command failed: {}",
+        result.stderr
+    );
     // Trace should show request/response details
     assert!(
         !result.stderr.is_empty(),
@@ -315,7 +351,9 @@ fn test_adf_comment_roundtrip() {
         teardown_profile(&runner, &profile);
         return;
     }
-    let key = create.json.as_ref()
+    let key = create
+        .json
+        .as_ref()
         .and_then(|j| j.get("key"))
         .and_then(|v| v.as_str())
         .expect("Expected issue key");
@@ -326,7 +364,13 @@ fn test_adf_comment_roundtrip() {
     let adf_body = r#"{"body":{"type":"doc","version":1,"content":[{"type":"paragraph","content":[{"type":"text","text":"ADF roundtrip test content"}]}]}}"#;
     let add = runner.run_json_with_body(
         adf_body,
-        &["jira", "Issue comments", "add-comment", "--issueIdOrKey", &key],
+        &[
+            "jira",
+            "Issue comments",
+            "add-comment",
+            "--issueIdOrKey",
+            &key,
+        ],
     );
     if add.exit_code != 0 {
         eprintln!("ADF comment add failed: {}", add.stderr);
@@ -335,7 +379,9 @@ fn test_adf_comment_roundtrip() {
         teardown_profile(&runner, &profile);
         return;
     }
-    let cid = add.json.as_ref()
+    let cid = add
+        .json
+        .as_ref()
         .and_then(|j| j.get("id"))
         .and_then(|v| v.as_str())
         .expect("Expected comment id");
@@ -343,12 +389,21 @@ fn test_adf_comment_roundtrip() {
 
     // Read comment back and verify content present
     let read = runner.run_json(&[
-        "jira", "Issue comments", "get-comment",
-        "--issueIdOrKey", &key, "--id", cid,
+        "jira",
+        "Issue comments",
+        "get-comment",
+        "--issueIdOrKey",
+        &key,
+        "--id",
+        cid,
     ]);
     read.assert_success();
     // Verify the ADF text content is somewhere in the response
-    let raw = read.json.as_ref().map(|j| j.to_string()).unwrap_or_default();
+    let raw = read
+        .json
+        .as_ref()
+        .map(|j| j.to_string())
+        .unwrap_or_default();
     assert!(
         raw.contains("ADF roundtrip test content"),
         "Comment should contain ADF text"
@@ -357,8 +412,13 @@ fn test_adf_comment_roundtrip() {
 
     // Cleanup
     let _ = runner.run(&[
-        "jira", "Issue comments", "delete-comment",
-        "--issueIdOrKey", &key, "--id", cid,
+        "jira",
+        "Issue comments",
+        "delete-comment",
+        "--issueIdOrKey",
+        &key,
+        "--id",
+        cid,
     ]);
     harness::rate_limit_delay(runner.config());
     let _ = runner.run(&["jira", "Issues", "delete-issue", "--issueIdOrKey", &key]);
