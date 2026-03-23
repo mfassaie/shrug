@@ -72,9 +72,9 @@ impl Product {
     /// Look up a product by its CLI prefix.
     pub fn from_cli_prefix(prefix: &str) -> Option<Product> {
         match prefix {
-            "jira" => Some(Product::Jira),
-            "jira-software" => Some(Product::JiraSoftware),
-            "confluence" => Some(Product::Confluence),
+            "jira" | "j" => Some(Product::Jira),
+            "jira-software" | "jsw" => Some(Product::JiraSoftware),
+            "confluence" | "c" | "conf" => Some(Product::Confluence),
             _ => None,
         }
     }
@@ -409,6 +409,14 @@ mod tests {
     fn from_cli_prefix_returns_none_for_unknown() {
         assert_eq!(Product::from_cli_prefix("github"), None);
         assert_eq!(Product::from_cli_prefix(""), None);
+    }
+
+    #[test]
+    fn from_cli_prefix_maps_aliases() {
+        assert_eq!(Product::from_cli_prefix("j"), Some(Product::Jira));
+        assert_eq!(Product::from_cli_prefix("jsw"), Some(Product::JiraSoftware));
+        assert_eq!(Product::from_cli_prefix("c"), Some(Product::Confluence));
+        assert_eq!(Product::from_cli_prefix("conf"), Some(Product::Confluence));
     }
 
     #[test]

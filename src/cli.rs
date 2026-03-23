@@ -61,18 +61,20 @@ pub enum ColorChoice {
 #[derive(Subcommand)]
 pub enum Commands {
     /// Jira Cloud operations
+    #[command(visible_alias = "j")]
     Jira {
         /// Arguments passed to the Jira subcommand
         #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
         args: Vec<String>,
     },
     /// Jira Software operations (boards, sprints, backlogs)
-    #[command(name = "jira-software")]
+    #[command(name = "jira-software", visible_alias = "jsw")]
     JiraSoftware {
         #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
         args: Vec<String>,
     },
     /// Confluence operations
+    #[command(visible_aliases = ["c", "conf"])]
     Confluence {
         #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
         args: Vec<String>,
@@ -311,6 +313,50 @@ mod tests {
                 );
             }
             _ => panic!("Expected Jira command"),
+        }
+    }
+
+    #[test]
+    fn cli_jira_alias_j() {
+        let cli = Cli::try_parse_from(["shrug", "j", "issues", "list"]).unwrap();
+        match cli.command {
+            Some(Commands::Jira { ref args }) => {
+                assert_eq!(args, &["issues", "list"]);
+            }
+            _ => panic!("Expected Jira via alias 'j'"),
+        }
+    }
+
+    #[test]
+    fn cli_jira_software_alias_jsw() {
+        let cli = Cli::try_parse_from(["shrug", "jsw", "board", "list"]).unwrap();
+        match cli.command {
+            Some(Commands::JiraSoftware { ref args }) => {
+                assert_eq!(args, &["board", "list"]);
+            }
+            _ => panic!("Expected JiraSoftware via alias 'jsw'"),
+        }
+    }
+
+    #[test]
+    fn cli_confluence_alias_c() {
+        let cli = Cli::try_parse_from(["shrug", "c", "page", "list"]).unwrap();
+        match cli.command {
+            Some(Commands::Confluence { ref args }) => {
+                assert_eq!(args, &["page", "list"]);
+            }
+            _ => panic!("Expected Confluence via alias 'c'"),
+        }
+    }
+
+    #[test]
+    fn cli_confluence_alias_conf() {
+        let cli = Cli::try_parse_from(["shrug", "conf", "page", "get", "123"]).unwrap();
+        match cli.command {
+            Some(Commands::Confluence { ref args }) => {
+                assert_eq!(args, &["page", "get", "123"]);
+            }
+            _ => panic!("Expected Confluence via alias 'conf'"),
         }
     }
 }

@@ -4,6 +4,71 @@ use crate::cmd::crud::{self, CrudMapping};
 use crate::cmd::router::{available_tags, operation_to_command_name, operations_for_tag};
 use crate::spec::model::{ApiSpec, Operation, Parameter};
 
+/// Truncate a description to a single line, stripping Markdown formatting.
+///
+/// Strips Markdown links `[text](url)`, bold `**text**`, italic `_text_`,
+/// and HTML tags. Truncates at word boundary with "..." if exceeding max_len.
+fn truncate_description(desc: &str, max_len: usize) -> String {
+    if desc.is_empty() {
+        return String::new();
+    }
+
+    // Take only the first line/sentence
+    let first_line = desc.lines().next().unwrap_or(desc);
+
+    // Strip Markdown links: [text](url) → text
+    let mut result = String::with_capacity(first_line.len());
+    let mut chars = first_line.chars().peekable();
+    while let Some(ch) = chars.next() {
+        if ch == '[' {
+            // Collect link text until ]
+            let mut link_text = String::new();
+            for inner in chars.by_ref() {
+                if inner == ']' {
+                    break;
+                }
+                link_text.push(inner);
+            }
+            // Skip (url) if present
+            if chars.peek() == Some(&'(') {
+                chars.next(); // consume '('
+                for inner in chars.by_ref() {
+                    if inner == ')' {
+                        break;
+                    }
+                }
+            }
+            result.push_str(&link_text);
+        } else if ch == '<' {
+            // Skip HTML tags
+            for inner in chars.by_ref() {
+                if inner == '>' {
+                    break;
+                }
+            }
+        } else {
+            result.push(ch);
+        }
+    }
+
+    // Strip bold **text** and italic _text_
+    let result = result.replace("**", "").replace("__", "");
+
+    // Trim whitespace
+    let result = result.trim().to_string();
+
+    if result.len() <= max_len {
+        return result;
+    }
+
+    // Truncate at word boundary
+    let truncated = &result[..max_len];
+    match truncated.rfind(' ') {
+        Some(pos) => format!("{}...", &truncated[..pos]),
+        None => format!("{truncated}..."),
+    }
+}
+
 /// Format the list of available tags with descriptions and operation counts.
 pub fn format_tag_list(spec: &ApiSpec) -> String {
     let tags = available_tags(spec);
@@ -13,12 +78,13 @@ pub fn format_tag_list(spec: &ApiSpec) -> String {
 
     let mut lines = vec!["Available command groups:".to_string()];
     for tag_name in &tags {
-        let description = spec
+        let raw_description = spec
             .tags
             .iter()
             .find(|t| t.name.eq_ignore_ascii_case(tag_name))
             .and_then(|t| t.description.as_deref())
             .unwrap_or("");
+        let description = truncate_description(raw_description, 60);
         let count = operations_for_tag(spec, tag_name).len();
         let ops_label = if count == 1 {
             "operation"
@@ -80,11 +146,14 @@ pub fn format_operations_with_crud(
         if crud_op_ids.contains(&op.operation_id) {
             continue;
         }
+        // Hide deprecated operations from listings (still accessible by raw operation ID)
+        if op.deprecated {
+            continue;
+        }
         let name = operation_to_command_name(&op.operation_id);
         let method = format!("{}", op.method);
         let summary = op.summary.as_deref().unwrap_or("");
-        let deprecated = if op.deprecated { " [deprecated]" } else { "" };
-        lines.push(format!("  {name}{deprecated:<14} {method:<7} {summary}"));
+        lines.push(format!("  {name:<34} {method:<7} {summary}"));
     }
     lines.join("\n")
 }
@@ -257,13 +326,52 @@ mod tests {
     }
 
     #[test]
-    fn format_operations_marks_deprecated() {
+    fn format_operations_hides_deprecated() {
         let spec = test_spec();
         let output = format_operations(&spec, "issues");
         assert!(
-            output.contains("[deprecated]"),
-            "Should mark deprecated: {output}"
+            !output.contains("[deprecated]"),
+            "Deprecated ops should be hidden: {output}"
         );
+        assert!(
+            !output.contains("edit-issue"),
+            "Deprecated edit-issue should not appear: {output}"
+        );
+    }
+
+    #[test]
+    fn truncate_description_strips_markdown_links() {
+        let desc = "Use [Jira REST API](https://developer.atlassian.com) for operations";
+        let result = truncate_description(desc, 80);
+        assert_eq!(result, "Use Jira REST API for operations");
+        assert!(!result.contains("http"));
+    }
+
+    #[test]
+    fn truncate_description_truncates_long_text() {
+        let desc = "This is a very long description that should be truncated because it exceeds the maximum allowed length for display";
+        let result = truncate_description(desc, 40);
+        assert!(result.ends_with("..."));
+        assert!(result.len() <= 44); // 40 + "..."
+    }
+
+    #[test]
+    fn truncate_description_passes_short_text() {
+        let desc = "Short description";
+        let result = truncate_description(desc, 80);
+        assert_eq!(result, "Short description");
+    }
+
+    #[test]
+    fn truncate_description_strips_bold() {
+        let desc = "This is **bold** text";
+        let result = truncate_description(desc, 80);
+        assert_eq!(result, "This is bold text");
+    }
+
+    #[test]
+    fn truncate_description_handles_empty() {
+        assert_eq!(truncate_description("", 80), "");
     }
 
     #[test]
