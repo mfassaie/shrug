@@ -72,23 +72,6 @@ fn test_output_table() {
 }
 
 #[test]
-fn test_output_yaml() {
-    let config = skip_unless_binary!();
-    let runner = SmokeRunner::new(config);
-    let name = unique_name("smoke-yaml");
-    create_test_profile(&runner, &name);
-
-    let result = runner.run(&["--output", "yaml", "profile", "list"]);
-    result.assert_success();
-    assert!(
-        !result.stdout.trim().is_empty(),
-        "YAML output should not be empty"
-    );
-
-    delete_test_profile(&runner, &name);
-}
-
-#[test]
 fn test_output_csv() {
     let config = skip_unless_binary!();
     let runner = SmokeRunner::new(config);
@@ -101,19 +84,6 @@ fn test_output_csv() {
         !result.stdout.trim().is_empty(),
         "CSV output should not be empty"
     );
-
-    delete_test_profile(&runner, &name);
-}
-
-#[test]
-fn test_output_plain() {
-    let config = skip_unless_binary!();
-    let runner = SmokeRunner::new(config);
-    let name = unique_name("smoke-plain");
-    create_test_profile(&runner, &name);
-
-    let result = runner.run(&["--output", "plain", "profile", "list"]);
-    result.assert_success();
 
     delete_test_profile(&runner, &name);
 }
@@ -182,17 +152,17 @@ fn test_verbose_vv() {
 }
 
 #[test]
-fn test_trace() {
+fn test_vvv_trace() {
     let config = skip_unless_binary!();
     let runner = SmokeRunner::new(config);
-    let name = unique_name("smoke-trace");
+    let name = unique_name("smoke-vvv");
     create_test_profile(&runner, &name);
 
-    let result = runner.run(&["--trace", "profile", "list"]);
+    let result = runner.run(&["-vvv", "profile", "list"]);
     result.assert_success();
     assert!(
         !result.stderr.is_empty(),
-        "Trace mode should produce detailed stderr logging"
+        "-vvv (trace) mode should produce detailed stderr logging"
     );
 
     delete_test_profile(&runner, &name);
@@ -224,21 +194,10 @@ fn test_dry_run_with_help() {
 }
 
 #[test]
-fn test_fields_with_profile_list() {
+fn test_quiet_flag() {
     let config = skip_unless_binary!();
     let runner = SmokeRunner::new(config);
-    let name = unique_name("smoke-fields");
-    create_test_profile(&runner, &name);
 
-    let result = runner.run(&["--fields", "name,site", "profile", "list"]);
-    // --fields may or may not be supported for profile list specifically,
-    // but the flag should be accepted without crash
-    assert!(
-        result.exit_code == 0 || result.stderr.contains("fields"),
-        "Fields flag should be accepted or produce field-related error, not crash.\nexit: {}\nstderr: {}",
-        result.exit_code,
-        result.stderr
-    );
-
-    delete_test_profile(&runner, &name);
+    let result = runner.run(&["-q", "--help"]);
+    result.assert_success();
 }

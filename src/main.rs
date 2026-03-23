@@ -9,7 +9,6 @@ use shrug::cli::{
     AuthCommands, CacheCommands, Cli, ColorChoice, Commands, OutputFormat, ProfileCommands,
 };
 use shrug::cmd::router;
-use shrug::completions;
 use shrug::config::{self, ShrugConfig, ShrugPaths};
 use shrug::dynamic_completions;
 use shrug::error::ShrugError;
@@ -17,7 +16,6 @@ use shrug::executor;
 use shrug::helpers;
 use shrug::jql::JqlShorthand;
 use shrug::logging;
-use shrug::markdown_to_adf;
 use shrug::output;
 use shrug::spec::registry::Product;
 use shrug::spec::SpecCache;
@@ -33,12 +31,9 @@ fn handle_product(
     client: &reqwest::blocking::Client,
     credential: Option<&ResolvedCredential>,
     dry_run: bool,
-    json_body: Option<&str>,
-    page_all: bool,
     limit: Option<u32>,
     output_format: &OutputFormat,
     color: &ColorChoice,
-    fields: Option<&[String]>,
     pager: bool,
 ) -> Result<(), ShrugError> {
     let paths = ShrugPaths::new()
@@ -52,12 +47,15 @@ fn handle_product(
     let parsed_args = executor::parse_args(
         &resolved.operation,
         &resolved.remaining_args,
-        json_body.map(|s| s.to_string()),
+        None,
     )?;
 
     let is_tty = is_terminal::is_terminal(std::io::stdout());
     let effective_format = output::resolve_format(output_format, is_tty);
     let color_enabled = output::should_use_color(color, is_tty);
+
+    // --limit implies pagination
+    let page_all = limit.is_some();
 
     executor::execute(
         client,
@@ -71,7 +69,7 @@ fn handle_product(
         &effective_format,
         is_tty,
         color_enabled,
-        fields,
+        None,
         pager,
     )
 }
@@ -539,25 +537,13 @@ fn run(config: &ShrugConfig, cli: &Cli) -> Result<(), ShrugError> {
 
             let client = executor::create_client()?;
 
-            // Convert Markdown fields in --json body to ADF if --markdown is set
-            let effective_json = if cli.markdown {
-                if let Some(ref body) = cli.json {
-                    Some(markdown_to_adf::convert_body_markdown(body)?)
-                } else {
-                    tracing::warn!("--markdown has no effect without --json");
-                    None
-                }
-            } else {
-                cli.json.clone()
-            };
-
             // Build JQL from shorthand flags (Jira/JiraSoftware only)
             let mut effective_args = args.clone();
             let shorthand = JqlShorthand {
                 project: cli.project.clone(),
                 assignee: cli.assignee.clone(),
                 status: cli.status.clone(),
-                issue_type: cli.issue_type.clone(),
+                issue_type: cli.type_.clone(),
                 priority: cli.priority.clone(),
                 label: cli.label.clone(),
             };
@@ -569,11 +555,6 @@ fn run(config: &ShrugConfig, cli: &Cli) -> Result<(), ShrugError> {
                     effective_args.push(jql);
                 }
             }
-
-            let parsed_fields: Option<Vec<String>> = cli
-                .fields
-                .as_ref()
-                .map(|f| f.split(',').map(|s| s.trim().to_string()).collect());
 
             // Intercept helper commands (+create, +search, +transition)
             if helpers::is_helper_command(&effective_args) {
@@ -625,7 +606,7 @@ fn run(config: &ShrugConfig, cli: &Cli) -> Result<(), ShrugError> {
                     &effective_format,
                     is_tty,
                     color_enabled,
-                    parsed_fields.as_deref(),
+                    None,
                     cli.pager,
                     cli.dry_run,
                 );
@@ -638,12 +619,9 @@ fn run(config: &ShrugConfig, cli: &Cli) -> Result<(), ShrugError> {
                 &client,
                 credential.as_ref(),
                 cli.dry_run,
-                effective_json.as_deref(),
-                cli.page_all,
                 cli.limit,
                 &config.output_format,
                 &config.color,
-                parsed_fields.as_deref(),
                 cli.pager,
             )
         }
@@ -660,13 +638,6 @@ fn run(config: &ShrugConfig, cli: &Cli) -> Result<(), ShrugError> {
             handle_profile(command, &profile_store, &cred_store)
         }
         Some(Commands::Cache { command }) => handle_cache(command, config),
-        Some(Commands::Completions { shell, dynamic }) => {
-            if *dynamic {
-                completions::generate_dynamic_completions(shell, &mut std::io::stdout())
-            } else {
-                completions::generate_completions(shell, &mut std::io::stdout())
-            }
-        }
         Some(Commands::Complete {
             completion_type,
             args,
@@ -695,39 +666,6 @@ fn run(config: &ShrugConfig, cli: &Cli) -> Result<(), ShrugError> {
             }
             Ok(())
         }
-        Some(Commands::GenerateMan { output_dir }) => {
-            let out = std::path::Path::new(&output_dir);
-            std::fs::create_dir_all(out).map_err(|e| {
-                ShrugError::ConfigError(format!("Failed to create {output_dir}: {e}"))
-            })?;
-            let cmd = <Cli as clap::CommandFactory>::command();
-            let man = clap_mangen::Man::new(cmd.clone());
-            let mut buf = Vec::new();
-            man.render(&mut buf)
-                .map_err(|e| ShrugError::ConfigError(format!("Failed to render man page: {e}")))?;
-            let path = out.join("shrug.1");
-            std::fs::write(&path, buf).map_err(|e| {
-                ShrugError::ConfigError(format!("Failed to write {}: {e}", path.display()))
-            })?;
-            eprintln!("Generated: {}", path.display());
-
-            // Generate man pages for subcommands
-            for sub in cmd.get_subcommands() {
-                if sub.is_hide_set() {
-                    continue;
-                }
-                let name = format!("shrug-{}", sub.get_name());
-                let man = clap_mangen::Man::new(sub.clone());
-                let mut buf = Vec::new();
-                if man.render(&mut buf).is_ok() {
-                    let path = out.join(format!("{name}.1"));
-                    if std::fs::write(&path, &buf).is_ok() {
-                        eprintln!("Generated: {}", path.display());
-                    }
-                }
-            }
-            Ok(())
-        }
         None => {
             eprintln!("Run `shrug --help` for usage information.");
             Ok(())
@@ -741,7 +679,9 @@ fn main() {
     let cli = Cli::parse();
 
     // Initialize logging before anything else so config errors are logged
-    logging::init_logging(cli.verbose, cli.trace, &cli.color);
+    // -vvv (verbose >= 3) enables trace-level logging (was separate --trace flag)
+    let trace = cli.verbose >= 3;
+    logging::init_logging(cli.verbose, trace, &cli.color);
 
     // Set up Ctrl+C handler — non-panicking, falls back to OS default on failure
     if let Err(e) = ctrlc::set_handler(move || {

@@ -12,23 +12,19 @@ Commands:
   help     Print this message or the help of the given subcommand(s)
 
 Options:
-      --output <OUTPUT>          Output format [default: table] [possible values: json, table, yaml, csv, plain]
-      --color <COLOR>            Color output [default: auto] [possible values: auto, always, never]
-      --profile <PROFILE>        Configuration profile to use
-  -v, --verbose...               Increase verbosity (-v, -vv, -vvv)
-      --dry-run                  Dry run — show what would happen without making changes
-      --json <JSON>              JSON request body for operations that require one
-      --page-all                 Fetch all pages of paginated results
-      --limit <LIMIT>            Maximum number of results to fetch (used with --page-all)
-      --fields <FIELDS>          Select specific fields for table/CSV output (comma-separated)
-      --pager                    Pipe output through a pager (e.g., less)
-      --trace                    Enable trace-level logging (full diagnostic output)
-      --markdown                 Convert Markdown fields in --json body to ADF before sending
-      --jql <JQL>                Raw JQL query string (Jira/Jira Software only)
-      --project <PROJECT>        JQL shorthand: filter by project key
-      --assignee <ASSIGNEE>      JQL shorthand: filter by assignee ("me" for current user)
-      --status <STATUS>          JQL shorthand: filter by status
-      --issue-type <ISSUE_TYPE>  JQL shorthand: filter by issue type
-      --priority <PRIORITY>      JQL shorthand: filter by priority
-      --label <LABEL>            JQL shorthand: filter by label
-  -h, --help                     Print help
+  -o, --output <OUTPUT>      Output format [default: table] [possible values: json, table, csv]
+      --color <COLOR>        Color output [default: auto] [possible values: auto, always, never]
+  -p, --profile <PROFILE>    Configuration profile to use
+  -v, --verbose...           Increase verbosity (-v, -vv, -vvv for trace)
+  -n, --dry-run              Dry run — show what would happen without making changes
+  -L, --limit <LIMIT>        Maximum number of results to fetch (implies pagination)
+      --pager                Pipe output through a pager (e.g., less)
+  -q, --quiet                Suppress non-essential output
+      --jql <JQL>            Raw JQL query string (Jira/Jira Software only)
+      --project <PROJECT>    JQL shorthand: filter by project key
+      --assignee <ASSIGNEE>  JQL shorthand: filter by assignee ("me" for current user)
+      --status <STATUS>      JQL shorthand: filter by status
+      --type <TYPE>          JQL shorthand: filter by issue type
+      --priority <PRIORITY>  JQL shorthand: filter by priority
+      --label <LABEL>        JQL shorthand: filter by label
+  -h, --help                 Print help

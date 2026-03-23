@@ -80,10 +80,6 @@ fn test_help_toplevel_lists_commands() {
         "Help should list profile command"
     );
     assert!(stdout.contains("cache"), "Help should list cache command");
-    assert!(
-        stdout.contains("completions"),
-        "Help should list completions command"
-    );
 }
 
 #[test]

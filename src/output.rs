@@ -31,9 +31,7 @@ pub fn format_response(
     match format {
         OutputFormat::Json => format_json(&json),
         OutputFormat::Table => format_table(&json, color_enabled),
-        OutputFormat::Yaml => format_yaml(&json),
         OutputFormat::Csv => format_csv_with_fields(&json, fields),
-        OutputFormat::Plain => format_plain(&json),
     }
 }
 
@@ -128,10 +126,14 @@ pub fn resolve_format(explicit: &OutputFormat, is_tty: bool) -> OutputFormat {
 
 /// Determine whether colour output should be enabled.
 pub fn should_use_color(choice: &ColorChoice, is_tty: bool) -> bool {
+    // NO_COLOR overrides everything (https://no-color.org/)
+    if std::env::var("NO_COLOR").is_ok() {
+        return false;
+    }
     match choice {
         ColorChoice::Always => true,
         ColorChoice::Never => false,
-        ColorChoice::Auto => is_tty && std::env::var("NO_COLOR").is_err(),
+        ColorChoice::Auto => is_tty,
     }
 }
 
@@ -225,10 +227,6 @@ fn format_array_table(arr: &[serde_json::Value], color_enabled: bool) -> String 
     table.to_string()
 }
 
-fn format_yaml(json: &serde_json::Value) -> String {
-    serde_yaml_ng::to_string(json).unwrap_or_else(|_| format_json(json))
-}
-
 /// Format CSV with optional field ordering from --fields.
 fn format_csv_with_fields(json: &serde_json::Value, fields: Option<&[String]>) -> String {
     if let Some(field_list) = fields {
@@ -319,38 +317,6 @@ fn format_csv(json: &serde_json::Value) -> String {
         .unwrap_or_default()
         .trim_end()
         .to_string()
-}
-
-fn format_plain(json: &serde_json::Value) -> String {
-    match json {
-        serde_json::Value::Object(obj) => {
-            let mut lines = Vec::new();
-            for (key, value) in obj {
-                let display = if adf::is_adf(value) {
-                    adf::render_adf(value, false)
-                } else {
-                    match value {
-                        serde_json::Value::String(s) => s.clone(),
-                        serde_json::Value::Null => String::from("null"),
-                        serde_json::Value::Bool(b) => b.to_string(),
-                        serde_json::Value::Number(n) => n.to_string(),
-                        other => other.to_string(),
-                    }
-                };
-                lines.push(format!("{}: {}", key, display));
-            }
-            lines.join("\n")
-        }
-        serde_json::Value::Array(arr) => arr
-            .iter()
-            .map(|item| match item {
-                serde_json::Value::String(s) => s.clone(),
-                other => other.to_string(),
-            })
-            .collect::<Vec<_>>()
-            .join("\n"),
-        other => other.to_string(),
-    }
 }
 
 // --- Helpers ---
@@ -473,14 +439,6 @@ mod tests {
     }
 
     #[test]
-    fn format_yaml_produces_valid_yaml() {
-        let json = sample_object();
-        let output = format_yaml(&json);
-        assert!(output.contains("key: TEST-1"));
-        assert!(output.contains("summary: Fix the login bug"));
-    }
-
-    #[test]
     fn format_csv_produces_header_and_data_rows() {
         let json = sample_array();
         let output = format_csv(&json);
@@ -518,24 +476,6 @@ mod tests {
     }
 
     #[test]
-    fn format_plain_renders_key_value_pairs() {
-        let json = sample_object();
-        let output = format_plain(&json);
-        assert!(output.contains("key: TEST-1"));
-        assert!(output.contains("summary: Fix the login bug"));
-        assert!(output.contains("id: 123"));
-    }
-
-    #[test]
-    fn format_plain_renders_array_items() {
-        let json = serde_json::json!(["one", "two", "three"]);
-        let output = format_plain(&json);
-        assert!(output.contains("one"));
-        assert!(output.contains("two"));
-        assert!(output.contains("three"));
-    }
-
-    #[test]
     fn resolve_format_returns_json_when_table_not_tty() {
         let format = resolve_format(&OutputFormat::Table, false);
         assert_eq!(format, OutputFormat::Json);
@@ -566,9 +506,25 @@ mod tests {
     }
 
     #[test]
-    fn should_use_color_always_returns_true() {
+    fn should_use_color_always_returns_true_unless_no_color() {
+        // Temporarily unset NO_COLOR for this test
+        let had_no_color = std::env::var("NO_COLOR").ok();
+        std::env::remove_var("NO_COLOR");
+
         assert!(should_use_color(&ColorChoice::Always, true));
         assert!(should_use_color(&ColorChoice::Always, false));
+
+        // Restore NO_COLOR if it was set
+        if let Some(val) = had_no_color {
+            std::env::set_var("NO_COLOR", val);
+        }
+    }
+
+    #[test]
+    fn no_color_env_overrides_always() {
+        std::env::set_var("NO_COLOR", "1");
+        assert!(!should_use_color(&ColorChoice::Always, true));
+        std::env::remove_var("NO_COLOR");
     }
 
     #[test]
@@ -703,20 +659,6 @@ mod tests {
             !output.contains("\"type\""),
             "ADF JSON structure should not appear"
         );
-    }
-
-    #[test]
-    fn adf_in_plain_output_rendered_as_text() {
-        let json = serde_json::json!({
-            "key": "TEST-1",
-            "description": {
-                "type": "doc",
-                "version": 1,
-                "content": [{"type": "paragraph", "content": [{"type": "text", "text": "Plain ADF"}]}]
-            }
-        });
-        let output = format_plain(&json);
-        assert!(output.contains("description: Plain ADF"));
     }
 
     #[test]

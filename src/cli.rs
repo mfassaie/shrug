@@ -7,7 +7,7 @@ use crate::auth::profile::AuthType;
 #[command(name = "shrug", version, about = "A dynamic CLI for Atlassian Cloud")]
 pub struct Cli {
     /// Output format
-    #[arg(long, value_enum, default_value_t = OutputFormat::Table, global = true)]
+    #[arg(short = 'o', long, value_enum, default_value_t = OutputFormat::Table, global = true)]
     pub output: OutputFormat,
 
     /// Color output
@@ -15,44 +15,28 @@ pub struct Cli {
     pub color: ColorChoice,
 
     /// Configuration profile to use
-    #[arg(long, global = true)]
+    #[arg(short = 'p', long, global = true)]
     pub profile: Option<String>,
 
-    /// Increase verbosity (-v, -vv, -vvv)
+    /// Increase verbosity (-v, -vv, -vvv for trace)
     #[arg(short, long, action = clap::ArgAction::Count, global = true)]
     pub verbose: u8,
 
     /// Dry run — show what would happen without making changes
-    #[arg(long, global = true)]
+    #[arg(short = 'n', long, global = true)]
     pub dry_run: bool,
 
-    /// JSON request body for operations that require one
-    #[arg(long, global = true)]
-    pub json: Option<String>,
-
-    /// Fetch all pages of paginated results
-    #[arg(long, global = true)]
-    pub page_all: bool,
-
-    /// Maximum number of results to fetch (used with --page-all)
-    #[arg(long, global = true)]
+    /// Maximum number of results to fetch (implies pagination)
+    #[arg(short = 'L', long, global = true)]
     pub limit: Option<u32>,
-
-    /// Select specific fields for table/CSV output (comma-separated)
-    #[arg(long, global = true)]
-    pub fields: Option<String>,
 
     /// Pipe output through a pager (e.g., less)
     #[arg(long, global = true)]
     pub pager: bool,
 
-    /// Enable trace-level logging (full diagnostic output)
-    #[arg(long, global = true)]
-    pub trace: bool,
-
-    /// Convert Markdown fields in --json body to ADF before sending
-    #[arg(long, global = true)]
-    pub markdown: bool,
+    /// Suppress non-essential output
+    #[arg(short = 'q', long, global = true)]
+    pub quiet: bool,
 
     /// Raw JQL query string (Jira/Jira Software only)
     #[arg(long, global = true)]
@@ -71,8 +55,8 @@ pub struct Cli {
     pub status: Option<String>,
 
     /// JQL shorthand: filter by issue type
-    #[arg(long, global = true)]
-    pub issue_type: Option<String>,
+    #[arg(long = "type", global = true)]
+    pub type_: Option<String>,
 
     /// JQL shorthand: filter by priority
     #[arg(long, global = true)]
@@ -91,9 +75,7 @@ pub struct Cli {
 pub enum OutputFormat {
     Json,
     Table,
-    Yaml,
     Csv,
-    Plain,
 }
 
 #[derive(Clone, Debug, PartialEq, ValueEnum, Serialize, Deserialize)]
@@ -138,14 +120,6 @@ pub enum Commands {
         #[command(subcommand)]
         command: CacheCommands,
     },
-    /// Generate shell completions (bash, zsh, fish, powershell)
-    Completions {
-        /// Shell to generate completions for
-        shell: String,
-        /// Generate dynamic completions with live Atlassian lookups
-        #[arg(long)]
-        dynamic: bool,
-    },
     /// Internal: output completion values for dynamic tab-completion
     #[command(name = "_complete", hide = true)]
     Complete {
@@ -154,13 +128,6 @@ pub enum Commands {
         /// Extra arguments (e.g. --project FOO)
         #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
         args: Vec<String>,
-    },
-    /// Internal: generate man pages to a directory
-    #[command(name = "_generate-man", hide = true)]
-    GenerateMan {
-        /// Output directory for man pages
-        #[arg(default_value = "man")]
-        output_dir: String,
     },
 }
 
@@ -254,14 +221,8 @@ mod tests {
 
     #[test]
     fn output_format_all_variants() {
-        let variants = [
-            OutputFormat::Json,
-            OutputFormat::Table,
-            OutputFormat::Yaml,
-            OutputFormat::Csv,
-            OutputFormat::Plain,
-        ];
-        assert_eq!(variants.len(), 5);
+        let variants = [OutputFormat::Json, OutputFormat::Table, OutputFormat::Csv];
+        assert_eq!(variants.len(), 3);
     }
 
     #[test]
@@ -273,14 +234,13 @@ mod tests {
     #[test]
     fn cli_parses_version_flag() {
         let result = Cli::try_parse_from(["shrug", "--version"]);
-        // --version causes early exit, which clap returns as Err(DisplayVersion)
         assert!(result.is_err());
     }
 
     #[test]
     fn cli_parses_help_flag() {
         let result = Cli::try_parse_from(["shrug", "--help"]);
-        assert!(result.is_err()); // --help causes early exit
+        assert!(result.is_err());
     }
 
     #[test]
@@ -299,6 +259,18 @@ mod tests {
         assert_eq!(cli.color, ColorChoice::Never);
         assert_eq!(cli.verbose, 1);
         assert!(cli.dry_run);
+    }
+
+    #[test]
+    fn cli_parses_short_forms() {
+        let cli =
+            Cli::try_parse_from(["shrug", "-o", "json", "-p", "prod", "-n", "-L", "50", "-q"])
+                .unwrap();
+        assert_eq!(cli.output, OutputFormat::Json);
+        assert_eq!(cli.profile, Some("prod".to_string()));
+        assert!(cli.dry_run);
+        assert_eq!(cli.limit, Some(50));
+        assert!(cli.quiet);
     }
 
     #[test]
@@ -343,5 +315,11 @@ mod tests {
             }) => assert!(product.is_none()),
             _ => panic!("Expected Cache Refresh"),
         }
+    }
+
+    #[test]
+    fn cli_parses_type_flag() {
+        let cli = Cli::try_parse_from(["shrug", "--type", "Bug"]).unwrap();
+        assert_eq!(cli.type_, Some("Bug".to_string()));
     }
 }

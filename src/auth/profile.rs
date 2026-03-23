@@ -428,7 +428,7 @@ mod tests {
         let err = store.get("nonexistent").unwrap_err();
         let msg = format!("{}", err);
         assert!(msg.contains("not found"), "Expected not found: {msg}");
-        assert_eq!(err.exit_code(), crate::exit_codes::NOT_FOUND);
+        assert_eq!(err.exit_code(), crate::exit_codes::ERROR);
     }
 
     #[test]
@@ -451,7 +451,7 @@ mod tests {
         let err = store.delete("nonexistent").unwrap_err();
         let msg = format!("{}", err);
         assert!(msg.contains("not found"), "Expected not found: {msg}");
-        assert_eq!(err.exit_code(), crate::exit_codes::NOT_FOUND);
+        assert_eq!(err.exit_code(), crate::exit_codes::ERROR);
     }
 
     #[test]
@@ -473,7 +473,7 @@ mod tests {
         let store = make_store(&dir);
 
         let err = store.set_default("nonexistent").unwrap_err();
-        assert_eq!(err.exit_code(), crate::exit_codes::NOT_FOUND);
+        assert_eq!(err.exit_code(), crate::exit_codes::ERROR);
     }
 
     #[test]

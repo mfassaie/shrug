@@ -36,16 +36,8 @@ pub enum ShrugError {
 impl ShrugError {
     pub fn exit_code(&self) -> i32 {
         match self {
-            ShrugError::AuthError(_) => exit_codes::AUTH_ERROR,
-            ShrugError::NotFound(_) => exit_codes::NOT_FOUND,
-            ShrugError::PermissionDenied(_) => exit_codes::PERMISSION_DENIED,
-            ShrugError::RateLimited { .. } => exit_codes::RATE_LIMITED,
-            ShrugError::NetworkError(_) => exit_codes::NETWORK_ERROR,
-            ShrugError::ServerError { .. } => exit_codes::SERVER_ERROR,
-            ShrugError::ConfigError(_) => exit_codes::GENERAL_ERROR,
-            ShrugError::SpecError(_) => exit_codes::GENERAL_ERROR,
             ShrugError::UsageError(_) => exit_codes::USAGE_ERROR,
-            ShrugError::ProfileError(_) => exit_codes::GENERAL_ERROR,
+            _ => exit_codes::ERROR,
         }
     }
 
@@ -82,62 +74,35 @@ mod tests {
     use super::*;
 
     #[test]
-    fn auth_error_exit_code() {
-        let err = ShrugError::AuthError("bad token".into());
-        assert_eq!(err.exit_code(), exit_codes::AUTH_ERROR);
-    }
-
-    #[test]
-    fn not_found_exit_code() {
-        let err = ShrugError::NotFound("issue PROJ-1".into());
-        assert_eq!(err.exit_code(), exit_codes::NOT_FOUND);
-    }
-
-    #[test]
-    fn permission_denied_exit_code() {
-        let err = ShrugError::PermissionDenied("no access".into());
-        assert_eq!(err.exit_code(), exit_codes::PERMISSION_DENIED);
-    }
-
-    #[test]
-    fn rate_limited_exit_code() {
-        let err = ShrugError::RateLimited {
-            retry_after: Some(30),
-        };
-        assert_eq!(err.exit_code(), exit_codes::RATE_LIMITED);
-    }
-
-    #[test]
-    fn server_error_exit_code() {
-        let err = ShrugError::ServerError {
-            status: 500,
-            message: "internal".into(),
-        };
-        assert_eq!(err.exit_code(), exit_codes::SERVER_ERROR);
-    }
-
-    #[test]
-    fn config_error_exit_code() {
-        let err = ShrugError::ConfigError("missing file".into());
-        assert_eq!(err.exit_code(), exit_codes::GENERAL_ERROR);
-    }
-
-    #[test]
-    fn spec_error_exit_code() {
-        let err = ShrugError::SpecError("invalid spec".into());
-        assert_eq!(err.exit_code(), exit_codes::GENERAL_ERROR);
-    }
-
-    #[test]
     fn usage_error_exit_code() {
         let err = ShrugError::UsageError("missing argument".into());
         assert_eq!(err.exit_code(), exit_codes::USAGE_ERROR);
     }
 
     #[test]
-    fn profile_error_exit_code() {
-        let err = ShrugError::ProfileError("bad profile".into());
-        assert_eq!(err.exit_code(), exit_codes::GENERAL_ERROR);
+    fn non_usage_errors_return_code_1() {
+        let errors: Vec<ShrugError> = vec![
+            ShrugError::AuthError("bad token".into()),
+            ShrugError::NotFound("issue PROJ-1".into()),
+            ShrugError::PermissionDenied("no access".into()),
+            ShrugError::RateLimited {
+                retry_after: Some(30),
+            },
+            ShrugError::ServerError {
+                status: 500,
+                message: "internal".into(),
+            },
+            ShrugError::ConfigError("missing file".into()),
+            ShrugError::SpecError("invalid spec".into()),
+            ShrugError::ProfileError("bad profile".into()),
+        ];
+        for err in &errors {
+            assert_eq!(
+                err.exit_code(),
+                exit_codes::ERROR,
+                "Expected exit code 1 for {err:?}"
+            );
+        }
     }
 
     #[test]

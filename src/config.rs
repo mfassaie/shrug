@@ -159,12 +159,10 @@ fn apply_env_overrides(config: &mut ShrugConfig) -> Result<(), ShrugError> {
         config.output_format = match val.to_lowercase().as_str() {
             "json" => OutputFormat::Json,
             "table" => OutputFormat::Table,
-            "yaml" => OutputFormat::Yaml,
             "csv" => OutputFormat::Csv,
-            "plain" => OutputFormat::Plain,
             _ => {
                 return Err(ShrugError::ConfigError(format!(
-                    "Invalid value for SHRUG_OUTPUT: '{}'. Expected one of: json, table, yaml, csv, plain",
+                    "Invalid value for SHRUG_OUTPUT: '{}'. Expected one of: json, table, csv",
                     val
                 )));
             }
@@ -284,7 +282,7 @@ mod tests {
 
         // Simulate user config
         let user: ShrugConfigPartial =
-            toml::from_str("output_format = \"yaml\"\npage_size = 30").unwrap();
+            toml::from_str("output_format = \"json\"\npage_size = 30").unwrap();
         config.merge(user);
 
         // Simulate project config (only overrides output)
