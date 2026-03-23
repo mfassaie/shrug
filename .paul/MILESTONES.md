@@ -6,6 +6,7 @@ Completed milestone log for this project.
 |-----------|-----------|----------|-------|
 | v0.1 MVP | 2026-03-21 | 1 day | 8 phases, 24 plans |
 | v0.2 E2E Validation | 2026-03-23 | 1 day | 4 phases, 8 plans |
+| v0.3 Test Coverage & Entity Expansion | 2026-03-23 | 1 day | 5 phases, 9 plans |
 
 ---
 
@@ -98,6 +99,41 @@ Completed milestone log for this project.
 | Confluence v2 API spec (openapi-v2.v3.json) | 11 | v1 spec missing page CRUD, v2 has 212 operations |
 | Credential site + spec path prefix for URL resolution | 10 | Supports APIs with path prefixes (e.g., /wiki/api/v2) |
 | ADF format required for Jira comment/worklog bodies | 10 | Jira Cloud rejects plain text in v3 API |
+
+## v0.3 Test Coverage & Entity Expansion
+
+**Completed:** 2026-03-23
+**Duration:** 1 day
+**Version:** 0.3.0
+
+### Stats
+
+| Metric | Value |
+|--------|-------|
+| Phases | 5 |
+| Plans | 9 |
+| New E2E tests | 31 |
+| Total tests | 70 (411 unit + 7 integration + 70 E2E) |
+| Clippy warnings fixed | 7 (Phase 13) |
+| Bugs fixed | 2 (+search deprecated API, +create flag forwarding) |
+
+### Key Accomplishments
+
+- **Jira Platform: 20 entity groups tested.** Full CRUD for issues, comments, worklogs, filters, dashboards, versions, components, issue types, groups. Lifecycle tests for watchers, votes, issue links. Read-only for projects, statuses, priorities, resolutions, fields. Attachment test with multipart fallback.
+- **Jira Software: 6 tests covering all non-DevOps entity groups.** Board CRUD (with filter dependency), Sprint lifecycle, Epic operations, JSW issue get, board list, backlog move with graceful handling.
+- **Confluence: 20 entity groups tested.** Page CRUD, blog post CRUD, space properties CRUD, folder CRUD, whiteboard CRUD, content properties CRUD. Read-only for comments, versions, likes, attachments, tasks, labels, custom content, ancestors, descendants, space roles.
+- **Feature gap tests.** Pagination --limit verification, verbose (-v) and trace (--trace) logging output, ADF comment round-trip (create → read → verify content).
+- **Code quality.** 23 new unit tests (Phase 13), 7 clippy warnings eliminated, +search updated to enhanced search API, global shorthand flags forwarded to helpers.
+
+### Key Decisions
+
+| Decision | Phase | Rationale |
+|----------|-------|-----------|
+| +search uses search-and-reconsile-issues-using-jql | 13 | Old endpoint returned HTTP 410 |
+| Global shorthand flags forwarded to helpers | 13 | --project, --assignee, --status reach +create |
+| Attachment test falls back to read-only | 14 | CLI executor sends JSON, not multipart/form-data |
+| Vote test graceful early return on own-issue | 14 | Jira blocks voting on reporter's issues (API constraint) |
+| Board creation requires Jira Platform filter | 15 | JSW boards need a filter ID from the Platform API |
 
 ---
 *Milestones log — Updated on milestone completion*
