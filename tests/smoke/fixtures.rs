@@ -165,14 +165,18 @@ pub fn create_test_page(
         }
     });
 
-    let result = runner.run_json_with_body(&body.to_string(), &["confluence", "pages", "createPage"]);
+    let result =
+        runner.run_json_with_body(&body.to_string(), &["confluence", "pages", "createPage"]);
     result.assert_success();
 
     let json = result
         .json
         .expect("Expected JSON response from confluence pages createPage");
 
-    if let Some(id) = json.get("id").and_then(|v| v.as_str().or_else(|| v.as_i64().map(|_| ""))) {
+    if let Some(id) = json
+        .get("id")
+        .and_then(|v| v.as_str().or_else(|| v.as_i64().map(|_| "")))
+    {
         let id_str = json
             .get("id")
             .map(|v| v.to_string().trim_matches('"').to_string())

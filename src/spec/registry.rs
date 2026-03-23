@@ -30,11 +30,7 @@ pub struct ProductInfo {
     pub cache_key: &'static str,
 }
 
-static ALL_PRODUCTS: [Product; 3] = [
-    Product::Jira,
-    Product::JiraSoftware,
-    Product::Confluence,
-];
+static ALL_PRODUCTS: [Product; 3] = [Product::Jira, Product::JiraSoftware, Product::Confluence];
 
 static JIRA_INFO: ProductInfo = ProductInfo {
     product: Product::Jira,
@@ -125,7 +121,10 @@ impl SpecLoader {
 
         // Tier 2: Serve stale cache + background refresh
         if let Some(spec) = self.cache.load_stale(cache_key)? {
-            tracing::debug!(product = cache_key, "Serving stale cache, spawning background refresh");
+            tracing::debug!(
+                product = cache_key,
+                "Serving stale cache, spawning background refresh"
+            );
             let cache_dir = self.cache.cache_dir();
             let spec_url = product.info().spec_url.to_string();
             let key = cache_key.to_string();
@@ -201,7 +200,10 @@ impl SpecLoader {
 
         // 304 Not Modified: spec hasn't changed, just refresh TTL
         if status == reqwest::StatusCode::NOT_MODIFIED {
-            tracing::debug!(product = info.cache_key, "Spec not modified (304), refreshing TTL");
+            tracing::debug!(
+                product = info.cache_key,
+                "Spec not modified (304), refreshing TTL"
+            );
             self.cache.touch_ttl(info.cache_key)?;
             // Return the cached spec
             if let Some(spec) = self.cache.load_stale(info.cache_key)? {
@@ -466,10 +468,7 @@ mod tests {
         // No cache — load() tries network (may succeed or fail) then falls back to bundled.
         // Either way, a spec should be returned.
         let loaded = loader.load(&Product::Jira).unwrap();
-        assert!(
-            !loaded.title.is_empty(),
-            "Loaded spec should have a title"
-        );
+        assert!(!loaded.title.is_empty(), "Loaded spec should have a title");
     }
 
     #[test]

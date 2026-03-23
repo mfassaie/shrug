@@ -31,9 +31,7 @@ impl CompletionCache {
     pub fn new(cache_dir: PathBuf) -> Result<Self, ShrugError> {
         let completions_dir = cache_dir.join("completions");
         fs::create_dir_all(&completions_dir).map_err(|e| {
-            ShrugError::SpecError(format!(
-                "Failed to create completions cache directory: {e}"
-            ))
+            ShrugError::SpecError(format!("Failed to create completions cache directory: {e}"))
         })?;
         Ok(Self {
             cache_dir: completions_dir,

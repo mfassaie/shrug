@@ -229,14 +229,7 @@ fn test_profile_flag_override() {
     let _ = runner.run(&["profile", "use", "--name", &name_a]);
 
     // Use --profile flag to override default
-    let result = runner.run(&[
-        "--profile",
-        &name_b,
-        "profile",
-        "show",
-        "--name",
-        &name_b,
-    ]);
+    let result = runner.run(&["--profile", &name_b, "profile", "show", "--name", &name_b]);
     result.assert_success();
     result.assert_stdout_contains(&name_b);
 

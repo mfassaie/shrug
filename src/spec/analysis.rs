@@ -761,5 +761,4 @@ mod conformance {
             .unwrap();
         assert!(detect_pagination(create_issue).is_none());
     }
-
 }

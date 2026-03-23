@@ -454,10 +454,7 @@ fn handle_cache(command: &CacheCommands, config: &ShrugConfig) -> Result<(), Shr
                     }
                 }
             }
-            println!(
-                "\nRefreshed {} specs ({} failed).",
-                ok_count, err_count
-            );
+            println!("\nRefreshed {} specs ({} failed).", ok_count, err_count);
             if err_count > 0 {
                 return Err(ShrugError::SpecError(format!(
                     "{} spec(s) failed to refresh",
@@ -686,11 +683,11 @@ fn run(config: &ShrugConfig, cli: &Cli) -> Result<(), ShrugError> {
             completion_type,
             args,
         }) => {
-            let paths = ShrugPaths::new()
-                .ok_or_else(|| ShrugError::SpecError("Could not determine cache directory".into()))?;
-            let comp_cache = dynamic_completions::CompletionCache::new(
-                paths.cache_dir().to_path_buf(),
-            )?;
+            let paths = ShrugPaths::new().ok_or_else(|| {
+                ShrugError::SpecError("Could not determine cache directory".into())
+            })?;
+            let comp_cache =
+                dynamic_completions::CompletionCache::new(paths.cache_dir().to_path_buf())?;
             let profile_store = get_profile_store(&paths)?;
             let cred_store = get_credential_store(&paths)?;
             let credential = match resolve_profile(&cli.profile, config, &profile_store) {
@@ -712,16 +709,18 @@ fn run(config: &ShrugConfig, cli: &Cli) -> Result<(), ShrugError> {
         }
         Some(Commands::GenerateMan { output_dir }) => {
             let out = std::path::Path::new(&output_dir);
-            std::fs::create_dir_all(out)
-                .map_err(|e| ShrugError::ConfigError(format!("Failed to create {output_dir}: {e}")))?;
+            std::fs::create_dir_all(out).map_err(|e| {
+                ShrugError::ConfigError(format!("Failed to create {output_dir}: {e}"))
+            })?;
             let cmd = <Cli as clap::CommandFactory>::command();
             let man = clap_mangen::Man::new(cmd.clone());
             let mut buf = Vec::new();
             man.render(&mut buf)
                 .map_err(|e| ShrugError::ConfigError(format!("Failed to render man page: {e}")))?;
             let path = out.join("shrug.1");
-            std::fs::write(&path, buf)
-                .map_err(|e| ShrugError::ConfigError(format!("Failed to write {}: {e}", path.display())))?;
+            std::fs::write(&path, buf).map_err(|e| {
+                ShrugError::ConfigError(format!("Failed to write {}: {e}", path.display()))
+            })?;
             eprintln!("Generated: {}", path.display());
 
             // Generate man pages for subcommands

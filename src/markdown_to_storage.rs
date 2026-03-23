@@ -39,9 +39,7 @@ pub fn markdown_to_storage(markdown: &str) -> String {
                 }
                 Tag::Item => output.push_str("<li>"),
                 Tag::CodeBlock(kind) => {
-                    output.push_str(
-                        "<ac:structured-macro ac:name=\"code\">",
-                    );
+                    output.push_str("<ac:structured-macro ac:name=\"code\">");
                     if let CodeBlockKind::Fenced(lang) = kind {
                         let lang_str = lang.as_ref();
                         if !lang_str.is_empty() {
@@ -74,13 +72,11 @@ pub fn markdown_to_storage(markdown: &str) -> String {
                 TagEnd::Emphasis => output.push_str("</em>"),
                 TagEnd::Strikethrough => output.push_str("</del>"),
                 TagEnd::BlockQuote(_) => output.push_str("</blockquote>"),
-                TagEnd::List(_) => {
-                    match list_stack.pop() {
-                        Some(ListKind::Ordered) => output.push_str("</ol>"),
-                        Some(ListKind::Unordered) => output.push_str("</ul>"),
-                        None => {}
-                    }
-                }
+                TagEnd::List(_) => match list_stack.pop() {
+                    Some(ListKind::Ordered) => output.push_str("</ol>"),
+                    Some(ListKind::Unordered) => output.push_str("</ul>"),
+                    None => {}
+                },
                 TagEnd::Item => output.push_str("</li>"),
                 TagEnd::CodeBlock => {
                     output.push_str("]]></ac:plain-text-body></ac:structured-macro>");
@@ -207,7 +203,8 @@ mod tests {
 
     #[test]
     fn mixed_content() {
-        let md = "# Title\n\nSome **bold** text.\n\n- item 1\n- item 2\n\n```python\nprint('hi')\n```";
+        let md =
+            "# Title\n\nSome **bold** text.\n\n- item 1\n- item 2\n\n```python\nprint('hi')\n```";
         let result = markdown_to_storage(md);
         assert!(result.contains("<h1>Title</h1>"));
         assert!(result.contains("<strong>bold</strong>"));

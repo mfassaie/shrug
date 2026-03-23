@@ -54,7 +54,10 @@ impl ResourceTracker {
             return;
         }
 
-        eprintln!("--- E2E cleanup: {} resources to remove ---", resources.len());
+        eprintln!(
+            "--- E2E cleanup: {} resources to remove ---",
+            resources.len()
+        );
         let runner = ShrugRunner::new(self.config.clone());
 
         for resource in resources.iter().rev() {

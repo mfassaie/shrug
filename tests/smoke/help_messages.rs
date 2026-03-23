@@ -119,16 +119,10 @@ fn test_help_profile_lists_subcommands() {
     result.assert_success();
 
     let stdout = &result.stdout;
-    assert!(
-        stdout.contains("create"),
-        "Profile help should list create"
-    );
+    assert!(stdout.contains("create"), "Profile help should list create");
     assert!(stdout.contains("list"), "Profile help should list list");
     assert!(stdout.contains("show"), "Profile help should list show");
-    assert!(
-        stdout.contains("delete"),
-        "Profile help should list delete"
-    );
+    assert!(stdout.contains("delete"), "Profile help should list delete");
     assert!(stdout.contains("use"), "Profile help should list use");
 }
 
@@ -145,10 +139,7 @@ fn test_help_auth_lists_subcommands() {
         stdout.contains("set-token"),
         "Auth help should list set-token"
     );
-    assert!(
-        stdout.contains("status"),
-        "Auth help should list status"
-    );
+    assert!(stdout.contains("status"), "Auth help should list status");
     assert!(stdout.contains("login"), "Auth help should list login");
     assert!(stdout.contains("setup"), "Auth help should list setup");
 }
@@ -168,11 +159,7 @@ fn test_version_format() {
         "Version should start with 'shrug ', got: {}",
         version
     );
-    let parts: Vec<&str> = version
-        .strip_prefix("shrug ")
-        .unwrap()
-        .split('.')
-        .collect();
+    let parts: Vec<&str> = version.strip_prefix("shrug ").unwrap().split('.').collect();
     assert_eq!(
         parts.len(),
         3,
