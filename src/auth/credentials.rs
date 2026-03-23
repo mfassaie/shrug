@@ -683,12 +683,12 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let store = make_store(&dir);
 
-        assert_eq!(store.has_credential("test-profile").unwrap(), false);
+        assert!(!store.has_credential("test-profile").unwrap());
 
         store
             .store_encrypted("test-profile", "token", "pass")
             .unwrap();
-        assert_eq!(store.has_credential("test-profile").unwrap(), true);
+        assert!(store.has_credential("test-profile").unwrap());
     }
 
     #[test]
@@ -805,9 +805,8 @@ mod tests {
 
         let result = store.resolve(&profile, None).unwrap();
 
-        match orig {
-            Some(v) => env::set_var("SHRUG_API_TOKEN", v),
-            None => {}
+        if let Some(v) = orig {
+            env::set_var("SHRUG_API_TOKEN", v);
         }
 
         assert!(result.is_none());
@@ -828,9 +827,8 @@ mod tests {
 
         let result = store.resolve(&profile, Some("mypass")).unwrap().unwrap();
 
-        match orig {
-            Some(v) => env::set_var("SHRUG_API_TOKEN", v),
-            None => {}
+        if let Some(v) = orig {
+            env::set_var("SHRUG_API_TOKEN", v);
         }
 
         match &result.scheme {

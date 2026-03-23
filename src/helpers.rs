@@ -189,7 +189,7 @@ fn helper_search(
     let _parsed = parse_helper_args(args);
 
     // Find the search operation
-    let operation = find_operation(spec, "searchForIssuesUsingJql", "+search")?;
+    let operation = find_operation(spec, "search-and-reconsile-issues-using-jql", "+search")?;
 
     // Build URL with jql query param
     let base_url = resolve_helper_base_url(spec.server_url.as_deref(), credential);

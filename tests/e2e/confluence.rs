@@ -90,9 +90,10 @@ fn test_page_crud_lifecycle() {
         .and_then(|v| v.get("number"))
         .and_then(|n| n.as_i64())
         .unwrap_or(1);
+    let updated_title = format!("{} Updated", title);
     let ubody = format!(
         r#"{{"id":"{}","title":"{}","spaceId":"{}","body":{{"representation":"storage","value":"<p>Updated content</p>"}},"version":{{"number":{}}},"status":"current"}}"#,
-        page_id, format!("{} Updated", title), space_id, version + 1
+        page_id, updated_title, space_id, version + 1
     );
     let upd = runner.run_with_body(&ubody, &["confluence", "Page", "update-page", "--id", page_id]);
     assert!(upd.exit_code == 0, "update-page failed: {}", upd.stderr);

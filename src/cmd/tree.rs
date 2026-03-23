@@ -277,4 +277,60 @@ mod tests {
             "Should note request body: {output}"
         );
     }
+
+    #[test]
+    fn format_tag_list_empty_spec() {
+        let spec = ApiSpec {
+            title: "Empty".to_string(),
+            version: "1.0".to_string(),
+            server_url: None,
+            tags: vec![],
+            operations: vec![],
+        };
+        let output = format_tag_list(&spec);
+        assert!(output.is_empty() || !output.contains("operations)"));
+    }
+
+    #[test]
+    fn format_operations_empty_tag() {
+        let spec = test_spec();
+        let output = format_operations(&spec, "nonexistent-tag");
+        // Should handle missing tag gracefully
+        assert!(output.is_empty() || output.contains("No operations"));
+    }
+
+    #[test]
+    fn format_operation_detail_no_params() {
+        let op = Operation {
+            operation_id: "simple".to_string(),
+            method: HttpMethod::Get,
+            path: "/simple".to_string(),
+            summary: Some("Simple op".to_string()),
+            description: None,
+            tags: vec![],
+            deprecated: false,
+            parameters: vec![],
+            request_body: None,
+        };
+        let output = format_operation_detail(&op, Some("https://example.com"));
+        assert!(output.contains("simple"));
+        assert!(output.contains("https://example.com"));
+    }
+
+    #[test]
+    fn format_operation_detail_no_summary() {
+        let op = Operation {
+            operation_id: "nosummary".to_string(),
+            method: HttpMethod::Post,
+            path: "/test".to_string(),
+            summary: None,
+            description: None,
+            tags: vec![],
+            deprecated: false,
+            parameters: vec![],
+            request_body: None,
+        };
+        let output = format_operation_detail(&op, None);
+        assert!(output.contains("nosummary"));
+    }
 }
