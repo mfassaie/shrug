@@ -184,11 +184,11 @@ Users and AI agents can interact with all Atlassian Cloud products from the comm
 
 | Metric | Target | Current | Status |
 |--------|--------|---------|--------|
-| Warm startup time | <30ms | N/A | Not started |
-| Cold startup (bundled) | <50ms | N/A | Not started |
-| Atlassian products supported | 5 (Jira, JSW, Confluence, BB, JSM) | 0 | Not started |
-| API coverage | 100% of OpenAPI-defined operations | 0% | Not started |
-| Platform support | Windows + macOS + Linux | 0 | Not started |
+| Warm startup time | <30ms | ~0.2ms (test fixture) | Needs full-spec measurement |
+| Cold startup (bundled) | <50ms | Not measured | Needs measurement |
+| Atlassian products supported | 5 (Jira, JSW, Confluence, BB, JSM) | 5 | Achieved — v0.1 MVP |
+| API coverage | 100% of OpenAPI-defined operations | 100% (dynamic) | Achieved — v0.1 MVP |
+| Platform support | Windows + macOS + Linux | 3 | Achieved — v0.1 MVP |
 
 ## Tech Stack
 
@@ -331,4 +331,4 @@ Users and AI agents can interact with all Atlassian Cloud products from the comm
 
 ---
 *PROJECT.md — Updated when requirements or context change*
-*Last updated: 2026-03-21 after Phase 8 (v0.1 MVP complete)*
+*Last updated: 2026-03-23 after Phase 9 (Test Infrastructure & Auth)*

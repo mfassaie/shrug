@@ -143,10 +143,10 @@ pub enum Commands {
         #[command(subcommand)]
         command: ProfileCommands,
     },
-    /// Cache management
+    /// Cache management (refresh specs)
     Cache {
-        #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
-        args: Vec<String>,
+        #[command(subcommand)]
+        command: CacheCommands,
     },
     /// Generate shell completions (bash, zsh, fish, powershell)
     Completions {
@@ -198,6 +198,16 @@ pub enum ProfileCommands {
         /// Profile name to set as default
         #[arg(long)]
         name: String,
+    },
+}
+
+#[derive(Subcommand)]
+pub enum CacheCommands {
+    /// Download/refresh API specs from Atlassian CDN
+    Refresh {
+        /// Product to refresh (jira, jira-software, confluence, jsm, bitbucket). All if not specified.
+        #[arg(long)]
+        product: Option<String>,
     },
 }
 

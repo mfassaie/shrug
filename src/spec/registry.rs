@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 use crate::error::ShrugError;
 use crate::spec::cache::SpecCache;
 use crate::spec::model::ApiSpec;
@@ -140,17 +142,29 @@ impl SpecLoader {
         Self { cache, ttl_hours }
     }
 
-    /// Load a spec: try cache first, then bundled fallback.
+    /// Load a spec: try cache first, then network, then bundled fallback.
     pub fn load(&self, product: &Product) -> Result<ApiSpec, ShrugError> {
         let cache_key = product.info().cache_key;
 
-        // Tier 1: Try cache
+        // Tier 1: Try cache (TTL-based)
         if let Some(spec) = self.cache.load(cache_key, self.ttl_hours)? {
             tracing::debug!(product = cache_key, "Spec loaded from cache");
             return Ok(spec);
         }
 
-        // Tier 2: Bundled fallback
+        // Tier 2: Try network fetch
+        match self.fetch_spec(product) {
+            Ok(spec) => return Ok(spec),
+            Err(e) => {
+                tracing::warn!(
+                    product = cache_key,
+                    error = %e,
+                    "Network fetch failed, falling back to bundled"
+                );
+            }
+        }
+
+        // Tier 3: Bundled fallback
         self.load_bundled(product)
     }
 
@@ -177,6 +191,71 @@ impl SpecLoader {
     pub fn check_version(&self, product: &Product, new_spec: &ApiSpec) -> Result<bool, ShrugError> {
         self.cache
             .has_version_changed(product.info().cache_key, new_spec)
+    }
+
+    /// Fetch a spec from Atlassian CDN, parse it, and save to cache.
+    fn fetch_spec(&self, product: &Product) -> Result<ApiSpec, ShrugError> {
+        let info = product.info();
+
+        let client = reqwest::blocking::Client::builder()
+            .timeout(Duration::from_secs(30))
+            .user_agent(format!("shrug/{}", env!("CARGO_PKG_VERSION")))
+            .build()
+            .map_err(ShrugError::NetworkError)?;
+
+        let response = client
+            .get(info.spec_url)
+            .send()
+            .map_err(ShrugError::NetworkError)?;
+
+        let status = response.status();
+        if !status.is_success() {
+            return Err(ShrugError::SpecError(format!(
+                "HTTP {} fetching spec from {}",
+                status, info.spec_url
+            )));
+        }
+
+        let body = response
+            .text()
+            .map_err(|e| ShrugError::SpecError(format!("Failed to read response body: {e}")))?;
+
+        let spec = parse_spec(&body)?;
+
+        if let Err(e) = self.cache.save(info.cache_key, &spec) {
+            tracing::warn!(
+                product = info.cache_key,
+                error = %e,
+                "Failed to cache fetched spec (non-fatal)"
+            );
+        }
+
+        tracing::debug!(
+            product = info.cache_key,
+            operations = spec.operations.len(),
+            "Spec fetched from network"
+        );
+
+        Ok(spec)
+    }
+
+    /// Always fetch a spec from network (ignoring cache). Saves to cache on success.
+    /// Prints progress to stderr for user feedback.
+    pub fn refresh(&self, product: &Product) -> Result<ApiSpec, ShrugError> {
+        eprintln!("Fetching {}...", product.info().display_name);
+        self.fetch_spec(product)
+    }
+
+    /// Refresh all product specs from network. Returns results for each product.
+    /// Prints progress to stderr for user feedback.
+    pub fn refresh_all(&self) -> Vec<(Product, Result<ApiSpec, ShrugError>)> {
+        Product::all()
+            .iter()
+            .map(|p| {
+                eprintln!("Fetching {}...", p.info().display_name);
+                (*p, self.fetch_spec(p))
+            })
+            .collect()
     }
 
     fn load_bundled(&self, product: &Product) -> Result<ApiSpec, ShrugError> {
@@ -314,12 +393,16 @@ mod tests {
     }
 
     #[test]
-    fn loader_falls_back_to_bundled_on_cache_miss() {
+    fn loader_loads_spec_on_cache_miss() {
         let (_tmp, loader) = make_loader();
 
-        // No cache — should load bundled
+        // No cache — load() tries network (may succeed or fail) then falls back to bundled.
+        // Either way, a spec should be returned.
         let loaded = loader.load(&Product::Jira).unwrap();
-        assert_eq!(loaded.title, "Jira Platform");
+        assert!(
+            !loaded.title.is_empty(),
+            "Loaded spec should have a title"
+        );
     }
 
     #[test]

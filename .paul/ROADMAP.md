@@ -6,174 +6,103 @@ A dynamic CLI for Atlassian Cloud — commands generated at runtime from OpenAPI
 
 ## Current Milestone
 
-**v0.1 MVP** (v0.1.0)
-Status: Complete
-Phases: 8 of 8 complete
+**v0.2 E2E Validation** (v0.2.0)
+Status: In Progress
+Phases: 1 of 4 complete
 
 ## Phases
 
 | Phase | Name | Plans | Status | Completed |
 |-------|------|-------|--------|-----------|
-| 1 | Project Foundation | 3 | ✅ Complete | 2026-03-21 |
-| 2 | OpenAPI Spec Engine | 4 | ✅ Complete | 2026-03-21 |
-| 3 | Dynamic Command Tree | 2 | ✅ Complete | 2026-03-21 |
-| 4 | Authentication & Profiles | 3 | ✅ Complete | 2026-03-21 |
-| 5 | Generic HTTP Executor | 4 | ✅ Complete | 2026-03-21 |
-| 6 | Output & Formatting | 2 | ✅ Complete | 2026-03-21 |
-| 7 | Helper Commands & ADF | 3 | ✅ Complete | 2026-03-21 |
-| 8 | Distribution & Polish | 3 | ✅ Complete | 2026-03-21 |
+| 9 | Test Infrastructure & Auth | 3 | Complete | 2026-03-23 |
+| 10 | Jira CRUD Tests | TBD | Not started | - |
+| 11 | Confluence CRUD Tests | TBD | Not started | - |
+| 12 | CLI Feature Tests | TBD | Not started | - |
 
 ## Phase Details
 
-### Phase 1: Project Foundation
+### Phase 9: Test Infrastructure & Auth
 
-**Goal:** Rust project scaffold with core infrastructure — config, errors, logging, CI
-**Depends on:** Nothing (first phase)
-**Research:** Unlikely (established patterns)
-
-**Scope:**
-- Cargo workspace structure and core dependencies
-- Config system (TOML, layered precedence, platform paths)
-- Error types, exit codes, logging framework
-- CI scaffold (GitHub Actions: Linux/macOS/Windows)
-
-**Plans:**
-- [x] 01-01: Cargo project scaffold, dependencies, and project structure
-- [x] 01-02: Config system with TOML, layered precedence, and platform paths
-- [x] 01-03: Enhanced logging, Ctrl+C handling, and config debug dump
-
-### Phase 2: OpenAPI Spec Engine
-
-**Goal:** Parse, cache, and serve OpenAPI 3.0.1 and Swagger 2.0 specs with fast startup
-**Depends on:** Phase 1 (project structure, error types, config for cache paths)
-**Research:** Unlikely (OpenAPI format well-documented in research)
+**Focus:** Test harness, live env config, fixtures/teardown framework, all auth workflow tests
+**Depends on:** v0.1 MVP (all features built)
+**Plans:** TBD (defined during /paul:plan)
 
 **Scope:**
-- OpenAPI 3.0.1 parser (paths, operations, parameters, tags)
-- Swagger 2.0 parser or conversion layer (BitBucket)
-- Spec caching: JSON + rkyv binary cache with 24h TTL
-- Pre-bundled fallback specs in binary
-- Background refresh with ETag
-- Spec conformance test suite (auto-generated from specs)
+- E2E test harness with live Atlassian Cloud connectivity
+- Environment configuration (site URL, credentials, project keys)
+- Test fixture framework (setup/teardown, resource cleanup)
+- Rate limit awareness in test runner
+- Auth workflow tests: API token, OAuth 2.0 + PKCE, token refresh, profile CRUD, encrypted fallback, env var auth, first-run detection
 
-**Plans:**
-- [x] 02-01: OpenAPI 3.0.1 spec parser and data model
-- [x] 02-02: Swagger 2.0 parser / conversion layer for BitBucket
-- [x] 02-03: Spec caching (JSON, bundled fallback, version detection)
-- [x] 02-04: Spec analysis & conformance test suite (URL building, pagination detection, param validation)
+### Phase 10: Jira CRUD Tests
 
-### Phase 3: Dynamic Command Tree
-
-**Goal:** Two-phase CLI parsing that builds commands from specs at runtime
-**Depends on:** Phase 2 (spec parser provides the data model)
-**Research:** Unlikely (gws architecture well-documented in research)
+**Focus:** Top 30 Jira entities, full CRUD against live Cloud
+**Depends on:** Phase 9 (test infrastructure)
+**Plans:** TBD (defined during /paul:plan)
 
 **Scope:**
-- Product routing (argv[1] → spec selection)
-- Tags → command groups, operationId → leaf commands
-- Parameter → flag generation
-- Help text from spec descriptions
+- Top 30 Jira entities identified from OpenAPI spec
+- Full CRUD cycle for each entity (create, read, update, delete)
+- Real data assertions (response structure, status codes, field values)
+- Teardown ensures no orphaned test data
 
-**Plans:**
-- [x] 03-01: Two-phase parsing and product routing
-- [x] 03-02: Command tree builder (tags, operations, parameters, help)
+### Phase 11: Confluence CRUD Tests
 
-### Phase 4: Authentication & Profiles
-
-**Goal:** Multi-profile auth with keychain storage, OAuth2, and CI/CD env vars
-**Depends on:** Phase 1 (config system, platform paths, error types)
-**Research:** Unlikely (keyring crate and Atlassian auth well-documented)
+**Focus:** Top 30 Confluence entities, full CRUD against live Cloud
+**Depends on:** Phase 9 (test infrastructure)
+**Plans:** TBD (defined during /paul:plan)
 
 **Scope:**
-- Profile CRUD (create/use/list/show/delete)
-- Keychain integration (macOS/Windows/Linux)
-- Basic Auth (email + API token) and OAuth 2.0 with refresh
-- Encrypted file fallback
-- Environment variable override
-- Interactive setup wizard
+- Top 30 Confluence entities identified from OpenAPI spec
+- Full CRUD cycle for each entity
+- Real data assertions
+- Teardown ensures no orphaned test data
 
-**Plans:**
-- [x] 04-01: Profile management and config integration
-- [x] 04-02: Keychain credential storage with encrypted file fallback
-- [x] 04-03: OAuth 2.0 flow, token refresh, and interactive setup wizard
+### Phase 12: CLI Feature Tests
 
-### Phase 5: Generic HTTP Executor
-
-**Goal:** Execute any spec-defined API call with auth, pagination, retries, and validation
-**Depends on:** Phase 3 (command tree resolves to method), Phase 4 (auth provides tokens)
-**Research:** Unlikely (patterns established by gws research)
+**Focus:** Output formats, pagination, helpers, JQL, ADF, error handling
+**Depends on:** Phases 10-11 (entity tests provide data context)
+**Plans:** TBD (defined during /paul:plan)
 
 **Scope:**
-- URL template substitution and query param injection
-- Auth header injection from active profile
-- Request body handling (--json flag)
-- Rate limit detection + exponential backoff
-- Unified pagination iterator
-- --dry-run support
-- Connection pooling
-- Quirks registry for endpoint-specific behavior not captured in specs
-
-**Plans:**
-- [x] 05-01: URL building, request construction, and basic execution
-- [x] 05-02: Rate limiting, retries, and error response handling
-- [x] 05-03: Unified pagination iterator (offset, cursor, link-based)
-- [x] 05-04: Quirks registry (operationId → special headers, non-spec behaviors)
-
-### Phase 6: Output & Formatting
-
-**Goal:** Multiple output formats with TTY detection and ADF terminal rendering
-**Depends on:** Phase 5 (executor provides API responses to format)
-**Research:** Unlikely (standard CLI patterns)
-
-**Scope:**
-- Table, JSON, YAML, CSV, plain text formatters
-- TTY detection, NO_COLOR, pager integration
+- Output format tests: table, JSON, YAML, CSV, plain
+- Pagination: --page-all, --limit
+- --dry-run mode validation
 - --fields column selection
-- ADF → terminal rendering
+- JQL shorthand: --project, --assignee, --status
+- Helper commands: +create, +search, +transition
+- ADF input (Markdown → ADF) and output (ADF → terminal)
+- Error remediation hints
+- --verbose / --trace logging
 
-**Plans:**
-- [x] 06-01: Output formatters (table, JSON, YAML, CSV, plain) with TTY detection
-- [x] 06-02: ADF terminal rendering, pager integration, and --fields selection
+## Constraints
 
-### Phase 7: Helper Commands & ADF
+- Requires live Atlassian Cloud credentials
+- Tests must clean up after themselves (teardown)
+- Rate limit awareness (sequential or throttled, not parallel)
+- Tests runnable locally and in CI (secrets-based)
+- Test failures produce clear diagnostics (request/response)
 
-**Goal:** UX shortcuts for common operations and Markdown → ADF input conversion
-**Depends on:** Phase 5 (executor for API calls), Phase 6 (formatters for output)
-**Research:** Likely (ADF conversion specifics, JQL shorthand design)
-**Research topics:** Markdown-to-ADF Rust implementation, custom field metadata API
+## Completed Milestones
 
-**Scope:**
-- Markdown → ADF converter for input
-- JQL shorthand flags (--project, --assignee, --status)
-- +create, +search, +transition helper commands
-- Custom field name resolution
-- User lookup (display name → accountId)
-- Shell completions
+<details>
+<summary>v0.1 MVP - 2026-03-21 (8 phases, 24 plans)</summary>
 
-**Plans:**
-- [x] 07-01: Markdown → ADF converter and JQL shorthand flags
-- [x] 07-02: Helper commands (+create, +search, +transition)
-- [x] 07-03: Shell completions and field/user resolution caches
+| Phase | Name | Plans | Completed |
+|-------|------|-------|-----------|
+| 1 | Project Foundation | 3 | 2026-03-21 |
+| 2 | OpenAPI Spec Engine | 4 | 2026-03-21 |
+| 3 | Dynamic Command Tree | 2 | 2026-03-21 |
+| 4 | Authentication & Profiles | 3 | 2026-03-21 |
+| 5 | Generic HTTP Executor | 4 | 2026-03-21 |
+| 6 | Output & Formatting | 2 | 2026-03-21 |
+| 7 | Helper Commands & ADF | 3 | 2026-03-21 |
+| 8 | Distribution & Polish | 3 | 2026-03-21 |
 
-### Phase 8: Distribution & Polish
+Full archive: `.paul/milestones/v0.1.0-ROADMAP.md`
 
-**Goal:** Release automation, packaging, documentation, and test validation
-**Depends on:** All prior phases
-**Research:** Unlikely (cargo-dist well-documented)
-
-**Scope:**
-- cargo-dist release automation
-- Homebrew tap, Scoop manifest
-- First-run experience polish
-- Mock-based integration tests (httpmock/wiremock with recorded responses)
-- E2E smoke tests against live Atlassian Cloud (on-demand CI workflow)
-- Performance benchmarking
-
-**Plans:**
-- [x] 08-01: cargo-dist release pipeline, Homebrew tap, and Scoop manifest
-- [x] 08-02: Mock-based integration tests with recorded API responses
-- [x] 08-03: On-demand E2E smoke tests against live Atlassian Cloud, performance benchmarks, and first-run polish
+</details>
 
 ---
 *Roadmap created: 2026-03-21*
-*Last updated: 2026-03-21 after Phase 8 (v0.1 MVP complete)*
+*Last updated: 2026-03-23 after v0.2 milestone creation*
