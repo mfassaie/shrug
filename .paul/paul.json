@@ -4,12 +4,12 @@
   "milestone": {
     "name": "v0.3 Test Coverage & Entity Expansion",
     "version": "0.3.0",
-    "status": "in_progress"
+    "status": "complete"
   },
   "phase": {
     "number": 17,
     "name": "17-e2e-feature-gaps",
-    "status": "not_started"
+    "status": "complete"
   },
   "loop": {
     "plan": null,
