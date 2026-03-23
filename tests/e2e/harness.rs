@@ -155,6 +155,27 @@ impl ShrugRunner {
         result
     }
 
+    /// Execute shrug with --json body prepended (global flag) and --output json, parsing response.
+    /// Use for operations that send a request body and return JSON.
+    #[allow(dead_code)]
+    pub fn run_json_with_body(&self, body: &str, args: &[&str]) -> RunResult {
+        let mut all_args: Vec<&str> = vec!["--output", "json", "--json", body];
+        all_args.extend_from_slice(args);
+
+        let mut result = self.run(&all_args);
+        result.json = serde_json::from_str(&result.stdout).ok();
+        result
+    }
+
+    /// Execute shrug with --json body prepended (global flag), no JSON output parsing.
+    /// Use for operations that send a request body but return 204 No Content.
+    #[allow(dead_code)]
+    pub fn run_with_body(&self, body: &str, args: &[&str]) -> RunResult {
+        let mut all_args: Vec<&str> = vec!["--json", body];
+        all_args.extend_from_slice(args);
+        self.run(&all_args)
+    }
+
     /// Access the underlying config.
     pub fn config(&self) -> &E2eConfig {
         &self.config

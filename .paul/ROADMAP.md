@@ -8,14 +8,14 @@ A dynamic CLI for Atlassian Cloud — commands generated at runtime from OpenAPI
 
 **v0.2 E2E Validation** (v0.2.0)
 Status: In Progress
-Phases: 1 of 4 complete
+Phases: 2 of 4 complete
 
 ## Phases
 
 | Phase | Name | Plans | Status | Completed |
 |-------|------|-------|--------|-----------|
 | 9 | Test Infrastructure & Auth | 3 | Complete | 2026-03-23 |
-| 10 | Jira CRUD Tests | TBD | Not started | - |
+| 10 | Jira CRUD Tests | 2 | Complete | 2026-03-23 |
 | 11 | Confluence CRUD Tests | TBD | Not started | - |
 | 12 | CLI Feature Tests | TBD | Not started | - |
 
