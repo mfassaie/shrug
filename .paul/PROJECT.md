@@ -81,7 +81,7 @@ Users and AI agents can interact with all Atlassian Cloud products from the comm
 
 **Shell Completions**
 - [x] `shrug completions <shell>` for bash, zsh, fish, PowerShell — Phase 7
-- [ ] Dynamic completions for project keys, issue keys (cached, short TTL)
+- [x] Dynamic completions for project keys, issue keys (cached, short TTL) — Phase 20
 
 **Logging & Debugging**
 - [x] `-v` (info), `-vv` (debug), `--trace` (full request/response with masked secrets) — Phase 1 (request logging placeholder, actual in Phase 5)
@@ -331,4 +331,4 @@ Users and AI agents can interact with all Atlassian Cloud products from the comm
 
 ---
 *PROJECT.md — Updated when requirements or context change*
-*Last updated: 2026-03-23 after Phase 19 (Confluence Helper)*
+*Last updated: 2026-03-23 after Phase 20 (Dynamic Completions) — v0.4 milestone complete*

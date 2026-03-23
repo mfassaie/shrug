@@ -4,6 +4,7 @@ pub mod cli;
 pub mod cmd;
 pub mod completions;
 pub mod config;
+pub mod dynamic_completions;
 pub mod error;
 pub mod executor;
 pub mod exit_codes;

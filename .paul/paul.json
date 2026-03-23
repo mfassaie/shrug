@@ -4,12 +4,12 @@
   "milestone": {
     "name": "v0.4 Performance & UX Polish",
     "version": "0.4.0",
-    "status": "in_progress"
+    "status": "complete"
   },
   "phase": {
     "number": 20,
     "name": "20-dynamic-completions",
-    "status": "not_started"
+    "status": "complete"
   },
   "loop": {
     "plan": null,
