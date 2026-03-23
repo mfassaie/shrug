@@ -470,7 +470,7 @@ fn handle_cache(command: &CacheCommands, config: &ShrugConfig) -> Result<(), Shr
         } => {
             let product = Product::from_cli_prefix(name).ok_or_else(|| {
                 ShrugError::UsageError(format!(
-                    "Unknown product '{}'. Valid products: jira, jira-software, confluence, jsm, bitbucket",
+                    "Unknown product '{}'. Valid products: jira, jira-software, confluence",
                     name
                 ))
             })?;
@@ -503,15 +503,11 @@ fn run(config: &ShrugConfig, cli: &Cli) -> Result<(), ShrugError> {
     match &cli.command {
         Some(Commands::Jira { args })
         | Some(Commands::JiraSoftware { args })
-        | Some(Commands::Confluence { args })
-        | Some(Commands::Bitbucket { args })
-        | Some(Commands::Jsm { args }) => {
+        | Some(Commands::Confluence { args }) => {
             let product = match &cli.command {
                 Some(Commands::Jira { .. }) => Product::Jira,
                 Some(Commands::JiraSoftware { .. }) => Product::JiraSoftware,
                 Some(Commands::Confluence { .. }) => Product::Confluence,
-                Some(Commands::Bitbucket { .. }) => Product::BitBucket,
-                Some(Commands::Jsm { .. }) => Product::JiraServiceManagement,
                 _ => unreachable!(),
             };
 

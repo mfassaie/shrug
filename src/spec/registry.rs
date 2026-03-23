@@ -12,15 +12,12 @@ pub enum Product {
     Jira,
     JiraSoftware,
     Confluence,
-    JiraServiceManagement,
-    BitBucket,
 }
 
 /// API spec format version.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SpecFormat {
     V3,
-    V2,
 }
 
 /// Metadata for an Atlassian product's API spec.
@@ -33,12 +30,10 @@ pub struct ProductInfo {
     pub cache_key: &'static str,
 }
 
-static ALL_PRODUCTS: [Product; 5] = [
+static ALL_PRODUCTS: [Product; 3] = [
     Product::Jira,
     Product::JiraSoftware,
     Product::Confluence,
-    Product::JiraServiceManagement,
-    Product::BitBucket,
 ];
 
 static JIRA_INFO: ProductInfo = ProductInfo {
@@ -68,24 +63,6 @@ static CONFLUENCE_INFO: ProductInfo = ProductInfo {
     cache_key: "confluence",
 };
 
-static JSM_INFO: ProductInfo = ProductInfo {
-    product: Product::JiraServiceManagement,
-    display_name: "Jira Service Management",
-    cli_prefix: "jsm",
-    spec_url: "https://dac-static.atlassian.com/cloud/jira/service-desk/swagger.v3.json",
-    spec_format: SpecFormat::V3,
-    cache_key: "jira-service-management",
-};
-
-static BITBUCKET_INFO: ProductInfo = ProductInfo {
-    product: Product::BitBucket,
-    display_name: "Bitbucket",
-    cli_prefix: "bitbucket",
-    spec_url: "https://api.bitbucket.org/swagger.json",
-    spec_format: SpecFormat::V2,
-    cache_key: "bitbucket",
-};
-
 impl Product {
     /// Get the product's metadata.
     pub fn info(&self) -> &'static ProductInfo {
@@ -93,8 +70,6 @@ impl Product {
             Product::Jira => &JIRA_INFO,
             Product::JiraSoftware => &JIRA_SOFTWARE_INFO,
             Product::Confluence => &CONFLUENCE_INFO,
-            Product::JiraServiceManagement => &JSM_INFO,
-            Product::BitBucket => &BITBUCKET_INFO,
         }
     }
 
@@ -104,8 +79,6 @@ impl Product {
             "jira" => Some(Product::Jira),
             "jira-software" => Some(Product::JiraSoftware),
             "confluence" => Some(Product::Confluence),
-            "jsm" => Some(Product::JiraServiceManagement),
-            "bitbucket" => Some(Product::BitBucket),
             _ => None,
         }
     }
@@ -118,17 +91,10 @@ impl Product {
 
 /// Return the bundled fallback spec for a product (compiled into the binary).
 pub fn bundled_spec(product: &Product) -> &'static str {
-    match product.info().spec_format {
-        SpecFormat::V3 => match product {
-            Product::Jira => include_str!("bundled/jira-platform.json"),
-            Product::JiraSoftware => include_str!("bundled/jira-software.json"),
-            Product::Confluence => include_str!("bundled/confluence.json"),
-            Product::JiraServiceManagement => {
-                include_str!("bundled/jira-service-management.json")
-            }
-            _ => unreachable!(),
-        },
-        SpecFormat::V2 => include_str!("bundled/bitbucket.json"),
+    match product {
+        Product::Jira => include_str!("bundled/jira-platform.json"),
+        Product::JiraSoftware => include_str!("bundled/jira-software.json"),
+        Product::Confluence => include_str!("bundled/confluence.json"),
     }
 }
 
@@ -435,14 +401,6 @@ mod tests {
             Product::from_cli_prefix("confluence"),
             Some(Product::Confluence)
         );
-        assert_eq!(
-            Product::from_cli_prefix("jsm"),
-            Some(Product::JiraServiceManagement)
-        );
-        assert_eq!(
-            Product::from_cli_prefix("bitbucket"),
-            Some(Product::BitBucket)
-        );
     }
 
     #[test]
@@ -452,8 +410,8 @@ mod tests {
     }
 
     #[test]
-    fn all_returns_five_products() {
-        assert_eq!(Product::all().len(), 5);
+    fn all_returns_three_products() {
+        assert_eq!(Product::all().len(), 3);
     }
 
     #[test]
@@ -470,11 +428,6 @@ mod tests {
             .info()
             .spec_url
             .contains("confluence/openapi"));
-        assert!(Product::JiraServiceManagement
-            .info()
-            .spec_url
-            .contains("service-desk/swagger"));
-        assert!(Product::BitBucket.info().spec_url.contains("bitbucket.org"));
     }
 
     #[test]

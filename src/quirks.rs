@@ -31,9 +31,6 @@ pub fn get_quirk(product: &Product, operation_id: &str) -> Option<&'static Quirk
         (Product::Confluence, "createAttachment") => Some(&CSRF_BYPASS),
         (Product::Confluence, "updateAttachment") => Some(&CSRF_BYPASS),
 
-        // Jira Service Management
-        (Product::JiraServiceManagement, "createAttachment") => Some(&CSRF_BYPASS),
-
         _ => None,
     }
 }
@@ -69,23 +66,14 @@ mod tests {
     }
 
     #[test]
-    fn jsm_create_attachment_has_csrf_quirk() {
-        let quirk = get_quirk(&Product::JiraServiceManagement, "createAttachment");
-        assert!(quirk.is_some());
-    }
-
-    #[test]
     fn unknown_operation_returns_none() {
         assert!(get_quirk(&Product::Jira, "getIssue").is_none());
         assert!(get_quirk(&Product::Jira, "createIssue").is_none());
-        assert!(get_quirk(&Product::BitBucket, "listRepositories").is_none());
     }
 
     #[test]
     fn correct_operation_wrong_product_returns_none() {
-        // addAttachment is a Jira quirk, not BitBucket
-        assert!(get_quirk(&Product::BitBucket, "addAttachment").is_none());
-        // createAttachment is Confluence/JSM, not Jira
+        // createAttachment is Confluence, not Jira
         assert!(get_quirk(&Product::Jira, "createAttachment").is_none());
     }
 
@@ -103,12 +91,10 @@ mod tests {
         use crate::spec::parse_spec;
         use crate::spec::registry::bundled_spec;
 
-        // All (Product, operationId) pairs in the registry
         let registered: &[(Product, &str)] = &[
             (Product::Jira, "addAttachment"),
             (Product::Confluence, "createAttachment"),
             (Product::Confluence, "updateAttachment"),
-            (Product::JiraServiceManagement, "createAttachment"),
         ];
 
         for (product, op_id) in registered {
@@ -117,8 +103,6 @@ mod tests {
                 panic!("Failed to parse bundled spec for {:?}: {}", product, e);
             });
 
-            // Bundled specs are minimal fixtures with 0 operations during development.
-            // When real specs are bundled, this test will verify operationIds match.
             if spec.operations.is_empty() {
                 eprintln!(
                     "SKIP: Bundled spec for {:?} has 0 operations (minimal fixture), \
@@ -132,8 +116,7 @@ mod tests {
 
             assert!(
                 found,
-                "Registered quirk operationId '{}' not found in bundled spec for {:?}. \
-                 The operationId may have been renamed or removed.",
+                "Registered quirk operationId '{}' not found in bundled spec for {:?}.",
                 op_id, product
             );
         }

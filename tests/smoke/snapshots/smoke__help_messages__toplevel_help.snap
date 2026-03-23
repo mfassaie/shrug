@@ -11,8 +11,6 @@ Commands:
   jira           Jira Cloud operations
   jira-software  Jira Software operations (boards, sprints, backlogs)
   confluence     Confluence operations
-  bitbucket      Bitbucket Cloud operations
-  jsm            Jira Service Management operations
   auth           Authentication management (set-token, status)
   profile        Profile management (create, list, show, delete, use)
   cache          Cache management (refresh specs)
