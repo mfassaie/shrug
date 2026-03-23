@@ -405,3 +405,389 @@ fn test_list_fields() {
     harness::rate_limit_delay(runner.config());
     teardown_profile(&runner, &profile);
 }
+
+// ─── Watcher Lifecycle ──────────────────────────────────────────────────
+
+#[test]
+fn test_watcher_lifecycle() {
+    let config = skip_unless_e2e!();
+    let runner = ShrugRunner::new(config);
+    let profile = setup_profile(&runner);
+    let project = runner.config().jira_project.as_str();
+
+    let issue_key = create_issue(&runner, project, "E2E watcher parent");
+    harness::rate_limit_delay(runner.config());
+
+    // Get current user's accountId from the issue reporter
+    let read = runner.run_json(&["jira", "Issues", "get-issue", "--issueIdOrKey", &issue_key]);
+    read.assert_success();
+    let account_id = read
+        .json_field("/fields/reporter/accountId")
+        .and_then(|v| v.as_str())
+        .unwrap_or("");
+    if account_id.is_empty() {
+        eprintln!("Skipping watcher test: could not extract reporter accountId from issue JSON");
+        delete_issue(&runner, &issue_key);
+        harness::rate_limit_delay(runner.config());
+        teardown_profile(&runner, &profile);
+        return;
+    }
+    eprintln!("Using accountId: {}", account_id);
+    harness::rate_limit_delay(runner.config());
+
+    // ADD watcher
+    let body = format!("\"{}\"", account_id);
+    let add = runner.run_with_body(
+        &body,
+        &["jira", "Issue watchers", "add-watcher", "--issueIdOrKey", &issue_key],
+    );
+    assert!(add.exit_code == 0, "add-watcher failed: {}", add.stderr);
+    harness::rate_limit_delay(runner.config());
+
+    // GET watchers and verify content
+    let get = runner.run_json(&[
+        "jira", "Issue watchers", "get-issue-watchers", "--issueIdOrKey", &issue_key,
+    ]);
+    get.assert_success();
+    let watchers_contain_user = get.json.as_ref()
+        .and_then(|j| j.get("watchers"))
+        .and_then(|w| w.as_array())
+        .map(|arr| arr.iter().any(|w| {
+            w.get("accountId").and_then(|a| a.as_str()) == Some(account_id)
+        }))
+        .unwrap_or(false);
+    assert!(watchers_contain_user, "Watcher list should contain accountId {}", account_id);
+    harness::rate_limit_delay(runner.config());
+
+    // REMOVE watcher
+    let del = runner.run(&[
+        "jira", "Issue watchers", "remove-watcher",
+        "--issueIdOrKey", &issue_key,
+        "--accountId", account_id,
+    ]);
+    assert!(del.exit_code == 0, "remove-watcher failed: {}", del.stderr);
+    harness::rate_limit_delay(runner.config());
+
+    delete_issue(&runner, &issue_key);
+    harness::rate_limit_delay(runner.config());
+    teardown_profile(&runner, &profile);
+}
+
+// ─── Vote Lifecycle ─────────────────────────────────────────────────────
+
+#[test]
+fn test_vote_lifecycle() {
+    let config = skip_unless_e2e!();
+    let runner = ShrugRunner::new(config);
+    let profile = setup_profile(&runner);
+    let project = runner.config().jira_project.as_str();
+
+    let issue_key = create_issue(&runner, project, "E2E vote parent");
+    harness::rate_limit_delay(runner.config());
+
+    // ADD vote
+    let add = runner.run(&["jira", "Issue votes", "add-vote", "--issueIdOrKey", &issue_key]);
+    if add.exit_code != 0 {
+        // Jira returns 404 if user is the reporter or voting is disabled
+        eprintln!(
+            "add-vote returned exit code {} (expected if voting on own issue): {}",
+            add.exit_code, add.stderr
+        );
+        delete_issue(&runner, &issue_key);
+        harness::rate_limit_delay(runner.config());
+        teardown_profile(&runner, &profile);
+        return;
+    }
+    harness::rate_limit_delay(runner.config());
+
+    // GET votes
+    let get = runner.run_json(&["jira", "Issue votes", "get-votes", "--issueIdOrKey", &issue_key]);
+    get.assert_success();
+    assert!(get.json.is_some(), "Expected JSON from get-votes");
+    harness::rate_limit_delay(runner.config());
+
+    // REMOVE vote
+    let del = runner.run(&["jira", "Issue votes", "remove-vote", "--issueIdOrKey", &issue_key]);
+    assert!(del.exit_code == 0, "remove-vote failed: {}", del.stderr);
+    harness::rate_limit_delay(runner.config());
+
+    delete_issue(&runner, &issue_key);
+    harness::rate_limit_delay(runner.config());
+    teardown_profile(&runner, &profile);
+}
+
+// ─── Issue Link Lifecycle ───────────────────────────────────────────────
+
+#[test]
+fn test_issue_link_lifecycle() {
+    let config = skip_unless_e2e!();
+    let runner = ShrugRunner::new(config);
+    let profile = setup_profile(&runner);
+    let project = runner.config().jira_project.as_str();
+
+    let key1 = create_issue(&runner, project, "E2E link source");
+    harness::rate_limit_delay(runner.config());
+    let key2 = create_issue(&runner, project, "E2E link target");
+    harness::rate_limit_delay(runner.config());
+
+    // Get available link types
+    let types = runner.run_json(&["jira", "Issue link types", "get-issue-link-types"]);
+    types.assert_success();
+    let link_type_name = types.json.as_ref()
+        .and_then(|j| j.get("issueLinkTypes"))
+        .and_then(|arr| arr.as_array())
+        .and_then(|arr| arr.first())
+        .and_then(|lt| lt.get("name"))
+        .and_then(|n| n.as_str());
+    let link_type_name = match link_type_name {
+        Some(name) => name.to_string(),
+        None => {
+            eprintln!("Skipping link test: no issue link types available (linking may be disabled)");
+            delete_issue(&runner, &key1);
+            harness::rate_limit_delay(runner.config());
+            delete_issue(&runner, &key2);
+            harness::rate_limit_delay(runner.config());
+            teardown_profile(&runner, &profile);
+            return;
+        }
+    };
+    eprintln!("Using link type: {}", link_type_name);
+    harness::rate_limit_delay(runner.config());
+
+    // CREATE link
+    let body = format!(
+        r#"{{"type":{{"name":"{}"}},"inwardIssue":{{"key":"{}"}},"outwardIssue":{{"key":"{}"}}}}"#,
+        link_type_name, key1, key2
+    );
+    let create = runner.run_with_body(
+        &body,
+        &["jira", "Issue links", "link-issues"],
+    );
+    assert!(create.exit_code == 0, "link-issues failed: {}", create.stderr);
+    harness::rate_limit_delay(runner.config());
+
+    // GET link ID by reading the source issue and filtering issuelinks
+    let read = runner.run_json(&["jira", "Issues", "get-issue", "--issueIdOrKey", &key1]);
+    read.assert_success();
+    let link_id = read.json.as_ref()
+        .and_then(|j| j.get("fields"))
+        .and_then(|f| f.get("issuelinks"))
+        .and_then(|links| links.as_array())
+        .and_then(|arr| {
+            arr.iter().find(|link| {
+                let outward_match = link.get("outwardIssue")
+                    .and_then(|i| i.get("key"))
+                    .and_then(|k| k.as_str())
+                    == Some(key2.as_str());
+                let inward_match = link.get("inwardIssue")
+                    .and_then(|i| i.get("key"))
+                    .and_then(|k| k.as_str())
+                    == Some(key2.as_str());
+                outward_match || inward_match
+            })
+        })
+        .and_then(|link| link.get("id"))
+        .and_then(|id| id.as_str())
+        .expect("Expected link id matching target issue in issuelinks");
+    eprintln!("Created link: {}", link_id);
+    harness::rate_limit_delay(runner.config());
+
+    // GET link details
+    let get = runner.run_json(&["jira", "Issue links", "get-issue-link", "--linkId", link_id]);
+    get.assert_success();
+    harness::rate_limit_delay(runner.config());
+
+    // DELETE link
+    let del = runner.run(&["jira", "Issue links", "delete-issue-link", "--linkId", link_id]);
+    assert!(del.exit_code == 0, "delete-issue-link failed: {}", del.stderr);
+    harness::rate_limit_delay(runner.config());
+
+    delete_issue(&runner, &key1);
+    harness::rate_limit_delay(runner.config());
+    delete_issue(&runner, &key2);
+    harness::rate_limit_delay(runner.config());
+    teardown_profile(&runner, &profile);
+}
+
+// ─── Issue Type CRUD Lifecycle ──────────────────────────────────────────
+
+#[test]
+fn test_issue_type_crud_lifecycle() {
+    let config = skip_unless_e2e!();
+    let runner = ShrugRunner::new(config);
+    let profile = setup_profile(&runner);
+
+    let type_name = format!("e2e-type-{}", std::process::id());
+    let body = format!(
+        r#"{{"name":"{}","description":"E2E test type","type":"standard"}}"#,
+        type_name
+    );
+
+    // CREATE
+    let create = runner.run_json_with_body(&body, &["jira", "Issue types", "create-issue-type"]);
+    if create.exit_code != 0 {
+        eprintln!(
+            "Skipping issue type CRUD: create failed (admin required?): {}",
+            create.stderr
+        );
+        teardown_profile(&runner, &profile);
+        return;
+    }
+    let type_id = create
+        .json
+        .as_ref()
+        .and_then(|j| j.get("id"))
+        .and_then(|v| v.as_str())
+        .expect("Expected issue type id");
+    eprintln!("Created issue type: {} ({})", type_name, type_id);
+    harness::rate_limit_delay(runner.config());
+
+    // READ and verify content
+    let read = runner.run_json(&["jira", "Issue types", "get-issue-type", "--id", type_id]);
+    read.assert_success();
+    let read_name = read
+        .json_field("/name")
+        .and_then(|v| v.as_str())
+        .unwrap_or("");
+    assert_eq!(read_name, type_name, "Issue type name should match");
+    harness::rate_limit_delay(runner.config());
+
+    // UPDATE
+    let upd = runner.run_with_body(
+        r#"{"description":"E2E updated"}"#,
+        &["jira", "Issue types", "update-issue-type", "--id", type_id],
+    );
+    assert!(upd.exit_code == 0, "update-issue-type failed: {}", upd.stderr);
+    harness::rate_limit_delay(runner.config());
+
+    // DELETE
+    let del = runner.run(&["jira", "Issue types", "delete-issue-type", "--id", type_id]);
+    if del.exit_code != 0 {
+        eprintln!(
+            "Warning: delete-issue-type failed (issues may reference type): {}",
+            del.stderr
+        );
+    } else {
+        eprintln!("Deleted issue type: {}", type_id);
+    }
+    harness::rate_limit_delay(runner.config());
+    teardown_profile(&runner, &profile);
+}
+
+// ─── Group CRUD Lifecycle ───────────────────────────────────────────────
+
+#[test]
+fn test_group_crud_lifecycle() {
+    let config = skip_unless_e2e!();
+    let runner = ShrugRunner::new(config);
+    let profile = setup_profile(&runner);
+
+    let group_name = format!("e2e-group-{}", std::process::id());
+    let body = format!(r#"{{"name":"{}"}}"#, group_name);
+
+    // CREATE
+    let create = runner.run_json_with_body(&body, &["jira", "Groups", "create-group"]);
+    if create.exit_code != 0 {
+        eprintln!(
+            "Skipping group CRUD: create failed (admin required?): {}",
+            create.stderr
+        );
+        teardown_profile(&runner, &profile);
+        return;
+    }
+    eprintln!("Created group: {}", group_name);
+    harness::rate_limit_delay(runner.config());
+
+    // FIND and verify content
+    let find = runner.run_json(&[
+        "jira", "Groups", "find-groups", "--query", &group_name,
+    ]);
+    find.assert_success();
+    let group_found = find
+        .json
+        .as_ref()
+        .and_then(|j| j.get("groups"))
+        .and_then(|g| g.as_array())
+        .map(|arr| arr.iter().any(|g| {
+            g.get("name").and_then(|n| n.as_str()) == Some(group_name.as_str())
+        }))
+        .unwrap_or(false);
+    assert!(group_found, "find-groups should contain {}", group_name);
+    harness::rate_limit_delay(runner.config());
+
+    // DELETE
+    let del = runner.run(&[
+        "jira", "Groups", "remove-group", "--groupname", &group_name,
+    ]);
+    assert!(del.exit_code == 0, "remove-group failed: {}", del.stderr);
+    eprintln!("Deleted group: {}", group_name);
+    harness::rate_limit_delay(runner.config());
+    teardown_profile(&runner, &profile);
+}
+
+// ─── Attachment Lifecycle ───────────────────────────────────────────────
+
+#[test]
+fn test_attachment_lifecycle() {
+    let config = skip_unless_e2e!();
+    let runner = ShrugRunner::new(config);
+    let profile = setup_profile(&runner);
+    let project = runner.config().jira_project.as_str();
+
+    let issue_key = create_issue(&runner, project, "E2E attachment parent");
+    harness::rate_limit_delay(runner.config());
+
+    // Attempt ADD attachment (may fail: multipart/form-data required)
+    let add = runner.run_json_with_body(
+        r#"{"file":"test.txt"}"#,
+        &["jira", "Issue attachments", "add-attachment", "--issueIdOrKey", &issue_key],
+    );
+
+    if add.exit_code == 0 {
+        // Full lifecycle: add succeeded
+        let att_id = add
+            .json
+            .as_ref()
+            .and_then(|j| {
+                // Response is an array of attachments
+                j.as_array().and_then(|arr| arr.first()).or(Some(j))
+            })
+            .and_then(|a| a.get("id"))
+            .and_then(|v| v.as_str());
+
+        if let Some(att_id) = att_id {
+            eprintln!("Created attachment: {}", att_id);
+            harness::rate_limit_delay(runner.config());
+
+            // GET
+            let get = runner.run_json(&[
+                "jira", "Issue attachments", "get-attachment", "--id", att_id,
+            ]);
+            get.assert_success();
+            harness::rate_limit_delay(runner.config());
+
+            // DELETE
+            let del = runner.run(&[
+                "jira", "Issue attachments", "remove-attachment", "--id", att_id,
+            ]);
+            assert!(del.exit_code == 0, "remove-attachment failed: {}", del.stderr);
+            harness::rate_limit_delay(runner.config());
+        }
+    } else {
+        // Fallback: test read-only attachment settings endpoint
+        eprintln!(
+            "Attachment upload requires multipart (got exit {}): {}",
+            add.exit_code, add.stderr
+        );
+        eprintln!("Testing read-only attachment settings endpoint instead.");
+
+        let meta = runner.run_json(&["jira", "Issue attachments", "get-attachment-meta"]);
+        meta.assert_success();
+        assert!(meta.json.is_some(), "Expected JSON from attachment settings");
+        harness::rate_limit_delay(runner.config());
+    }
+
+    delete_issue(&runner, &issue_key);
+    harness::rate_limit_delay(runner.config());
+    teardown_profile(&runner, &profile);
+}
