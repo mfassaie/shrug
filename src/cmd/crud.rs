@@ -431,4 +431,149 @@ mod tests {
         assert!(!is_list_pattern("deleteSearchFilter"));
         assert!(!is_list_pattern("updateSearchRequest"));
     }
+
+    // === format_crud_line body hint tests ===
+
+    fn make_op_with_body(
+        id: &str,
+        method: HttpMethod,
+        path: &str,
+        tag: &str,
+        body: Option<crate::spec::model::RequestBody>,
+    ) -> Operation {
+        let params = if path.contains('{') {
+            vec![Parameter {
+                name: path
+                    .split('{')
+                    .nth(1)
+                    .and_then(|s| s.split('}').next())
+                    .unwrap_or("id")
+                    .to_string(),
+                location: ParameterLocation::Path,
+                required: true,
+                description: None,
+                schema_type: Some("string".to_string()),
+            }]
+        } else {
+            vec![]
+        };
+        Operation {
+            operation_id: id.to_string(),
+            method,
+            path: path.to_string(),
+            summary: Some(format!("{} operation", id)),
+            description: None,
+            tags: vec![tag.to_string()],
+            deprecated: false,
+            parameters: params,
+            request_body: body,
+        }
+    }
+
+    #[test]
+    fn format_crud_line_create_with_body_hints() {
+        let body = crate::spec::model::RequestBody {
+            required: true,
+            description: None,
+            content_types: vec!["application/json".to_string()],
+            properties: vec![
+                crate::spec::model::BodyProperty {
+                    name: "summary".to_string(),
+                    schema_type: Some("string".to_string()),
+                    required: true,
+                    description: None,
+                },
+                crate::spec::model::BodyProperty {
+                    name: "description".to_string(),
+                    schema_type: Some("string".to_string()),
+                    required: false,
+                    description: None,
+                },
+            ],
+        };
+        let spec = make_spec(vec![make_op_with_body(
+            "createIssue",
+            HttpMethod::Post,
+            "/issues",
+            "issues",
+            Some(body),
+        )]);
+        let mappings = build_crud_mappings(&spec);
+        let m = mappings.get("issues").unwrap();
+        let line = format_crud_line("create", m).unwrap();
+        assert!(
+            line.contains("[body: summary*, description]"),
+            "Should show body hints: {line}"
+        );
+    }
+
+    #[test]
+    fn format_crud_line_update_with_body_hints() {
+        let body = crate::spec::model::RequestBody {
+            required: true,
+            description: None,
+            content_types: vec!["application/json".to_string()],
+            properties: vec![crate::spec::model::BodyProperty {
+                name: "fields".to_string(),
+                schema_type: Some("object".to_string()),
+                required: true,
+                description: None,
+            }],
+        };
+        let spec = make_spec(vec![make_op_with_body(
+            "updateIssue",
+            HttpMethod::Put,
+            "/issues/{issueId}",
+            "issues",
+            Some(body),
+        )]);
+        let mappings = build_crud_mappings(&spec);
+        let m = mappings.get("issues").unwrap();
+        let line = format_crud_line("update", m).unwrap();
+        assert!(
+            line.contains("[body: fields*]"),
+            "Should show body hints: {line}"
+        );
+    }
+
+    #[test]
+    fn format_crud_line_get_no_body_hint() {
+        let spec = make_spec(vec![make_op(
+            "getIssue",
+            HttpMethod::Get,
+            "/issues/{issueId}",
+            "issues",
+        )]);
+        let mappings = build_crud_mappings(&spec);
+        let m = mappings.get("issues").unwrap();
+        let line = format_crud_line("get", m).unwrap();
+        assert!(
+            !line.contains("[body"),
+            "GET should not show body hint: {line}"
+        );
+    }
+
+    #[test]
+    fn format_crud_line_create_required_body_no_properties() {
+        let body = crate::spec::model::RequestBody {
+            required: true,
+            description: None,
+            content_types: vec!["application/json".to_string()],
+            properties: vec![],
+        };
+        let spec = make_spec(vec![make_op_with_body(
+            "createThing",
+            HttpMethod::Post,
+            "/things",
+            "things",
+            Some(body),
+        )]);
+        let mappings = build_crud_mappings(&spec);
+        let m = mappings.get("things").unwrap();
+        let line = format_crud_line("create", m).unwrap();
+        assert!(
+            line.contains("[body required]"),
+            "Should show [body required]: {line}"
+        );
+    }
 }

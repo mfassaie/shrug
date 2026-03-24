@@ -630,4 +630,54 @@ mod tests {
 
         assert_eq!(result.unwrap(), "my-auth-code");
     }
+
+    // === token expiry and auth flow edge cases ===
+
+    #[test]
+    fn oauth_tokens_expired_at_exact_boundary() {
+        // Token expiring exactly now should be considered expired
+        // because of the 60-second safety margin
+        let tokens = OAuthTokens {
+            access_token: "access".to_string(),
+            refresh_token: "refresh".to_string(),
+            expires_at: Some(Utc::now()),
+            scopes: vec![],
+        };
+        assert!(
+            tokens.is_expired(),
+            "Token expiring at now should be expired (60s safety margin)"
+        );
+    }
+
+    #[test]
+    fn start_auth_flow_url_contains_required_params() {
+        let config = OAuthConfig {
+            client_id: "test-client-id".to_string(),
+            client_secret: "test-secret".to_string(),
+            redirect_port: 9999,
+        };
+        let (url, _verifier, _state) = start_auth_flow(&config).unwrap();
+        assert!(url.contains("response_type=code"), "Missing response_type: {url}");
+        assert!(url.contains("client_id=test-client-id"), "Missing client_id: {url}");
+        assert!(
+            url.contains("redirect_uri=http%3A%2F%2F127.0.0.1%3A9999%2Fcallback"),
+            "Missing or wrong redirect_uri: {url}"
+        );
+        assert!(url.contains("code_challenge="), "Missing code_challenge: {url}");
+        assert!(url.contains("code_challenge_method=S256"), "Missing code_challenge_method: {url}");
+        assert!(url.contains("state="), "Missing state: {url}");
+        assert!(url.contains("scope="), "Missing scope: {url}");
+    }
+
+    #[test]
+    fn oauth_config_with_custom_port() {
+        let config = OAuthConfig {
+            client_id: "cid".to_string(),
+            client_secret: "csec".to_string(),
+            redirect_port: 12345,
+        };
+        assert_eq!(config.redirect_port, 12345);
+        let (url, _, _) = start_auth_flow(&config).unwrap();
+        assert!(url.contains("12345"), "Custom port should appear in URL: {url}");
+    }
 }

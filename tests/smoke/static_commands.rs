@@ -137,4 +137,24 @@ fn test_cache_help() {
     result.assert_stdout_contains("refresh");
 }
 
-// Completions command removed — deferred to future work after LCRUD
+// Shell completions: no CLI subcommand exposed. Covered by 11 unit tests
+// in src/completions.rs (bash, zsh, fish, powershell — static + dynamic).
+
+// ─── Dynamic Completions ────────────────────────────────────────────────
+
+#[test]
+fn test_dynamic_complete_subcommand_exists() {
+    let config = skip_unless_binary!();
+    let runner = SmokeRunner::new(config);
+
+    // _complete is a hidden subcommand for shell tab-completion
+    // It needs a valid completion type. "projects" needs auth so may fail,
+    // but the subcommand itself should be recognised (not "unrecognized subcommand").
+    let result = runner.run(&["_complete", "projects"]);
+    // May fail with auth error (exit 3) but should NOT fail with usage error (exit 2)
+    assert!(
+        result.exit_code != 2,
+        "_complete subcommand should be recognised (got exit 2): {}",
+        result.stderr
+    );
+}

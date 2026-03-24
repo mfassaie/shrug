@@ -344,3 +344,42 @@ fn test_adf_comment_roundtrip() {
     harness::rate_limit_delay(runner.config());
     teardown_profile(&runner, &profile);
 }
+
+// ─── Fields Flag ────────────────────────────────────────────────────────
+
+#[test]
+fn test_fields_flag() {
+    let config = skip_unless_e2e!();
+    let runner = ShrugRunner::new(config);
+    let profile = setup_profile(&runner);
+    let project = runner.config().jira_project.as_str();
+
+    let jql = format!("project = {} ORDER BY created DESC", project);
+    let result = runner.run(&[
+        "jira",
+        "Issue search",
+        "search-and-reconsile-issues-using-jql",
+        "--jql",
+        &jql,
+        "--maxResults",
+        "1",
+        "--output",
+        "table",
+        "--fields",
+        "key,summary",
+    ]);
+    result.assert_success();
+    // Table output should contain the requested fields
+    assert!(
+        result.stdout.contains("key") || result.stdout.contains("Key"),
+        "Table should contain 'key' field: {}",
+        result.stdout
+    );
+    assert!(
+        result.stdout.contains("summary") || result.stdout.contains("Summary"),
+        "Table should contain 'summary' field: {}",
+        result.stdout
+    );
+    harness::rate_limit_delay(runner.config());
+    teardown_profile(&runner, &profile);
+}

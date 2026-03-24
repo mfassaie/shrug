@@ -1768,4 +1768,455 @@ mod tests {
         let args = parse_args(&op, &["--session".to_string(), "abc123".to_string()], None).unwrap();
         assert_eq!(args.cookie_params.get("session").unwrap(), "abc123");
     }
+
+    // === extract_json_body tests ===
+
+    #[test]
+    fn extract_json_body_with_value() {
+        let args: Vec<String> = vec!["--json", r#"{"a":1}"#, "--flag", "val"]
+            .into_iter()
+            .map(String::from)
+            .collect();
+        let (body, rest) = extract_json_body(&args);
+        assert_eq!(body.unwrap(), r#"{"a":1}"#);
+        assert_eq!(rest, vec!["--flag", "val"]);
+    }
+
+    #[test]
+    fn extract_json_body_no_json_flag() {
+        let args: Vec<String> = vec!["--flag", "val"]
+            .into_iter()
+            .map(String::from)
+            .collect();
+        let (body, rest) = extract_json_body(&args);
+        assert!(body.is_none());
+        assert_eq!(rest, vec!["--flag", "val"]);
+    }
+
+    #[test]
+    fn extract_json_body_at_end_no_value() {
+        let args: Vec<String> = vec!["--flag", "val", "--json"]
+            .into_iter()
+            .map(String::from)
+            .collect();
+        let (body, rest) = extract_json_body(&args);
+        assert!(body.is_none());
+        assert_eq!(rest, vec!["--flag", "val"]);
+    }
+
+    #[test]
+    fn extract_json_body_only_json() {
+        let args: Vec<String> = vec!["--json", "{}"]
+            .into_iter()
+            .map(String::from)
+            .collect();
+        let (body, rest) = extract_json_body(&args);
+        assert_eq!(body.unwrap(), "{}");
+        assert!(rest.is_empty());
+    }
+
+    #[test]
+    fn extract_json_body_multiple_json_last_wins() {
+        let args: Vec<String> = vec!["--json", "a", "--json", "b"]
+            .into_iter()
+            .map(String::from)
+            .collect();
+        let (body, rest) = extract_json_body(&args);
+        assert_eq!(body.unwrap(), "b");
+        assert!(rest.is_empty());
+    }
+
+    #[test]
+    fn extract_json_body_empty_args() {
+        let (body, rest) = extract_json_body(&[]);
+        assert!(body.is_none());
+        assert!(rest.is_empty());
+    }
+
+    // === httpmock-based send_request tests ===
+
+    fn mock_client() -> Client {
+        Client::builder()
+            .timeout(std::time::Duration::from_secs(5))
+            .build()
+            .unwrap()
+    }
+
+    #[test]
+    fn send_request_get_200_returns_body() {
+        let server = httpmock::MockServer::start();
+        let mock = server.mock(|when, then| {
+            when.method(httpmock::Method::GET).path("/test");
+            then.status(200).body(r#"{"ok":true}"#);
+        });
+
+        let client = mock_client();
+        let url = server.url("/test");
+        let result = send_request(
+            &client,
+            reqwest::Method::GET,
+            &url,
+            None,
+            None,
+            true,
+            &[],
+            &HashMap::new(),
+            &HashMap::new(),
+        );
+
+        mock.assert();
+        match result {
+            SendResult::Success(Some(body)) => assert!(body.contains("ok")),
+            other => panic!("Expected Success(Some), got: {:?}", std::mem::discriminant(&other)),
+        }
+    }
+
+    #[test]
+    fn send_request_post_201_returns_body() {
+        let server = httpmock::MockServer::start();
+        let mock = server.mock(|when, then| {
+            when.method(httpmock::Method::POST).path("/items");
+            then.status(201).body(r#"{"id":"1"}"#);
+        });
+
+        let client = mock_client();
+        let url = server.url("/items");
+        let result = send_request(
+            &client,
+            reqwest::Method::POST,
+            &url,
+            None,
+            Some(r#"{"name":"test"}"#),
+            true,
+            &[],
+            &HashMap::new(),
+            &HashMap::new(),
+        );
+
+        mock.assert();
+        match result {
+            SendResult::Success(Some(body)) => assert!(body.contains("id")),
+            other => panic!("Expected Success(Some), got: {:?}", std::mem::discriminant(&other)),
+        }
+    }
+
+    #[test]
+    fn send_request_put_200_returns_body() {
+        let server = httpmock::MockServer::start();
+        let mock = server.mock(|when, then| {
+            when.method(httpmock::Method::PUT).path("/items/1");
+            then.status(200).body(r#"{"updated":true}"#);
+        });
+
+        let client = mock_client();
+        let url = server.url("/items/1");
+        let result = send_request(
+            &client,
+            reqwest::Method::PUT,
+            &url,
+            None,
+            Some(r#"{"name":"updated"}"#),
+            true,
+            &[],
+            &HashMap::new(),
+            &HashMap::new(),
+        );
+
+        mock.assert();
+        match result {
+            SendResult::Success(Some(body)) => assert!(body.contains("updated")),
+            other => panic!("Expected Success(Some), got: {:?}", std::mem::discriminant(&other)),
+        }
+    }
+
+    #[test]
+    fn send_request_delete_204_returns_none() {
+        let server = httpmock::MockServer::start();
+        let mock = server.mock(|when, then| {
+            when.method(httpmock::Method::DELETE).path("/items/1");
+            then.status(204);
+        });
+
+        let client = mock_client();
+        let url = server.url("/items/1");
+        let result = send_request(
+            &client,
+            reqwest::Method::DELETE,
+            &url,
+            None,
+            None,
+            true,
+            &[],
+            &HashMap::new(),
+            &HashMap::new(),
+        );
+
+        mock.assert();
+        match result {
+            SendResult::Success(None) => {}
+            other => panic!("Expected Success(None), got: {:?}", std::mem::discriminant(&other)),
+        }
+    }
+
+    #[test]
+    fn send_request_401_returns_auth_error() {
+        let server = httpmock::MockServer::start();
+        let mock = server.mock(|when, then| {
+            when.method(httpmock::Method::GET).path("/auth-fail");
+            then.status(401).body(r#"{"message":"Unauthorized"}"#);
+        });
+
+        let client = mock_client();
+        let url = server.url("/auth-fail");
+        let result = send_request(
+            &client,
+            reqwest::Method::GET,
+            &url,
+            None,
+            None,
+            true,
+            &[],
+            &HashMap::new(),
+            &HashMap::new(),
+        );
+
+        mock.assert();
+        match result {
+            SendResult::Fatal(ShrugError::AuthError(_)) => {}
+            other => panic!("Expected Fatal(AuthError), got: {:?}", std::mem::discriminant(&other)),
+        }
+    }
+
+    #[test]
+    fn send_request_403_returns_forbidden() {
+        let server = httpmock::MockServer::start();
+        let mock = server.mock(|when, then| {
+            when.method(httpmock::Method::GET).path("/forbidden");
+            then.status(403).body(r#"{"message":"Forbidden"}"#);
+        });
+
+        let client = mock_client();
+        let url = server.url("/forbidden");
+        let result = send_request(
+            &client,
+            reqwest::Method::GET,
+            &url,
+            None,
+            None,
+            true,
+            &[],
+            &HashMap::new(),
+            &HashMap::new(),
+        );
+
+        mock.assert();
+        match result {
+            SendResult::Fatal(ShrugError::PermissionDenied(_)) => {}
+            other => panic!("Expected Fatal(PermissionDenied), got: {:?}", std::mem::discriminant(&other)),
+        }
+    }
+
+    #[test]
+    fn send_request_404_returns_not_found() {
+        let server = httpmock::MockServer::start();
+        let mock = server.mock(|when, then| {
+            when.method(httpmock::Method::GET).path("/missing");
+            then.status(404).body(r#"{"message":"Not found"}"#);
+        });
+
+        let client = mock_client();
+        let url = server.url("/missing");
+        let result = send_request(
+            &client,
+            reqwest::Method::GET,
+            &url,
+            None,
+            None,
+            true,
+            &[],
+            &HashMap::new(),
+            &HashMap::new(),
+        );
+
+        mock.assert();
+        match result {
+            SendResult::Fatal(ShrugError::NotFound(_)) => {}
+            other => panic!("Expected Fatal(NotFound), got: {:?}", std::mem::discriminant(&other)),
+        }
+    }
+
+    #[test]
+    fn send_request_429_returns_retryable_with_retry_after() {
+        let server = httpmock::MockServer::start();
+        let mock = server.mock(|when, then| {
+            when.method(httpmock::Method::GET).path("/rate-limited");
+            then.status(429)
+                .header("Retry-After", "5")
+                .body(r#"{"message":"Too many requests"}"#);
+        });
+
+        let client = mock_client();
+        let url = server.url("/rate-limited");
+        let result = send_request(
+            &client,
+            reqwest::Method::GET,
+            &url,
+            None,
+            None,
+            true,
+            &[],
+            &HashMap::new(),
+            &HashMap::new(),
+        );
+
+        mock.assert();
+        match result {
+            SendResult::Retryable { retry_after, .. } => {
+                assert_eq!(retry_after, Some(5));
+            }
+            other => panic!("Expected Retryable, got: {:?}", std::mem::discriminant(&other)),
+        }
+    }
+
+    #[test]
+    fn send_request_500_returns_retryable() {
+        let server = httpmock::MockServer::start();
+        let mock = server.mock(|when, then| {
+            when.method(httpmock::Method::GET).path("/server-error");
+            then.status(500).body(r#"{"message":"Internal error"}"#);
+        });
+
+        let client = mock_client();
+        let url = server.url("/server-error");
+        let result = send_request(
+            &client,
+            reqwest::Method::GET,
+            &url,
+            None,
+            None,
+            true,
+            &[],
+            &HashMap::new(),
+            &HashMap::new(),
+        );
+
+        mock.assert();
+        match result {
+            SendResult::Retryable { .. } => {}
+            other => panic!("Expected Retryable, got: {:?}", std::mem::discriminant(&other)),
+        }
+    }
+
+    // === execute_with_retry tests ===
+
+    #[test]
+    fn execute_with_retry_success_on_first_attempt() {
+        let server = httpmock::MockServer::start();
+        let mock = server.mock(|when, then| {
+            when.method(httpmock::Method::GET).path("/ok");
+            then.status(200).body(r#"{"result":"success"}"#);
+        });
+
+        let client = mock_client();
+        let url = server.url("/ok");
+        let result = execute_with_retry(
+            &client,
+            reqwest::Method::GET,
+            &url,
+            None,
+            None,
+            &[],
+            &HashMap::new(),
+            &HashMap::new(),
+        );
+
+        mock.assert_calls(1);
+        let body = result.unwrap().unwrap();
+        assert!(body.contains("success"));
+    }
+
+    #[test]
+    fn execute_with_retry_fatal_error_no_retry() {
+        let server = httpmock::MockServer::start();
+        let mock = server.mock(|when, then| {
+            when.method(httpmock::Method::GET).path("/not-found");
+            then.status(404).body(r#"{"message":"gone"}"#);
+        });
+
+        let client = mock_client();
+        let url = server.url("/not-found");
+        let result = execute_with_retry(
+            &client,
+            reqwest::Method::GET,
+            &url,
+            None,
+            None,
+            &[],
+            &HashMap::new(),
+            &HashMap::new(),
+        );
+
+        // Fatal errors should NOT trigger retries — exactly 1 hit
+        mock.assert_calls(1);
+        assert!(result.is_err());
+        match result.unwrap_err() {
+            ShrugError::NotFound(_) => {}
+            other => panic!("Expected NotFound, got: {other}"),
+        }
+    }
+
+    // === execute_paginated tests ===
+
+    #[test]
+    fn execute_paginated_offset_fetches_all_pages() {
+        let server = httpmock::MockServer::start();
+
+        // Page 1: startAt=0
+        let mock_page1 = server.mock(|when, then| {
+            when.method(httpmock::Method::GET)
+                .path("/items")
+                .query_param("startAt", "0");
+            then.status(200)
+                .body(r#"{"values":[{"id":1}],"total":2,"startAt":0,"maxResults":1}"#);
+        });
+
+        // Page 2: startAt=1
+        let mock_page2 = server.mock(|when, then| {
+            when.method(httpmock::Method::GET)
+                .path("/items")
+                .query_param("startAt", "1");
+            then.status(200)
+                .body(r#"{"values":[{"id":2}],"total":2,"startAt":1,"maxResults":1}"#);
+        });
+
+        let client = mock_client();
+        let style = analysis::PaginationStyle::Offset {
+            start_param: "startAt".to_string(),
+            limit_param: "maxResults".to_string(),
+        };
+
+        let result = execute_paginated(
+            &client,
+            &reqwest::Method::GET,
+            Some(&server.base_url()),
+            "/items",
+            &HashMap::new(),
+            &[],
+            None,
+            None,
+            &style,
+            None,
+            &[],
+            &HashMap::new(),
+            &HashMap::new(),
+            &OutputFormat::Json,
+            false,
+            false,
+            None,
+        );
+
+        assert!(result.is_ok(), "Pagination should succeed: {:?}", result);
+        mock_page1.assert_calls(1);
+        mock_page2.assert_calls(1);
+    }
 }

@@ -1011,3 +1011,92 @@ fn test_attachment_lifecycle() {
     harness::rate_limit_delay(runner.config());
     teardown_profile(&runner, &profile);
 }
+
+// ─── CRUD Verb Routing ──────────────────────────────────────────────────
+
+/// Tests that Phase 35 CRUD verb aliases (list, create, get, update, delete)
+/// route correctly to the underlying Jira operations.
+#[test]
+fn test_crud_verb_lifecycle() {
+    let config = skip_unless_e2e!();
+    let runner = ShrugRunner::new(config);
+    let profile = setup_profile(&runner);
+    let project = runner.config().jira_project.as_str();
+
+    // LIST via CRUD verb
+    let jql = format!("project = {} ORDER BY created DESC", project);
+    let list = runner.run(&[
+        "jira",
+        "Issues",
+        "list",
+        "--jql",
+        &jql,
+        "--maxResults",
+        "1",
+    ]);
+    assert!(
+        list.exit_code == 0,
+        "CRUD 'list' verb should succeed: {}",
+        list.stderr
+    );
+    harness::rate_limit_delay(runner.config());
+
+    // CREATE via CRUD verb
+    let body = format!(
+        r#"{{"fields":{{"project":{{"key":"{}"}},"summary":"E2E CRUD verb test","issuetype":{{"name":"Task"}}}}}}"#,
+        project
+    );
+    let create = runner.run_json_with_body(&body, &["jira", "Issues", "create"]);
+    create.assert_success();
+    let key = create
+        .json
+        .as_ref()
+        .and_then(|j| j.get("key"))
+        .and_then(|v| v.as_str())
+        .expect("Expected 'key' from CRUD create response");
+    eprintln!("CRUD verb created issue: {}", key);
+    harness::rate_limit_delay(runner.config());
+
+    // GET via CRUD verb
+    let get = runner.run_json(&["jira", "Issues", "get", "--issueIdOrKey", key]);
+    get.assert_success();
+    let summary = get
+        .json_field("/fields/summary")
+        .and_then(|v| v.as_str())
+        .unwrap_or("");
+    assert_eq!(summary, "E2E CRUD verb test");
+    harness::rate_limit_delay(runner.config());
+
+    // UPDATE via CRUD verb
+    let update = runner.run_with_body(
+        r#"{"fields":{"summary":"E2E CRUD verb updated"}}"#,
+        &["jira", "Issues", "update", "--issueIdOrKey", key],
+    );
+    assert!(
+        update.exit_code == 0,
+        "CRUD 'update' verb should succeed: {}",
+        update.stderr
+    );
+    harness::rate_limit_delay(runner.config());
+
+    // Verify update took effect
+    let verify = runner.run_json(&["jira", "Issues", "get", "--issueIdOrKey", key]);
+    verify.assert_success();
+    let updated = verify
+        .json_field("/fields/summary")
+        .and_then(|v| v.as_str())
+        .unwrap_or("");
+    assert_eq!(updated, "E2E CRUD verb updated");
+    harness::rate_limit_delay(runner.config());
+
+    // DELETE via CRUD verb
+    let del = runner.run(&["jira", "Issues", "delete", "--issueIdOrKey", key]);
+    assert!(
+        del.exit_code == 0,
+        "CRUD 'delete' verb should succeed: {}",
+        del.stderr
+    );
+    harness::rate_limit_delay(runner.config());
+
+    teardown_profile(&runner, &profile);
+}

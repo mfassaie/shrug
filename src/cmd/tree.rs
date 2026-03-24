@@ -503,4 +503,46 @@ mod tests {
         let output = format_operation_detail(&op, None);
         assert!(output.contains("nosummary"));
     }
+
+    #[test]
+    fn format_operation_detail_with_body_properties() {
+        let op = Operation {
+            operation_id: "createWidget".to_string(),
+            method: HttpMethod::Post,
+            path: "/widgets".to_string(),
+            summary: Some("Create a widget".to_string()),
+            description: None,
+            tags: vec!["widgets".to_string()],
+            deprecated: false,
+            parameters: vec![],
+            request_body: Some(RequestBody {
+                required: true,
+                description: None,
+                content_types: vec!["application/json".to_string()],
+                properties: vec![
+                    BodyProperty {
+                        name: "name".to_string(),
+                        schema_type: Some("string".to_string()),
+                        required: true,
+                        description: None,
+                    },
+                    BodyProperty {
+                        name: "colour".to_string(),
+                        schema_type: Some("string".to_string()),
+                        required: false,
+                        description: None,
+                    },
+                ],
+            }),
+        };
+        let output = format_operation_detail(&op, None);
+        assert!(
+            output.contains("Request body"),
+            "Should mention request body: {output}"
+        );
+        assert!(
+            output.contains("--json"),
+            "Should mention --json flag: {output}"
+        );
+    }
 }

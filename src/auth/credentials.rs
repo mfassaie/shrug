@@ -1138,4 +1138,72 @@ mod tests {
 
         store.delete(name);
     }
+
+    // === token file operation tests ===
+
+    #[test]
+    fn token_file_store_retrieve_roundtrip() {
+        let dir = tempfile::tempdir().unwrap();
+        let store = make_store(&dir);
+
+        store
+            .store_token_file("tf-roundtrip", "my-api-token-value")
+            .unwrap();
+
+        let result = store.retrieve_token_file("tf-roundtrip");
+        assert_eq!(result, Some("my-api-token-value".to_string()));
+    }
+
+    #[test]
+    fn token_file_retrieve_nonexistent() {
+        let dir = tempfile::tempdir().unwrap();
+        let store = make_store(&dir);
+        let result = store.retrieve_token_file("nonexistent-profile");
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn token_file_overwrite() {
+        let dir = tempfile::tempdir().unwrap();
+        let store = make_store(&dir);
+
+        store.store_token_file("tf-overwrite", "first").unwrap();
+        store.store_token_file("tf-overwrite", "second").unwrap();
+
+        let result = store.retrieve_token_file("tf-overwrite");
+        assert_eq!(result, Some("second".to_string()));
+    }
+
+    #[test]
+    fn credential_source_for_token_file() {
+        let dir = tempfile::tempdir().unwrap();
+        let store = make_store(&dir);
+        let name = "tf-source";
+        store.delete(name);
+
+        assert!(store.credential_source(name).is_none());
+
+        store.store_token_file(name, "token-val").unwrap();
+
+        let source = store.credential_source(name);
+        assert_eq!(source, Some(CredentialSource::TokenFile));
+
+        store.delete(name);
+    }
+
+    #[test]
+    fn has_credential_with_token_file() {
+        let dir = tempfile::tempdir().unwrap();
+        let store = make_store(&dir);
+        let name = "tf-hascred";
+        store.delete(name);
+
+        assert!(!store.has_credential(name).unwrap());
+
+        store.store_token_file(name, "tok").unwrap();
+
+        assert!(store.has_credential(name).unwrap());
+
+        store.delete(name);
+    }
 }
