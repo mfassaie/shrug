@@ -1,5 +1,5 @@
 //! CLI feature E2E tests: output formats, dry-run, fields, JQL shorthand,
-//! helper commands, and error remediation hints.
+//! and error remediation hints.
 
 use crate::harness::{self, ShrugRunner};
 
@@ -149,85 +149,6 @@ fn test_dry_run_mode() {
         result.stdout,
         result.stderr
     );
-    teardown_profile(&runner, &profile);
-}
-
-// ─── JQL Shorthand & Helpers ─────────────────────────────────────────────
-
-#[test]
-fn test_jql_shorthand_search() {
-    let config = skip_unless_e2e!();
-    let runner = ShrugRunner::new(config);
-    let profile = setup_profile(&runner);
-    let project = runner.config().jira_project.as_str();
-
-    // Note: +search helper uses the deprecated search endpoint which returns HTTP 410.
-    // This is a known bug — the helpers need updating to use the new enhanced search API.
-    // For now, verify the command runs and produces a meaningful error (not a crash).
-    let result = runner.run_json(&["jira", "+search", "--project", project]);
-    if result.exit_code == 0 {
-        assert!(
-            result.json.is_some(),
-            "JQL shorthand +search should return JSON"
-        );
-    } else {
-        eprintln!(
-            "Note: +search returned exit {} (expected — uses deprecated API): {}",
-            result.exit_code, result.stderr
-        );
-        // Verify it's the known deprecation error, not a crash
-        assert!(
-            result.stderr.contains("410")
-                || result.stderr.contains("removed")
-                || result.stderr.contains("error"),
-            "Should fail with a known error, not crash"
-        );
-    }
-    harness::rate_limit_delay(runner.config());
-    teardown_profile(&runner, &profile);
-}
-
-#[test]
-fn test_helper_create_and_delete() {
-    let config = skip_unless_e2e!();
-    let runner = ShrugRunner::new(config);
-    let profile = setup_profile(&runner);
-    let project = runner.config().jira_project.as_str();
-
-    // +create with --project as trailing arg (demoted from global)
-    let result = runner.run_json(&[
-        "jira",
-        "+create",
-        "--project",
-        project,
-        "--summary",
-        "E2E feature test issue",
-    ]);
-    if result.exit_code != 0 {
-        // +create may fail due to parameter routing between global and helper args.
-        // This is a known issue — log and continue.
-        eprintln!(
-            "Note: +create returned exit {} (parameter routing issue): {}",
-            result.exit_code, result.stderr
-        );
-        teardown_profile(&runner, &profile);
-        return;
-    }
-
-    let key = result
-        .json
-        .as_ref()
-        .and_then(|j| j.get("key"))
-        .and_then(|v| v.as_str())
-        .expect("Expected issue key from +create");
-    eprintln!("Created via +create: {}", key);
-    harness::rate_limit_delay(runner.config());
-
-    let del = runner.run(&["jira", "Issues", "delete-issue", "--issueIdOrKey", key]);
-    if del.exit_code == 0 {
-        eprintln!("Deleted: {}", key);
-    }
-    harness::rate_limit_delay(runner.config());
     teardown_profile(&runner, &profile);
 }
 

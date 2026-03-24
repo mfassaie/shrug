@@ -170,19 +170,6 @@ fn test_vvv_trace() {
 // ─── Other Flag Tests ────────────────────────────────────────────────────
 
 #[test]
-fn test_pager_flag() {
-    let config = skip_unless_binary!();
-    let runner = SmokeRunner::new(config);
-    let name = unique_name("smoke-pager");
-    create_test_profile(&runner, &name);
-
-    let result = runner.run(&["--pager", "profile", "list"]);
-    result.assert_success();
-
-    delete_test_profile(&runner, &name);
-}
-
-#[test]
 fn test_dry_run_with_help() {
     let config = skip_unless_binary!();
     let runner = SmokeRunner::new(config);

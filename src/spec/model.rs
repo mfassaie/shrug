@@ -102,6 +102,18 @@ pub struct RequestBody {
     pub required: bool,
     pub description: Option<String>,
     pub content_types: Vec<String>,
+    pub properties: Vec<BodyProperty>,
+}
+
+/// A top-level property from a request body JSON schema.
+#[derive(
+    Debug, Clone, Serialize, Deserialize, rkyv::Archive, rkyv::Serialize, rkyv::Deserialize,
+)]
+pub struct BodyProperty {
+    pub name: String,
+    pub schema_type: Option<String>,
+    pub required: bool,
+    pub description: Option<String>,
 }
 
 #[cfg(test)]

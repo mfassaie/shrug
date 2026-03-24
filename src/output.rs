@@ -1,5 +1,3 @@
-use std::io::Write;
-
 use crate::adf;
 use crate::cli::{ColorChoice, OutputFormat};
 
@@ -32,44 +30,6 @@ pub fn format_response(
         OutputFormat::Json => format_json(&json),
         OutputFormat::Table => format_table(&json, color_enabled),
         OutputFormat::Csv => format_csv_with_fields(&json, fields),
-    }
-}
-
-/// Print output, optionally through a pager.
-///
-/// When `use_pager` is true and stdout is a TTY, pipes output through
-/// $PAGER (defaulting to "less -R -F -X"). Falls back to direct print
-/// on pager spawn failure.
-pub fn print_with_pager(output: &str, use_pager: bool, is_tty: bool) {
-    if !use_pager || !is_tty {
-        println!("{}", output);
-        return;
-    }
-
-    let pager_cmd = std::env::var("PAGER").unwrap_or_else(|_| "less -R -F -X".to_string());
-    let parts: Vec<&str> = pager_cmd.split_whitespace().collect();
-    if parts.is_empty() {
-        println!("{}", output);
-        return;
-    }
-
-    let mut cmd = std::process::Command::new(parts[0]);
-    for arg in &parts[1..] {
-        cmd.arg(arg);
-    }
-    cmd.stdin(std::process::Stdio::piped());
-
-    match cmd.spawn() {
-        Ok(mut child) => {
-            if let Some(mut stdin) = child.stdin.take() {
-                let _ = stdin.write_all(output.as_bytes());
-                let _ = stdin.write_all(b"\n");
-            }
-            let _ = child.wait();
-        }
-        Err(_) => {
-            println!("{}", output);
-        }
     }
 }
 
@@ -632,12 +592,6 @@ mod tests {
         // JSON output should contain all fields
         assert!(output.contains("admin"), "JSON should not be filtered");
         assert!(output.contains("role"));
-    }
-
-    #[test]
-    fn print_with_pager_prints_directly_when_disabled() {
-        // This just verifies it doesn't panic when pager is disabled
-        print_with_pager("test output", false, false);
     }
 
     #[test]

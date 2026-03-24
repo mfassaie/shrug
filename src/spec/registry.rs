@@ -128,11 +128,10 @@ impl SpecLoader {
             let cache_dir = self.cache.cache_dir();
             let spec_url = product.info().spec_url.to_string();
             let key = cache_key.to_string();
-            let spec_format = product.info().spec_format;
             let etag = self.cache.load_etag(cache_key).unwrap_or(None);
             // Fire-and-forget background refresh
             let _ = std::thread::spawn(move || {
-                background_refresh(cache_dir, spec_url, key, spec_format, etag);
+                background_refresh(cache_dir, spec_url, key, etag);
             });
             return Ok(spec);
         }
@@ -297,7 +296,6 @@ fn background_refresh(
     cache_dir: PathBuf,
     spec_url: String,
     cache_key: String,
-    spec_format: SpecFormat,
     etag: Option<String>,
 ) {
     let result = (|| -> Result<(), ShrugError> {
@@ -340,8 +338,6 @@ fn background_refresh(
             .text()
             .map_err(|e| ShrugError::SpecError(format!("Failed to read response body: {e}")))?;
 
-        // parse_spec handles both V3 and V2 internally (it tries V3 first, falls back to V2)
-        let _ = spec_format; // Format is auto-detected by parse_spec
         let spec = parse_spec(&body)?;
         cache.save_with_etag(&cache_key, &spec, new_etag)?;
 

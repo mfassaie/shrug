@@ -33,11 +33,7 @@ pub fn operation_to_command_name(operation_id: &str) -> String {
 /// Get unique tag names from a spec, sorted alphabetically, lowercased.
 pub fn available_tags(spec: &ApiSpec) -> Vec<String> {
     if !spec.tags.is_empty() {
-        let mut tags: Vec<String> = spec
-            .tags
-            .iter()
-            .map(|t| t.name.to_lowercase())
-            .collect();
+        let mut tags: Vec<String> = spec.tags.iter().map(|t| t.name.to_lowercase()).collect();
         tags.sort();
         tags.dedup();
         tags
@@ -218,7 +214,13 @@ fn crud_mapped_operation_ids(
         if let Some(op) = &mapping.list {
             ids.push(op.operation_id.clone());
         }
+        if let Some(op) = &mapping.create {
+            ids.push(op.operation_id.clone());
+        }
         if let Some(op) = &mapping.get {
+            ids.push(op.operation_id.clone());
+        }
+        if let Some(op) = &mapping.update {
             ids.push(op.operation_id.clone());
         }
         if let Some(op) = &mapping.delete {
@@ -241,10 +243,12 @@ fn normalize_name(name: &str) -> String {
     name.to_lowercase().replace(['-', '_'], " ")
 }
 
-/// Find close matches using prefix and contains matching.
+/// Find close matches using prefix, contains, and Levenshtein distance.
 fn find_close_matches(input: &str, candidates: &[String]) -> Vec<String> {
     let input_lower = input.to_lowercase();
-    let mut matches: Vec<String> = candidates
+
+    // First pass: prefix and substring matches
+    let mut matches: Vec<(String, usize)> = candidates
         .iter()
         .filter(|c| {
             let c_lower = c.to_lowercase();
@@ -252,11 +256,26 @@ fn find_close_matches(input: &str, candidates: &[String]) -> Vec<String> {
                 || input_lower.starts_with(&c_lower)
                 || c_lower.contains(&input_lower)
         })
-        .cloned()
+        .map(|c| (c.clone(), 0usize)) // distance 0 = exact/substring match
         .collect();
-    matches.sort();
-    matches.dedup();
-    matches
+
+    // Second pass: Levenshtein distance for typos not caught by substring
+    let matched_set: std::collections::HashSet<String> =
+        matches.iter().map(|(s, _)| s.clone()).collect();
+    for candidate in candidates {
+        if matched_set.contains(candidate) {
+            continue;
+        }
+        let dist = strsim::levenshtein(&input_lower, &candidate.to_lowercase());
+        if dist <= 3 {
+            matches.push((candidate.clone(), dist));
+        }
+    }
+
+    // Sort by distance (closest first), then alphabetically
+    matches.sort_by(|a, b| a.1.cmp(&b.1).then_with(|| a.0.cmp(&b.0)));
+    matches.dedup_by(|a, b| a.0 == b.0);
+    matches.into_iter().map(|(s, _)| s).collect()
 }
 
 #[cfg(test)]
@@ -293,6 +312,7 @@ mod tests {
                         required: true,
                         description: None,
                         content_types: vec!["application/json".to_string()],
+                        properties: vec![],
                     }),
                 },
                 Operation {
@@ -383,7 +403,8 @@ mod tests {
     #[test]
     fn resolve_command_matches_tag_and_operation() {
         let spec = test_spec();
-        let (op, remaining) = resolve_command(&spec, &args(&["issues", "get-issue"]), &empty_crud()).unwrap();
+        let (op, remaining) =
+            resolve_command(&spec, &args(&["issues", "get-issue"]), &empty_crud()).unwrap();
         assert_eq!(op.operation_id, "getIssue");
         assert!(remaining.is_empty());
     }
@@ -391,8 +412,12 @@ mod tests {
     #[test]
     fn resolve_command_returns_remaining_args() {
         let spec = test_spec();
-        let (op, remaining) =
-            resolve_command(&spec, &args(&["issues", "get-issue", "--expand", "names"]), &empty_crud()).unwrap();
+        let (op, remaining) = resolve_command(
+            &spec,
+            &args(&["issues", "get-issue", "--expand", "names"]),
+            &empty_crud(),
+        )
+        .unwrap();
         assert_eq!(op.operation_id, "getIssue");
         assert_eq!(remaining, vec!["--expand", "names"]);
     }
@@ -421,7 +446,8 @@ mod tests {
     #[test]
     fn resolve_command_error_on_unknown_operation() {
         let spec = test_spec();
-        let err = resolve_command(&spec, &args(&["issues", "nonexistent"]), &empty_crud()).unwrap_err();
+        let err =
+            resolve_command(&spec, &args(&["issues", "nonexistent"]), &empty_crud()).unwrap_err();
         let msg = format!("{err}");
         assert!(
             msg.contains("Unknown operation"),
@@ -463,10 +489,51 @@ mod tests {
     }
 
     #[test]
+    fn fuzzy_match_suggests_typos() {
+        let candidates = vec![
+            "issues".to_string(),
+            "projects".to_string(),
+            "search".to_string(),
+        ];
+        let matches = find_close_matches("isues", &candidates);
+        assert!(
+            matches.contains(&"issues".to_string()),
+            "Should suggest 'issues' for 'isues': {:?}",
+            matches
+        );
+    }
+
+    #[test]
+    fn fuzzy_match_suggests_search_typo() {
+        let candidates = vec![
+            "issues".to_string(),
+            "search".to_string(),
+            "projects".to_string(),
+        ];
+        let matches = find_close_matches("seach", &candidates);
+        assert!(
+            matches.contains(&"search".to_string()),
+            "Should suggest 'search' for 'seach': {:?}",
+            matches
+        );
+    }
+
+    #[test]
+    fn fuzzy_match_rejects_distant_input() {
+        let candidates = vec!["issues".to_string(), "projects".to_string()];
+        let matches = find_close_matches("completely_wrong_name", &candidates);
+        assert!(
+            matches.is_empty(),
+            "Should return no matches for distant input: {:?}",
+            matches
+        );
+    }
+
+    #[test]
     fn route_product_produces_resolved_command() {
         let spec = test_spec();
-        let resolved =
-            route_product(&Product::Jira, &spec, &args(&["issues", "create-issue"])).unwrap();
+        // Use CRUD verb "create" (createIssue is now CRUD-mapped)
+        let resolved = route_product(&Product::Jira, &spec, &args(&["issues", "create"])).unwrap();
         assert_eq!(resolved.product, Product::Jira);
         assert_eq!(resolved.operation.operation_id, "createIssue");
         assert_eq!(

@@ -304,8 +304,14 @@ mod tests {
 
     #[test]
     fn extract_multiple_flags() {
-        let (sh, jql, remaining) =
-            extract_jql_flags(&s(&["--project", "KAN", "--status", "Open", "--assignee", "me"]));
+        let (sh, jql, remaining) = extract_jql_flags(&s(&[
+            "--project",
+            "KAN",
+            "--status",
+            "Open",
+            "--assignee",
+            "me",
+        ]));
         assert_eq!(sh.project.as_deref(), Some("KAN"));
         assert_eq!(sh.status.as_deref(), Some("Open"));
         assert_eq!(sh.assignee.as_deref(), Some("me"));
@@ -325,7 +331,12 @@ mod tests {
     #[test]
     fn extract_mixed_with_non_jql_flags() {
         let (sh, _jql, remaining) = extract_jql_flags(&s(&[
-            "--expand", "names", "--project", "KAN", "--fields", "summary",
+            "--expand",
+            "names",
+            "--project",
+            "KAN",
+            "--fields",
+            "summary",
         ]));
         assert_eq!(sh.project.as_deref(), Some("KAN"));
         assert_eq!(remaining, s(&["--expand", "names", "--fields", "summary"]));
@@ -358,7 +369,10 @@ mod tests {
         let (sh, _, remaining) =
             extract_jql_flags(&s(&["--project", "KAN", "--", "--status", "Open"]));
         assert_eq!(sh.project.as_deref(), Some("KAN"));
-        assert!(sh.status.is_none(), "--status after -- should not be extracted");
+        assert!(
+            sh.status.is_none(),
+            "--status after -- should not be extracted"
+        );
         assert_eq!(remaining, s(&["--", "--status", "Open"]));
     }
 

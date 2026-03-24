@@ -25,6 +25,8 @@ const MAX_PAGES: u32 = 1000;
 pub struct ParsedArgs {
     pub path_params: HashMap<String, String>,
     pub query_params: Vec<(String, String)>,
+    pub header_params: HashMap<String, String>,
+    pub cookie_params: HashMap<String, String>,
     pub body: Option<String>,
 }
 
@@ -48,6 +50,8 @@ pub fn parse_args(
 ) -> Result<ParsedArgs, ShrugError> {
     let mut path_params = HashMap::new();
     let mut query_params = Vec::new();
+    let mut header_params = HashMap::new();
+    let mut cookie_params = HashMap::new();
 
     // Build lookup: normalised flag name → (original param name, location)
     let param_lookup: HashMap<String, (String, ParameterLocation)> = operation
@@ -99,12 +103,11 @@ pub fn parse_args(
             ParameterLocation::Query => {
                 query_params.push((original_name.clone(), value));
             }
-            ParameterLocation::Header | ParameterLocation::Cookie => {
-                // Header and cookie params are deferred (audit: can safely defer)
-                tracing::debug!(
-                    param = original_name,
-                    "Skipping header/cookie parameter (not yet supported)"
-                );
+            ParameterLocation::Header => {
+                header_params.insert(original_name.clone(), value);
+            }
+            ParameterLocation::Cookie => {
+                cookie_params.insert(original_name.clone(), value);
             }
         }
 
@@ -137,8 +140,30 @@ pub fn parse_args(
     Ok(ParsedArgs {
         path_params,
         query_params,
+        header_params,
+        cookie_params,
         body,
     })
+}
+
+/// Extract --json flag and its value from args, returning the body and cleaned args.
+pub fn extract_json_body(args: &[String]) -> (Option<String>, Vec<String>) {
+    let mut body = None;
+    let mut cleaned = Vec::new();
+    let mut i = 0;
+    while i < args.len() {
+        if args[i] == "--json" {
+            i += 1;
+            if i < args.len() {
+                body = Some(args[i].clone());
+            }
+            i += 1;
+        } else {
+            cleaned.push(args[i].clone());
+            i += 1;
+        }
+    }
+    (body, cleaned)
 }
 
 /// Resolve the effective base URL for a request.
@@ -228,6 +253,7 @@ enum SendResult {
 
 /// Send a single HTTP request and categorise the result.
 /// Does NOT retry — just sends and maps the response.
+#[allow(clippy::too_many_arguments)]
 fn send_request(
     client: &Client,
     method: reqwest::Method,
@@ -236,6 +262,8 @@ fn send_request(
     body: Option<&str>,
     is_final_attempt: bool,
     extra_headers: &[(&str, &str)],
+    user_headers: &HashMap<String, String>,
+    user_cookies: &HashMap<String, String>,
 ) -> SendResult {
     // Build request
     let mut request = client.request(method, url);
@@ -250,6 +278,21 @@ fn send_request(
     // Apply quirk headers (after defaults, so they can override if needed)
     for (key, value) in extra_headers {
         request = request.header(*key, *value);
+    }
+
+    // Apply user-specified header parameters
+    for (key, value) in user_headers {
+        request = request.header(key, value);
+    }
+
+    // Apply user-specified cookie parameters
+    if !user_cookies.is_empty() {
+        let cookie_str: String = user_cookies
+            .iter()
+            .map(|(k, v)| format!("{}={}", k, v))
+            .collect::<Vec<_>>()
+            .join("; ");
+        request = request.header("Cookie", cookie_str);
     }
 
     // Send
@@ -307,6 +350,7 @@ fn send_request(
 }
 
 /// Execute a single HTTP request with retry logic. Returns the response body.
+#[allow(clippy::too_many_arguments)]
 fn execute_with_retry(
     client: &Client,
     method: reqwest::Method,
@@ -314,6 +358,8 @@ fn execute_with_retry(
     credential: Option<&ResolvedCredential>,
     body: Option<&str>,
     extra_headers: &[(&str, &str)],
+    user_headers: &HashMap<String, String>,
+    user_cookies: &HashMap<String, String>,
 ) -> Result<Option<String>, ShrugError> {
     let max_attempts = MAX_RETRIES + 1;
     let mut last_error = None;
@@ -331,6 +377,8 @@ fn execute_with_retry(
             body,
             is_final,
             extra_headers,
+            user_headers,
+            user_cookies,
         ) {
             SendResult::Success(response_body) => return Ok(response_body),
             SendResult::Fatal(err) => return Err(err),
@@ -357,13 +405,9 @@ fn execute_with_retry(
         }
     }
 
-    Err(last_error.unwrap_or_else(|| {
-        ShrugError::NetworkError(
-            reqwest::blocking::Client::new()
-                .get("http://invalid")
-                .send()
-                .unwrap_err(),
-        )
+    Err(last_error.unwrap_or_else(|| ShrugError::ServerError {
+        status: 0,
+        message: "Request failed after retries with no error captured".into(),
     }))
 }
 
@@ -398,7 +442,6 @@ pub fn execute(
     is_tty: bool,
     color_enabled: bool,
     fields: Option<&[String]>,
-    pager: bool,
 ) -> Result<(), ShrugError> {
     let base_url = resolve_base_url(command.server_url.as_deref(), credential);
     let full_url = build_full_url(
@@ -454,6 +497,8 @@ pub fn execute(
             &style,
             limit,
             extra_headers,
+            &args.header_params,
+            &args.cookie_params,
             format,
             is_tty,
             color_enabled,
@@ -468,11 +513,13 @@ pub fn execute(
                 credential,
                 args.body.as_deref(),
                 extra_headers,
+                &args.header_params,
+                &args.cookie_params,
             )?;
             if let Some(body) = response_body {
                 let formatted =
                     output::format_response(&body, format, is_tty, color_enabled, fields);
-                output::print_with_pager(&formatted, pager, is_tty);
+                println!("{}", formatted);
             }
             Ok(())
         }
@@ -493,6 +540,8 @@ fn execute_paginated(
     style: &analysis::PaginationStyle,
     limit: Option<u32>,
     extra_headers: &[(&str, &str)],
+    user_headers: &HashMap<String, String>,
+    user_cookies: &HashMap<String, String>,
     format: &OutputFormat,
     is_tty: bool,
     color_enabled: bool,
@@ -548,6 +597,8 @@ fn execute_paginated(
             credential,
             body,
             extra_headers,
+            user_headers,
+            user_cookies,
         )?;
 
         let body_text = match response_body {
@@ -990,6 +1041,7 @@ mod tests {
                 required: true,
                 description: None,
                 content_types: vec!["application/json".to_string()],
+                properties: vec![],
             }),
         );
         let body = r#"{"fields":{"summary":"Test"}}"#.to_string();
@@ -1008,6 +1060,7 @@ mod tests {
                 required: true,
                 description: None,
                 content_types: vec!["application/json".to_string()],
+                properties: vec![],
             }),
         );
         let result = parse_args(&op, &[], None);
@@ -1070,6 +1123,7 @@ mod tests {
                 required: false,
                 description: None,
                 content_types: vec!["application/json".to_string()],
+                properties: vec![],
             }),
         );
         let args = vec!["--id".into(), "123".into()];
@@ -1655,5 +1709,63 @@ mod tests {
         assert_eq!(max_count, 1);
         // jql should be preserved
         assert!(params.iter().any(|(k, _)| k == "jql"));
+    }
+
+    #[test]
+    fn parse_args_header_params_collected() {
+        let op = make_op(
+            "testOp",
+            HttpMethod::Get,
+            "/test",
+            vec![
+                Parameter {
+                    name: "X-Custom-Header".to_string(),
+                    location: ParameterLocation::Header,
+                    required: false,
+                    description: None,
+                    schema_type: Some("string".to_string()),
+                },
+                query_param("filter", false),
+            ],
+            None,
+        );
+        let args = parse_args(
+            &op,
+            &[
+                "--X-Custom-Header".to_string(),
+                "my-value".to_string(),
+                "--filter".to_string(),
+                "active".to_string(),
+            ],
+            None,
+        )
+        .unwrap();
+        assert_eq!(
+            args.header_params.get("X-Custom-Header").unwrap(),
+            "my-value"
+        );
+        assert!(args
+            .query_params
+            .iter()
+            .any(|(k, v)| k == "filter" && v == "active"));
+    }
+
+    #[test]
+    fn parse_args_cookie_params_collected() {
+        let op = make_op(
+            "testOp",
+            HttpMethod::Get,
+            "/test",
+            vec![Parameter {
+                name: "session".to_string(),
+                location: ParameterLocation::Cookie,
+                required: false,
+                description: None,
+                schema_type: Some("string".to_string()),
+            }],
+            None,
+        );
+        let args = parse_args(&op, &["--session".to_string(), "abc123".to_string()], None).unwrap();
+        assert_eq!(args.cookie_params.get("session").unwrap(), "abc123");
     }
 }

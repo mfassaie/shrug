@@ -120,19 +120,14 @@ impl CredentialStore {
     /// Store token in a permission-restricted file (chmod 600).
     /// Fallback when keychain is unavailable and the user doesn't want
     /// an encryption password. Less secure than keychain but works everywhere.
-    pub fn store_token_file(
-        &self,
-        profile_name: &str,
-        token: &str,
-    ) -> Result<(), ShrugError> {
+    pub fn store_token_file(&self, profile_name: &str, token: &str) -> Result<(), ShrugError> {
         let path = self.token_file_path(profile_name);
         let tmp = self
             .credentials_dir
             .join(format!("{}.token.tmp", profile_name));
 
-        fs::write(&tmp, token).map_err(|e| {
-            ShrugError::AuthError(format!("Failed to write token file: {}", e))
-        })?;
+        fs::write(&tmp, token)
+            .map_err(|e| ShrugError::AuthError(format!("Failed to write token file: {}", e)))?;
 
         // Set file permissions to owner-only (Unix)
         #[cfg(unix)]
@@ -558,8 +553,7 @@ impl CredentialStore {
     }
 
     fn token_file_path(&self, profile_name: &str) -> PathBuf {
-        self.credentials_dir
-            .join(format!("{}.token", profile_name))
+        self.credentials_dir.join(format!("{}.token", profile_name))
     }
 
     fn oauth_token_file_path(&self, profile_name: &str) -> PathBuf {

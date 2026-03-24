@@ -1,23 +1,24 @@
 //! CRUD verb mapping layer.
 //!
 //! Scans an ApiSpec and identifies which operations map to standard CRUD verbs
-//! (list, get, delete) per entity/tag. create and update are deferred until
-//! body decomposition lands.
+//! (list, create, get, update, delete) per entity/tag.
 
 use std::collections::HashMap;
 
 use crate::spec::model::{ApiSpec, HttpMethod, Operation, ParameterLocation};
 
 /// CRUD verb names recognised by the router.
-pub const CRUD_VERBS: &[&str] = &["list", "get", "delete"];
+pub const CRUD_VERBS: &[&str] = &["list", "create", "get", "update", "delete"];
 
 /// CRUD mappings for a single entity (tag/command group).
 #[derive(Debug, Clone)]
 pub struct CrudMapping {
     pub list: Option<Operation>,
+    pub create: Option<Operation>,
     pub get: Option<Operation>,
+    pub update: Option<Operation>,
     pub delete: Option<Operation>,
-    /// The path parameter name used for get/delete (e.g., "issueIdOrKey", "id").
+    /// The path parameter name used for get/update/delete (e.g., "issueIdOrKey", "id").
     pub id_param: Option<String>,
 }
 
@@ -25,7 +26,9 @@ impl CrudMapping {
     fn new() -> Self {
         Self {
             list: None,
+            create: None,
             get: None,
+            update: None,
             delete: None,
             id_param: None,
         }
@@ -35,7 +38,9 @@ impl CrudMapping {
     pub fn resolve(&self, verb: &str) -> Option<&Operation> {
         match verb {
             "list" => self.list.as_ref(),
+            "create" => self.create.as_ref(),
             "get" => self.get.as_ref(),
+            "update" => self.update.as_ref(),
             "delete" => self.delete.as_ref(),
             _ => None,
         }
@@ -43,7 +48,7 @@ impl CrudMapping {
 
     /// Whether this verb requires a positional ID argument.
     pub fn verb_needs_id(verb: &str) -> bool {
-        matches!(verb, "get" | "delete")
+        matches!(verb, "get" | "update" | "delete")
     }
 }
 
@@ -132,6 +137,33 @@ pub fn build_crud_mappings(spec: &ApiSpec) -> HashMap<String, CrudMapping> {
             mapping.list = Some((*op).clone());
         }
 
+        // Find create: POST without path parameters (collection endpoint)
+        let mut create_candidates: Vec<&&Operation> = ops
+            .iter()
+            .filter(|op| op.method == HttpMethod::Post && !has_path_param(op) && !op.deprecated)
+            .collect();
+        sort_candidates(&mut create_candidates);
+        if let Some(op) = create_candidates.first() {
+            mapping.create = Some((**op).clone());
+        }
+
+        // Find update: PUT or PATCH with path parameter
+        let mut update_candidates: Vec<&&Operation> = ops
+            .iter()
+            .filter(|op| {
+                (op.method == HttpMethod::Put || op.method == HttpMethod::Patch)
+                    && has_path_param(op)
+                    && !op.deprecated
+            })
+            .collect();
+        sort_candidates(&mut update_candidates);
+        if let Some(op) = update_candidates.first() {
+            if mapping.id_param.is_none() {
+                mapping.id_param = first_path_param(op).map(|p| p.name.clone());
+            }
+            mapping.update = Some((**op).clone());
+        }
+
         mappings.insert(tag.clone(), mapping);
     }
 
@@ -159,7 +191,6 @@ fn is_list_pattern(operation_id: &str) -> bool {
         || lower.starts_with("list")
         || lower.starts_with("getall")
         || lower.starts_with("get_all")
-        || lower.contains("search")
 }
 
 /// Sort operation candidates: prefer non-deprecated, then shorter paths.
@@ -175,15 +206,38 @@ fn sort_candidates(candidates: &mut [&&Operation]) {
 pub fn format_crud_line(verb: &str, mapping: &CrudMapping) -> Option<String> {
     let op = mapping.resolve(verb)?;
     let summary = op.summary.as_deref().unwrap_or("");
+    let body_hint = match op.request_body.as_ref() {
+        Some(rb) if rb.required && !rb.properties.is_empty() => {
+            let props: Vec<String> = rb
+                .properties
+                .iter()
+                .take(5)
+                .map(|p| {
+                    if p.required {
+                        format!("{}*", p.name)
+                    } else {
+                        p.name.clone()
+                    }
+                })
+                .collect();
+            format!(" [body: {}]", props.join(", "))
+        }
+        Some(rb) if rb.required => " [body required]".to_string(),
+        _ => String::new(),
+    };
     if CrudMapping::verb_needs_id(verb) {
-        let id_name = mapping
-            .id_param
-            .as_deref()
-            .unwrap_or("ID")
-            .to_uppercase();
-        Some(format!("  {verb} <{id_name}>{:<width$} {summary}", "", width = 30 - verb.len() - id_name.len() - 3))
+        let id_name = mapping.id_param.as_deref().unwrap_or("ID").to_uppercase();
+        Some(format!(
+            "  {verb} <{id_name}>{:<width$} {summary}{body_hint}",
+            "",
+            width = 30 - verb.len() - id_name.len() - 3
+        ))
     } else {
-        Some(format!("  {verb}{:<width$} {summary}", "", width = 34 - verb.len()))
+        Some(format!(
+            "  {verb}{:<width$} {summary}{body_hint}",
+            "",
+            width = 34 - verb.len()
+        ))
     }
 }
 
@@ -235,9 +289,12 @@ mod tests {
 
     #[test]
     fn maps_get_by_method_and_path_param() {
-        let spec = make_spec(vec![
-            make_op("getIssue", HttpMethod::Get, "/issues/{issueId}", "issues"),
-        ]);
+        let spec = make_spec(vec![make_op(
+            "getIssue",
+            HttpMethod::Get,
+            "/issues/{issueId}",
+            "issues",
+        )]);
         let mappings = build_crud_mappings(&spec);
         let m = mappings.get("issues").unwrap();
         assert!(m.get.is_some());
@@ -247,9 +304,12 @@ mod tests {
 
     #[test]
     fn maps_delete_by_method() {
-        let spec = make_spec(vec![
-            make_op("deleteIssue", HttpMethod::Delete, "/issues/{issueId}", "issues"),
-        ]);
+        let spec = make_spec(vec![make_op(
+            "deleteIssue",
+            HttpMethod::Delete,
+            "/issues/{issueId}",
+            "issues",
+        )]);
         let mappings = build_crud_mappings(&spec);
         let m = mappings.get("issues").unwrap();
         assert!(m.delete.is_some());
@@ -285,18 +345,22 @@ mod tests {
     fn raw_fallback_unaffected() {
         // CRUD verbs are separate from raw operation ID matching
         assert!(is_crud_verb("list"));
+        assert!(is_crud_verb("create"));
         assert!(is_crud_verb("get"));
+        assert!(is_crud_verb("update"));
         assert!(is_crud_verb("delete"));
         assert!(!is_crud_verb("get-issue"));
-        assert!(!is_crud_verb("create"));
-        assert!(!is_crud_verb("update"));
+        assert!(!is_crud_verb("unknown"));
     }
 
     #[test]
     fn no_mapping_for_missing_verbs() {
-        let spec = make_spec(vec![
-            make_op("getIssue", HttpMethod::Get, "/issues/{id}", "issues"),
-        ]);
+        let spec = make_spec(vec![make_op(
+            "getIssue",
+            HttpMethod::Get,
+            "/issues/{id}",
+            "issues",
+        )]);
         let mappings = build_crud_mappings(&spec);
         let m = mappings.get("issues").unwrap();
         assert!(m.get.is_some());
@@ -321,7 +385,50 @@ mod tests {
     #[test]
     fn verb_needs_id_correct() {
         assert!(CrudMapping::verb_needs_id("get"));
+        assert!(CrudMapping::verb_needs_id("update"));
         assert!(CrudMapping::verb_needs_id("delete"));
         assert!(!CrudMapping::verb_needs_id("list"));
+        assert!(!CrudMapping::verb_needs_id("create"));
+    }
+
+    #[test]
+    fn maps_create_by_post_without_path_param() {
+        let spec = make_spec(vec![
+            make_op("createIssue", HttpMethod::Post, "/issues", "issues"),
+            make_op("getIssue", HttpMethod::Get, "/issues/{id}", "issues"),
+        ]);
+        let mappings = build_crud_mappings(&spec);
+        let m = mappings.get("issues").unwrap();
+        assert!(m.create.is_some());
+        assert_eq!(m.create.as_ref().unwrap().operation_id, "createIssue");
+    }
+
+    #[test]
+    fn maps_update_by_put_with_path_param() {
+        let spec = make_spec(vec![
+            make_op("updateIssue", HttpMethod::Put, "/issues/{id}", "issues"),
+            make_op("getIssue", HttpMethod::Get, "/issues/{id}", "issues"),
+        ]);
+        let mappings = build_crud_mappings(&spec);
+        let m = mappings.get("issues").unwrap();
+        assert!(m.update.is_some());
+        assert_eq!(m.update.as_ref().unwrap().operation_id, "updateIssue");
+    }
+
+    #[test]
+    fn is_list_pattern_matches_search_prefix() {
+        assert!(is_list_pattern("searchIssuesUsingJql"));
+        assert!(is_list_pattern("searchAndReconsileIssuesUsingJql"));
+        assert!(is_list_pattern("listProjects"));
+        assert!(is_list_pattern("getAllIssueTypes"));
+        assert!(is_list_pattern("get_all_users"));
+    }
+
+    #[test]
+    fn is_list_pattern_rejects_search_substring() {
+        // Fixed: broad .contains("search") was matching non-list operations
+        assert!(!is_list_pattern("getSearchRequestsByEventType"));
+        assert!(!is_list_pattern("deleteSearchFilter"));
+        assert!(!is_list_pattern("updateSearchRequest"));
     }
 }

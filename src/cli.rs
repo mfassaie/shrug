@@ -30,10 +30,6 @@ pub struct Cli {
     #[arg(short = 'L', long, global = true)]
     pub limit: Option<u32>,
 
-    /// Pipe output through a pager (e.g., less)
-    #[arg(long, global = true)]
-    pub pager: bool,
-
     /// Suppress non-essential output
     #[arg(short = 'q', long, global = true)]
     pub quiet: bool,
@@ -132,6 +128,24 @@ pub enum ProfileCommands {
     Get {
         /// Profile name
         name: String,
+    },
+
+    /// Update an existing profile
+    Update {
+        /// Profile name
+        name: String,
+
+        /// New site URL
+        #[arg(long)]
+        site: Option<String>,
+
+        /// New email address
+        #[arg(long)]
+        email: Option<String>,
+
+        /// New authentication type
+        #[arg(long, value_enum)]
+        auth_type: Option<AuthType>,
     },
 
     /// Delete a profile
@@ -318,7 +332,14 @@ mod tests {
     fn jql_flags_pass_through_trailing_args() {
         // JQL flags after product subcommand should appear in trailing args
         let cli = Cli::try_parse_from([
-            "shrug", "jira", "issues", "list", "--project", "KAN", "--status", "Open",
+            "shrug",
+            "jira",
+            "issues",
+            "list",
+            "--project",
+            "KAN",
+            "--status",
+            "Open",
         ])
         .unwrap();
         match cli.command {

@@ -155,10 +155,15 @@ fn parse_paths(doc: &Value) -> Result<Vec<Operation>, ShrugError> {
                         .and_then(|v| v.as_object())
                         .map(|obj| obj.keys().cloned().collect())
                         .unwrap_or_default();
+
+                    // Extract top-level schema properties from application/json content
+                    let properties = extract_body_properties(rb);
+
                     RequestBody {
                         required,
                         description: rb_description,
                         content_types,
+                        properties,
                     }
                 });
 
@@ -178,6 +183,57 @@ fn parse_paths(doc: &Value) -> Result<Vec<Operation>, ShrugError> {
     }
 
     Ok(operations)
+}
+
+/// Extract top-level schema properties from a request body's JSON content.
+fn extract_body_properties(rb: &Value) -> Vec<BodyProperty> {
+    let schema = rb.pointer("/content/application~1json/schema").or_else(|| {
+        // Some specs use other JSON content types
+        rb.get("content")
+            .and_then(|c| c.as_object())
+            .and_then(|obj| obj.iter().find(|(k, _)| k.contains("json")).map(|(_, v)| v))
+            .and_then(|v| v.get("schema"))
+    });
+
+    let schema = match schema {
+        Some(s) => s,
+        None => return Vec::new(),
+    };
+
+    let required_fields: Vec<String> = schema
+        .get("required")
+        .and_then(|r| r.as_array())
+        .map(|arr| {
+            arr.iter()
+                .filter_map(|v| v.as_str().map(String::from))
+                .collect()
+        })
+        .unwrap_or_default();
+
+    let props = match schema.get("properties").and_then(|p| p.as_object()) {
+        Some(p) => p,
+        None => return Vec::new(),
+    };
+
+    props
+        .iter()
+        .map(|(name, prop_value)| {
+            let schema_type = prop_value
+                .get("type")
+                .and_then(|t| t.as_str())
+                .map(String::from);
+            let description = prop_value
+                .get("description")
+                .and_then(|d| d.as_str())
+                .map(String::from);
+            BodyProperty {
+                name: name.clone(),
+                schema_type,
+                required: required_fields.contains(name),
+                description,
+            }
+        })
+        .collect()
 }
 
 fn parse_parameters(params: &Value) -> Vec<Parameter> {

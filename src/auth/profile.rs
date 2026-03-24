@@ -199,6 +199,32 @@ impl ProfileStore {
         }
     }
 
+    /// Update an existing profile. Only non-None fields are changed.
+    pub fn update(
+        &self,
+        name: &str,
+        site: Option<&str>,
+        email: Option<&str>,
+        auth_type: Option<&AuthType>,
+    ) -> Result<Profile, ShrugError> {
+        let mut profile = self.get(name)?;
+
+        if let Some(new_site) = site {
+            Self::validate_site(new_site)?;
+            profile.site = Self::normalize_site(new_site);
+        }
+        if let Some(new_email) = email {
+            Self::validate_email(new_email)?;
+            profile.email = new_email.to_string();
+        }
+        if let Some(new_auth_type) = auth_type {
+            profile.auth_type = new_auth_type.clone();
+        }
+
+        self.write_profile_atomic(&profile)?;
+        Ok(profile)
+    }
+
     /// Check if a given profile name is the current default.
     pub fn is_default(&self, name: &str) -> bool {
         self.read_default_name()
@@ -653,5 +679,47 @@ mod tests {
     #[test]
     fn auth_type_default_is_basic_auth() {
         assert_eq!(AuthType::default(), AuthType::BasicAuth);
+    }
+
+    #[test]
+    fn update_partial_changes_only_specified_fields() {
+        let dir = tempfile::tempdir().unwrap();
+        let store = make_store(&dir);
+        store.create(&make_profile("work")).unwrap();
+
+        let updated = store
+            .update("work", Some("new-site.atlassian.net"), None, None)
+            .unwrap();
+        assert_eq!(updated.site, "https://new-site.atlassian.net");
+        assert_eq!(updated.email, "user@example.com"); // unchanged
+        assert_eq!(updated.auth_type, AuthType::BasicAuth); // unchanged
+    }
+
+    #[test]
+    fn update_all_fields() {
+        let dir = tempfile::tempdir().unwrap();
+        let store = make_store(&dir);
+        store.create(&make_profile("work")).unwrap();
+
+        let updated = store
+            .update(
+                "work",
+                Some("other.atlassian.net"),
+                Some("new@example.com"),
+                Some(&AuthType::OAuth2),
+            )
+            .unwrap();
+        assert_eq!(updated.site, "https://other.atlassian.net");
+        assert_eq!(updated.email, "new@example.com");
+        assert_eq!(updated.auth_type, AuthType::OAuth2);
+    }
+
+    #[test]
+    fn update_nonexistent_returns_error() {
+        let dir = tempfile::tempdir().unwrap();
+        let store = make_store(&dir);
+
+        let result = store.update("ghost", Some("x.atlassian.net"), None, None);
+        assert!(result.is_err());
     }
 }

@@ -134,9 +134,21 @@ pub fn format_operations_with_crud(
     // Show only unmapped raw operations below (hide CRUD-mapped ones)
     let crud_op_ids: Vec<String> = if let Some(mapping) = crud_mappings.get(tag) {
         let mut ids = Vec::new();
-        if let Some(op) = &mapping.list { ids.push(op.operation_id.clone()); }
-        if let Some(op) = &mapping.get { ids.push(op.operation_id.clone()); }
-        if let Some(op) = &mapping.delete { ids.push(op.operation_id.clone()); }
+        if let Some(op) = &mapping.list {
+            ids.push(op.operation_id.clone());
+        }
+        if let Some(op) = &mapping.create {
+            ids.push(op.operation_id.clone());
+        }
+        if let Some(op) = &mapping.get {
+            ids.push(op.operation_id.clone());
+        }
+        if let Some(op) = &mapping.update {
+            ids.push(op.operation_id.clone());
+        }
+        if let Some(op) = &mapping.delete {
+            ids.push(op.operation_id.clone());
+        }
         ids
     } else {
         Vec::new()
@@ -249,6 +261,7 @@ mod tests {
                         required: true,
                         description: None,
                         content_types: vec!["application/json".to_string()],
+                        properties: vec![],
                     }),
                 },
                 Operation {
@@ -320,9 +333,15 @@ mod tests {
         let output = format_operations(&spec, "issues");
         // CRUD-mapped ops appear as verbs, not raw IDs
         assert!(output.contains("get <"), "Should show CRUD get: {output}");
-        // Non-CRUD ops still show as raw
-        assert!(output.contains("create-issue"), "Should show unmapped raw op: {output}");
-        assert!(output.contains("POST"));
+        assert!(
+            output.contains("create"),
+            "Should show CRUD create: {output}"
+        );
+        // createIssue is now mapped to CRUD create, so it should NOT appear as raw
+        assert!(
+            !output.contains("create-issue"),
+            "createIssue should be CRUD-mapped, not raw: {output}"
+        );
     }
 
     #[test]

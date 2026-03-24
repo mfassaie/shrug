@@ -20,6 +20,5 @@ Options:
   -v, --verbose...         Increase verbosity (-v, -vv, -vvv for trace)
   -n, --dry-run            Dry run — show what would happen without making changes
   -L, --limit <LIMIT>      Maximum number of results to fetch (implies pagination)
-      --pager              Pipe output through a pager (e.g., less)
   -q, --quiet              Suppress non-essential output
   -h, --help               Print help

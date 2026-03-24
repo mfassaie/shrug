@@ -10,9 +10,27 @@ use chrono::{DateTime, Utc};
 use reqwest::blocking::Client;
 use serde::{Deserialize, Serialize};
 
+use std::collections::HashMap;
+
 use crate::auth::credentials::ResolvedCredential;
 use crate::error::ShrugError;
-use crate::helpers::parse_helper_args;
+
+/// Parse --key value pairs from args.
+fn parse_flag_args(args: &[String]) -> HashMap<String, String> {
+    let mut result = HashMap::new();
+    let mut i = 0;
+    while i < args.len() {
+        let arg = &args[i];
+        if let Some(key) = arg.strip_prefix("--") {
+            i += 1;
+            if i < args.len() {
+                result.insert(key.to_string(), args[i].clone());
+            }
+        }
+        i += 1;
+    }
+    result
+}
 
 const CACHE_TTL_SECONDS: i64 = 300; // 5 minutes
 
@@ -83,7 +101,7 @@ pub fn complete(
         "projects" => fetch_projects(client, credential),
         "spaces" => fetch_spaces(client, credential),
         "issues" => {
-            let parsed = parse_helper_args(extra_args);
+            let parsed = parse_flag_args(extra_args);
             let project = parsed.get("project").cloned().unwrap_or_default();
             if project.is_empty() {
                 return Vec::new();
