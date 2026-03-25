@@ -1,3 +1,9 @@
 pub const OK: i32 = 0;
 pub const ERROR: i32 = 1;
 pub const USAGE_ERROR: i32 = 2;
+pub const AUTH_ERROR: i32 = 4;
+pub const NOT_FOUND: i32 = 5;
+pub const PERMISSION_DENIED: i32 = 6;
+pub const RATE_LIMITED: i32 = 7;
+pub const SERVER_ERROR: i32 = 8;
+pub const NETWORK_ERROR: i32 = 9;

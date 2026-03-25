@@ -221,6 +221,7 @@ pub fn execute(
     output_format: &OutputFormat,
     color: &ColorChoice,
     limit: Option<u32>,
+    dry_run: bool,
 ) -> Result<(), ShrugError> {
     let base_url = http::build_base_url(credential);
     let color_enabled = match color {
@@ -262,28 +263,60 @@ pub fn execute(
             if let Some(ref q) = jql_query {
                 request_body["jql"] = json!(q);
             }
-            if let Some(lim) = limit {
-                request_body["maxResults"] = json!(lim);
-            }
             if let Some(ref f) = fields {
                 request_body["fields"] = json!(f);
             }
 
-            let result = http::execute_request(
-                client,
-                Method::POST,
-                &url,
-                Some(credential),
-                Some(&request_body),
-                &[],
-            )?;
+            if dry_run {
+                http::dry_run_request(&Method::POST, &url, Some(&request_body));
+                return Ok(());
+            }
 
-            if let Some(ref json_val) = result {
+            // POST-based inline pagination
+            let page_size: u32 = 50;
+            let effective_limit = limit.unwrap_or(u32::MAX) as usize;
+            let mut all_issues: Vec<serde_json::Value> = Vec::new();
+            let mut start_at: u64 = 0;
+
+            loop {
+                request_body["startAt"] = json!(start_at);
+                request_body["maxResults"] = json!(page_size);
+
+                let result = http::execute_request(
+                    client, Method::POST, &url, Some(credential),
+                    Some(&request_body), &[],
+                )?;
+
+                let json_val = match result {
+                    Some(v) => v,
+                    None => break,
+                };
+
+                let page_issues = crate::core::pagination::extract_results(&json_val)
+                    .cloned().unwrap_or_default();
+                let count = page_issues.len() as u32;
+
+                if count == 0 { break; }
+
+                all_issues.extend(page_issues);
+
+                if all_issues.len() >= effective_limit {
+                    all_issues.truncate(effective_limit);
+                    break;
+                }
+
+                if !crate::core::pagination::has_more_offset(&json_val, start_at, count) {
+                    break;
+                }
+
+                start_at += count as u64;
+            }
+
+            let json_val = serde_json::Value::Array(all_issues);
+            if !json_val.as_array().is_none_or(|a| a.is_empty()) {
                 let formatted = output::format_response(
-                    &json_val.to_string(),
-                    output_format,
-                    is_terminal::is_terminal(std::io::stdout()),
-                    color_enabled,
+                    &json_val.to_string(), output_format,
+                    is_terminal::is_terminal(std::io::stdout()), color_enabled,
                     fields.as_deref(),
                 );
                 println!("{}", formatted);
@@ -335,6 +368,12 @@ pub fn execute(
             };
 
             let url = format!("{}/rest/api/3/issue", base_url);
+
+            if dry_run {
+                http::dry_run_request(&Method::POST, &url, Some(&request_body));
+                return Ok(());
+            }
+
             let result = http::execute_request(
                 client,
                 Method::POST,
@@ -371,6 +410,11 @@ pub fn execute(
                 &path_params,
                 &[],
             );
+
+            if dry_run {
+                http::dry_run_request(&Method::GET, &url, None);
+                return Ok(());
+            }
 
             let result = http::execute_request(
                 client,
@@ -447,6 +491,11 @@ pub fn execute(
                 &[],
             );
 
+            if dry_run {
+                http::dry_run_request(&Method::PUT, &url, Some(&request_body));
+                return Ok(());
+            }
+
             http::execute_request(
                 client,
                 Method::PUT,
@@ -466,10 +515,6 @@ pub fn execute(
         }
 
         IssueCommands::Delete { key, yes } => {
-            if !yes && !confirm_delete(key)? {
-                return Ok(());
-            }
-
             let mut path_params = HashMap::new();
             path_params.insert("issueIdOrKey".to_string(), key.clone());
             let url = http::build_url(
@@ -478,6 +523,15 @@ pub fn execute(
                 &path_params,
                 &[],
             );
+
+            if dry_run {
+                http::dry_run_request(&Method::DELETE, &url, None);
+                return Ok(());
+            }
+
+            if !yes && !confirm_delete(key)? {
+                return Ok(());
+            }
 
             http::execute_request(
                 client,

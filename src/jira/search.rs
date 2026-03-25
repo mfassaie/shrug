@@ -92,6 +92,7 @@ pub fn execute(
     output_format: &OutputFormat,
     color: &ColorChoice,
     limit: Option<u32>,
+    dry_run: bool,
 ) -> Result<(), ShrugError> {
     let base_url = http::build_base_url(credential);
     let color_enabled = match color {
@@ -141,29 +142,64 @@ pub fn execute(
                 )
             };
 
-            let request_body = build_search_body(
+            let mut request_body = build_search_body(
                 resolved_jql.as_deref(),
-                limit,
+                None, // pagination controls maxResults per-page
                 fields.as_deref(),
                 expand.as_deref(),
             );
 
             let url = format!("{}/rest/api/3/search", base_url);
-            let result = http::execute_request(
-                client,
-                Method::POST,
-                &url,
-                Some(credential),
-                Some(&request_body),
-                &[],
-            )?;
 
-            if let Some(ref json_val) = result {
+            if dry_run {
+                http::dry_run_request(&Method::POST, &url, Some(&request_body));
+                return Ok(());
+            }
+
+            // POST-based inline pagination
+            let page_size: u32 = 50;
+            let effective_limit = limit.unwrap_or(u32::MAX) as usize;
+            let mut all_issues: Vec<serde_json::Value> = Vec::new();
+            let mut start_at: u64 = 0;
+
+            loop {
+                request_body["startAt"] = json!(start_at);
+                request_body["maxResults"] = json!(page_size);
+
+                let result = http::execute_request(
+                    client, Method::POST, &url, Some(credential),
+                    Some(&request_body), &[],
+                )?;
+
+                let json_val = match result {
+                    Some(v) => v,
+                    None => break,
+                };
+
+                let page_issues = crate::core::pagination::extract_results(&json_val)
+                    .cloned().unwrap_or_default();
+                let count = page_issues.len() as u32;
+
+                if count == 0 { break; }
+                all_issues.extend(page_issues);
+
+                if all_issues.len() >= effective_limit {
+                    all_issues.truncate(effective_limit);
+                    break;
+                }
+
+                if !crate::core::pagination::has_more_offset(&json_val, start_at, count) {
+                    break;
+                }
+
+                start_at += count as u64;
+            }
+
+            let json_val = serde_json::Value::Array(all_issues);
+            if !json_val.as_array().is_none_or(|a| a.is_empty()) {
                 let formatted = output::format_response(
-                    &json_val.to_string(),
-                    output_format,
-                    is_terminal::is_terminal(std::io::stdout()),
-                    color_enabled,
+                    &json_val.to_string(), output_format,
+                    is_terminal::is_terminal(std::io::stdout()), color_enabled,
                     fields.as_deref(),
                 );
                 println!("{}", formatted);

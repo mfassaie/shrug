@@ -138,34 +138,32 @@ pub fn execute(
     base_url: &str,
     output_format: &OutputFormat,
     color_enabled: bool,
+    dry_run: bool,
 ) -> Result<(), ShrugError> {
     match cmd {
         ComponentCommands::List { project_key } => {
             let mut path_params = HashMap::new();
             path_params.insert("projectIdOrKey".to_string(), project_key.clone());
-            let url = http::build_url(
+            let url_base = http::build_url(
                 base_url,
                 "/rest/api/3/project/{projectIdOrKey}/component",
                 &path_params,
                 &[],
             );
 
-            let result = http::execute_request(
-                client,
-                Method::GET,
-                &url,
-                Some(credential),
-                None,
-                &[],
-            )?;
+            if dry_run {
+                http::dry_run_request(&Method::GET, &url_base, None);
+                return Ok(());
+            }
 
-            if let Some(ref json_val) = result {
+            let results = http::execute_paginated_get(
+                client, &url_base, credential, &[], &[], None, 50, false,
+            )?;
+            let json_val = serde_json::Value::Array(results);
+            if !json_val.as_array().is_none_or(|a| a.is_empty()) {
                 let formatted = output::format_response(
-                    &json_val.to_string(),
-                    output_format,
-                    is_terminal::is_terminal(std::io::stdout()),
-                    color_enabled,
-                    None,
+                    &json_val.to_string(), output_format,
+                    is_terminal::is_terminal(std::io::stdout()), color_enabled, None,
                 );
                 println!("{}", formatted);
             }
@@ -194,6 +192,12 @@ pub fn execute(
             );
 
             let url = format!("{}/rest/api/3/component", base_url);
+
+            if dry_run {
+                http::dry_run_request(&Method::POST, &url, Some(&request_body));
+                return Ok(());
+            }
+
             let result = http::execute_request(
                 client,
                 Method::POST,

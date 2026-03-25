@@ -144,11 +144,13 @@ fn test_version_format() {
         "Version should start with 'shrug ', got: {}",
         version
     );
-    let parts: Vec<&str> = version.strip_prefix("shrug ").unwrap().split('.').collect();
+    let ver_str = version.strip_prefix("shrug ").unwrap();
+    let base = ver_str.split('-').next().unwrap();
+    let parts: Vec<&str> = base.split('.').collect();
     assert_eq!(
         parts.len(),
         3,
-        "Version should have 3 parts (X.Y.Z), got: {}",
+        "Version base should have 3 parts (X.Y.Z), got: {}",
         version
     );
 }

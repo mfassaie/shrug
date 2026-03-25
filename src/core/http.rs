@@ -132,6 +132,114 @@ pub fn execute_request(
     })
 }
 
+/// Print a dry-run representation of a request without executing it.
+///
+/// Writes method, URL, and optional body to stderr, then returns.
+pub fn dry_run_request(method: &Method, url: &str, body: Option<&serde_json::Value>) {
+    eprintln!("{} {}", method, url);
+    if let Some(b) = body {
+        if let Ok(pretty) = serde_json::to_string_pretty(b) {
+            eprintln!("{}", pretty);
+        }
+    }
+}
+
+/// Execute a paginated GET request, accumulating results across pages.
+///
+/// For offset-based pagination (Jira, JSW): increments startAt query param.
+/// For cursor-based pagination (Confluence v2): follows cursor from response.
+#[allow(clippy::too_many_arguments)]
+pub fn execute_paginated_get(
+    client: &Client,
+    url_without_query: &str,
+    credential: &ResolvedCredential,
+    query_params: &[(String, String)],
+    extra_headers: &[(&str, &str)],
+    limit: Option<u32>,
+    page_size: u32,
+    cursor_based: bool,
+) -> Result<Vec<serde_json::Value>, ShrugError> {
+    use crate::core::pagination;
+
+    let mut all_results: Vec<serde_json::Value> = Vec::new();
+    let mut offset: u64 = 0;
+    let mut cursor: Option<String> = None;
+    let effective_limit = limit.unwrap_or(u32::MAX) as usize;
+
+    // For cursor-based APIs, extract the base site URL for _links.next resolution
+    let site_prefix = if cursor_based {
+        // Extract scheme + host from url_without_query (e.g. "https://site.atlassian.net")
+        url::Url::parse(url_without_query)
+            .ok()
+            .map(|u| format!("{}://{}", u.scheme(), u.host_str().unwrap_or("")))
+            .unwrap_or_default()
+    } else {
+        String::new()
+    };
+
+    loop {
+        // Determine URL for this page
+        let url = if cursor_based {
+            if let Some(ref next_url) = cursor {
+                // _links.next is a relative URL like /wiki/api/v2/pages?cursor=...
+                // Resolve it against the site prefix
+                if next_url.starts_with("http://") || next_url.starts_with("https://") {
+                    next_url.clone()
+                } else {
+                    format!("{}{}", site_prefix, next_url)
+                }
+            } else {
+                // First page: construct from base URL + query params + limit
+                let mut first_params = query_params.to_vec();
+                first_params.push(("limit".to_string(), page_size.to_string()));
+                build_url(url_without_query, "", &std::collections::HashMap::new(), &first_params)
+            }
+        } else {
+            let mut page_params = query_params.to_vec();
+            page_params.push(("startAt".to_string(), offset.to_string()));
+            page_params.push(("maxResults".to_string(), page_size.to_string()));
+            build_url(url_without_query, "", &std::collections::HashMap::new(), &page_params)
+        };
+
+        let result = execute_request(client, Method::GET, &url, Some(credential), None, extra_headers)?;
+
+        let json = match result {
+            Some(v) => v,
+            None => break,
+        };
+
+        let page_results = pagination::extract_results(&json)
+            .cloned()
+            .unwrap_or_default();
+        let page_count = page_results.len() as u32;
+
+        if page_count == 0 {
+            break;
+        }
+
+        all_results.extend(page_results);
+
+        if all_results.len() >= effective_limit {
+            all_results.truncate(effective_limit);
+            break;
+        }
+
+        if cursor_based {
+            match pagination::extract_cursor(&json) {
+                Some(c) => cursor = Some(c),
+                None => break,
+            }
+        } else {
+            offset += page_count as u64;
+            if !pagination::has_more_offset(&json, offset - page_count as u64, page_count) {
+                break;
+            }
+        }
+    }
+
+    Ok(all_results)
+}
+
 /// Execute a request that returns a simple text/empty response (e.g., DELETE, POST with no body).
 pub fn execute_request_no_response(
     client: &Client,

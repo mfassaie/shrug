@@ -1,7 +1,7 @@
 //! Jira issue worklog sub-entity: LCRUD operations.
 //!
-//! Note: the --remaining flag (adjustEstimate query param) is not yet implemented.
-//! Only timeSpent, started, and comment (body) are supported in create/edit.
+//! Supports timeSpent, started, comment (body), and --remaining for
+//! adjusting the remaining estimate on create.
 
 use std::collections::HashMap;
 
@@ -38,6 +38,9 @@ pub enum WorklogCommands {
         /// Comment in markdown
         #[arg(short = 'b', long)]
         body: Option<String>,
+        /// Set remaining estimate (e.g., 4h, 1d). Adds adjustEstimate=new to the request.
+        #[arg(long)]
+        remaining: Option<String>,
     },
     /// View a specific worklog entry
     View {
@@ -160,6 +163,7 @@ pub fn execute(
             time,
             started,
             body,
+            remaining,
         } => {
             let request_body = build_create_body(
                 time,
@@ -169,11 +173,21 @@ pub fn execute(
 
             let mut path_params = HashMap::new();
             path_params.insert("issueIdOrKey".to_string(), issue_key.clone());
+
+            let query_params: Vec<(String, String)> = if let Some(ref est) = remaining {
+                vec![
+                    ("adjustEstimate".to_string(), "new".to_string()),
+                    ("newEstimate".to_string(), est.clone()),
+                ]
+            } else {
+                vec![]
+            };
+
             let url = http::build_url(
                 base_url,
                 "/rest/api/3/issue/{issueIdOrKey}/worklog",
                 &path_params,
-                &[],
+                &query_params,
             );
 
             let result = http::execute_request(
@@ -367,5 +381,24 @@ mod tests {
             url,
             "https://site.atlassian.net/rest/api/3/issue/TEAM-123/worklog/54321"
         );
+    }
+
+    #[test]
+    fn test_worklog_remaining_query_params() {
+        let mut path_params = HashMap::new();
+        path_params.insert("issueIdOrKey".to_string(), "TEAM-456".to_string());
+        let query_params = vec![
+            ("adjustEstimate".to_string(), "new".to_string()),
+            ("newEstimate".to_string(), "4h".to_string()),
+        ];
+        let url = http::build_url(
+            "https://site.atlassian.net",
+            "/rest/api/3/issue/{issueIdOrKey}/worklog",
+            &path_params,
+            &query_params,
+        );
+        assert!(url.contains("/rest/api/3/issue/TEAM-456/worklog"));
+        assert!(url.contains("adjustEstimate=new"));
+        assert!(url.contains("newEstimate=4h"));
     }
 }

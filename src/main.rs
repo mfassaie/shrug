@@ -6,7 +6,7 @@ use clap::Parser;
 use owo_colors::OwoColorize;
 
 use shrug::auth::credentials::ResolvedCredential;
-use shrug::cli::{Cli, ColorChoice, Commands, JiraCommands, JswCommands, ConfluenceCommands};
+use shrug::cli::{Cli, ColorChoice, OutputFormat, Commands, JiraCommands, JswCommands, ConfluenceCommands};
 use shrug::core::config::{self, ShrugConfig};
 use shrug::core::error::ShrugError;
 use shrug::core::logging;
@@ -45,6 +45,7 @@ fn run(config: &ShrugConfig, cli: &Cli) -> Result<(), ShrugError> {
                         &config.output_format,
                         &config.color,
                         cli.limit,
+                        cli.dry_run,
                     )
                 }
                 JiraCommands::Project { command: proj_cmd } => {
@@ -61,6 +62,7 @@ fn run(config: &ShrugConfig, cli: &Cli) -> Result<(), ShrugError> {
                         &config.output_format,
                         &config.color,
                         cli.limit,
+                        cli.dry_run,
                     )
                 }
                 JiraCommands::Filter { command: filter_cmd } => {
@@ -77,6 +79,7 @@ fn run(config: &ShrugConfig, cli: &Cli) -> Result<(), ShrugError> {
                         &config.output_format,
                         &config.color,
                         cli.limit,
+                        cli.dry_run,
                     )
                 }
                 JiraCommands::Dashboard { command: dash_cmd } => {
@@ -93,6 +96,7 @@ fn run(config: &ShrugConfig, cli: &Cli) -> Result<(), ShrugError> {
                         &config.output_format,
                         &config.color,
                         cli.limit,
+                        cli.dry_run,
                     )
                 }
                 JiraCommands::Label { command: label_cmd } => {
@@ -109,6 +113,7 @@ fn run(config: &ShrugConfig, cli: &Cli) -> Result<(), ShrugError> {
                         &config.output_format,
                         &config.color,
                         cli.limit,
+                        cli.dry_run,
                     )
                 }
                 JiraCommands::Audit { command: audit_cmd } => {
@@ -125,6 +130,7 @@ fn run(config: &ShrugConfig, cli: &Cli) -> Result<(), ShrugError> {
                         &config.output_format,
                         &config.color,
                         cli.limit,
+                        cli.dry_run,
                     )
                 }
                 JiraCommands::Search { command: search_cmd } => {
@@ -141,6 +147,7 @@ fn run(config: &ShrugConfig, cli: &Cli) -> Result<(), ShrugError> {
                         &config.output_format,
                         &config.color,
                         cli.limit,
+                        cli.dry_run,
                     )
                 }
             }
@@ -175,6 +182,7 @@ fn run(config: &ShrugConfig, cli: &Cli) -> Result<(), ShrugError> {
                         &config.output_format,
                         &config.color,
                         cli.limit,
+                        cli.dry_run,
                     )
                 }
                 JswCommands::Sprint { command: sprint_cmd } => {
@@ -191,6 +199,7 @@ fn run(config: &ShrugConfig, cli: &Cli) -> Result<(), ShrugError> {
                         &config.output_format,
                         &config.color,
                         cli.limit,
+                        cli.dry_run,
                     )
                 }
                 JswCommands::Epic { command: epic_cmd } => {
@@ -207,6 +216,7 @@ fn run(config: &ShrugConfig, cli: &Cli) -> Result<(), ShrugError> {
                         &config.output_format,
                         &config.color,
                         cli.limit,
+                        cli.dry_run,
                     )
                 }
             }
@@ -241,6 +251,7 @@ fn run(config: &ShrugConfig, cli: &Cli) -> Result<(), ShrugError> {
                         &config.output_format,
                         &config.color,
                         cli.limit,
+                        cli.dry_run,
                     )
                 }
                 ConfluenceCommands::Page { command: page_cmd } => {
@@ -257,6 +268,7 @@ fn run(config: &ShrugConfig, cli: &Cli) -> Result<(), ShrugError> {
                         &config.output_format,
                         &config.color,
                         cli.limit,
+                        cli.dry_run,
                     )
                 }
                 ConfluenceCommands::Blogpost { command: blogpost_cmd } => {
@@ -273,6 +285,7 @@ fn run(config: &ShrugConfig, cli: &Cli) -> Result<(), ShrugError> {
                         &config.output_format,
                         &config.color,
                         cli.limit,
+                        cli.dry_run,
                     )
                 }
                 ConfluenceCommands::Whiteboard { command: wb_cmd } => {
@@ -289,6 +302,7 @@ fn run(config: &ShrugConfig, cli: &Cli) -> Result<(), ShrugError> {
                         &config.output_format,
                         &config.color,
                         cli.limit,
+                        cli.dry_run,
                     )
                 }
                 ConfluenceCommands::Database { command: db_cmd } => {
@@ -305,6 +319,7 @@ fn run(config: &ShrugConfig, cli: &Cli) -> Result<(), ShrugError> {
                         &config.output_format,
                         &config.color,
                         cli.limit,
+                        cli.dry_run,
                     )
                 }
                 ConfluenceCommands::Folder { command: folder_cmd } => {
@@ -321,6 +336,7 @@ fn run(config: &ShrugConfig, cli: &Cli) -> Result<(), ShrugError> {
                         &config.output_format,
                         &config.color,
                         cli.limit,
+                        cli.dry_run,
                     )
                 }
                 ConfluenceCommands::CustomContent { command: cc_cmd } => {
@@ -337,6 +353,7 @@ fn run(config: &ShrugConfig, cli: &Cli) -> Result<(), ShrugError> {
                         &config.output_format,
                         &config.color,
                         cli.limit,
+                        cli.dry_run,
                     )
                 }
                 ConfluenceCommands::SmartLink { command: sl_cmd } => {
@@ -353,6 +370,7 @@ fn run(config: &ShrugConfig, cli: &Cli) -> Result<(), ShrugError> {
                         &config.output_format,
                         &config.color,
                         cli.limit,
+                        cli.dry_run,
                     )
                 }
                 ConfluenceCommands::Task { command: task_cmd } => {
@@ -369,6 +387,7 @@ fn run(config: &ShrugConfig, cli: &Cli) -> Result<(), ShrugError> {
                         &config.output_format,
                         &config.color,
                         cli.limit,
+                        cli.dry_run,
                     )
                 }
                 ConfluenceCommands::Search { command: search_cmd } => {
@@ -385,6 +404,7 @@ fn run(config: &ShrugConfig, cli: &Cli) -> Result<(), ShrugError> {
                         &config.output_format,
                         &config.color,
                         cli.limit,
+                        cli.dry_run,
                     )
                 }
             }
@@ -478,7 +498,9 @@ fn main() {
     match run(&config, &cli) {
         Ok(()) => std::process::exit(shrug::core::exit_codes::OK),
         Err(e) => {
-            if color_stderr {
+            if config.output_format == OutputFormat::Json {
+                eprintln!("{}", serde_json::to_string(&e.to_json()).unwrap_or_default());
+            } else if color_stderr {
                 eprintln!("{} {e}", "Error:".red());
                 eprintln!("{} {}", "Hint:".yellow(), e.remediation());
             } else {

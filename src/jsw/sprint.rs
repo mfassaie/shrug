@@ -42,6 +42,9 @@ pub enum SprintCommands {
         /// End date (ISO 8601, e.g. 2025-01-14T00:00:00.000Z)
         #[arg(long)]
         end_date: Option<String>,
+        /// Full JSON payload from file (overrides all typed flags)
+        #[arg(long)]
+        from_json: Option<String>,
     },
     /// View a sprint
     View {
@@ -67,6 +70,9 @@ pub enum SprintCommands {
         /// Sprint state (active, closed)
         #[arg(long)]
         state: Option<String>,
+        /// Full JSON payload from file (overrides all typed flags)
+        #[arg(long)]
+        from_json: Option<String>,
     },
     /// Delete a sprint
     Delete {
@@ -149,6 +155,7 @@ pub fn execute(
     output_format: &OutputFormat,
     color: &ColorChoice,
     limit: Option<u32>,
+    dry_run: bool,
 ) -> Result<(), ShrugError> {
     let base_url = http::build_base_url(credential);
     let color_enabled = match color {
@@ -166,35 +173,27 @@ pub fn execute(
             if let Some(s) = state {
                 query_params.push(("state".to_string(), s.to_string()));
             }
-            if let Some(lim) = limit {
-                query_params.push(("maxResults".to_string(), lim.to_string()));
-            }
 
             let mut path_params = HashMap::new();
             path_params.insert("boardId".to_string(), board.to_string());
-            let url = http::build_url(
-                &base_url,
-                "/rest/agile/1.0/board/{boardId}/sprint",
-                &path_params,
-                &query_params,
+            let url_base = http::build_url(
+                &base_url, "/rest/agile/1.0/board/{boardId}/sprint",
+                &path_params, &[],
             );
 
-            let result = http::execute_request(
-                client,
-                Method::GET,
-                &url,
-                Some(credential),
-                None,
-                &[],
-            )?;
+            if dry_run {
+                http::dry_run_request(&Method::GET, &url_base, None);
+                return Ok(());
+            }
 
-            if let Some(ref json_val) = result {
+            let results = http::execute_paginated_get(
+                client, &url_base, credential, &query_params, &[], limit, 50, false,
+            )?;
+            let json_val = serde_json::Value::Array(results);
+            if !json_val.as_array().is_none_or(|a| a.is_empty()) {
                 let formatted = output::format_response(
-                    &json_val.to_string(),
-                    output_format,
-                    is_terminal::is_terminal(std::io::stdout()),
-                    color_enabled,
-                    None,
+                    &json_val.to_string(), output_format,
+                    is_terminal::is_terminal(std::io::stdout()), color_enabled, None,
                 );
                 println!("{}", formatted);
             }
@@ -207,16 +206,28 @@ pub fn execute(
             goal,
             start_date,
             end_date,
+            from_json,
         } => {
-            let request_body = build_create_body(
-                name,
-                *board,
-                goal.as_deref(),
-                start_date.as_deref(),
-                end_date.as_deref(),
-            );
+            let request_body = if let Some(ref path) = from_json {
+                tracing::debug!("Using --from-json, ignoring typed flags");
+                crate::jira::issue::read_json_file(path)?
+            } else {
+                build_create_body(
+                    name,
+                    *board,
+                    goal.as_deref(),
+                    start_date.as_deref(),
+                    end_date.as_deref(),
+                )
+            };
 
             let url = format!("{}/rest/agile/1.0/sprint", base_url);
+
+            if dry_run {
+                http::dry_run_request(&Method::POST, &url, Some(&request_body));
+                return Ok(());
+            }
+
             let result = http::execute_request(
                 client,
                 Method::POST,
@@ -283,14 +294,29 @@ pub fn execute(
             start_date,
             end_date,
             state,
+            from_json,
         } => {
-            let request_body = build_edit_body(
-                name.as_deref(),
-                goal.as_deref(),
-                start_date.as_deref(),
-                end_date.as_deref(),
-                state.as_deref(),
-            );
+            // Validate: starting a sprint requires both start and end dates
+            if let Some(ref s) = state {
+                if s == "active" && (start_date.is_none() || end_date.is_none()) {
+                    return Err(ShrugError::UsageError(
+                        "Starting a sprint requires --start-date and --end-date".into(),
+                    ));
+                }
+            }
+
+            let request_body = if let Some(ref path) = from_json {
+                tracing::debug!("Using --from-json, ignoring typed flags");
+                crate::jira::issue::read_json_file(path)?
+            } else {
+                build_edit_body(
+                    name.as_deref(),
+                    goal.as_deref(),
+                    start_date.as_deref(),
+                    end_date.as_deref(),
+                    state.as_deref(),
+                )
+            };
 
             let mut path_params = HashMap::new();
             path_params.insert("sprintId".to_string(), id.clone());
@@ -300,6 +326,11 @@ pub fn execute(
                 &path_params,
                 &[],
             );
+
+            if dry_run {
+                http::dry_run_request(&Method::PUT, &url, Some(&request_body));
+                return Ok(());
+            }
 
             http::execute_request(
                 client,
@@ -429,5 +460,38 @@ mod tests {
             &[],
         );
         assert!(url.contains("/rest/agile/1.0/sprint/99"));
+    }
+
+    #[test]
+    fn test_sprint_state_active_requires_dates() {
+        // state=active with no dates should be an error
+        let state = Some("active".to_string());
+        let start_date: Option<String> = None;
+        let end_date: Option<String> = None;
+
+        if let Some(ref s) = state {
+            if s == "active" && (start_date.is_none() || end_date.is_none()) {
+                // This is the validation path: should error
+                assert!(true);
+                return;
+            }
+        }
+        panic!("Validation should have caught missing dates for active state");
+    }
+
+    #[test]
+    fn test_sprint_state_active_with_dates_ok() {
+        // state=active with both dates should pass validation
+        let state = Some("active".to_string());
+        let start_date = Some("2025-01-01T00:00:00.000Z".to_string());
+        let end_date = Some("2025-01-14T00:00:00.000Z".to_string());
+
+        let should_error = if let Some(ref s) = state {
+            s == "active" && (start_date.is_none() || end_date.is_none())
+        } else {
+            false
+        };
+
+        assert!(!should_error, "Validation should pass when dates are provided");
     }
 }

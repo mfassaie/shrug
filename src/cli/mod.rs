@@ -41,6 +41,10 @@ pub struct Cli {
     #[arg(short = 'L', long, global = true)]
     pub limit: Option<u32>,
 
+    /// Open the resource in a browser instead of printing
+    #[arg(short = 'w', long, global = true)]
+    pub web: bool,
+
     /// Suppress non-essential output
     #[arg(short = 'q', long, global = true)]
     pub quiet: bool,

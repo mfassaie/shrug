@@ -182,6 +182,7 @@ pub fn execute(
     output_format: &OutputFormat,
     color: &ColorChoice,
     limit: Option<u32>,
+    dry_run: bool,
 ) -> Result<(), ShrugError> {
     let base_url = http::build_base_url(credential);
     let color_enabled = match color {
@@ -199,32 +200,28 @@ pub fn execute(
             project_type,
             order_by,
         } => {
-            let mut query_params = build_list_query_params(
+            let query_params = build_list_query_params(
                 query.as_deref(),
                 project_type.as_deref(),
                 order_by.as_deref(),
             );
-            if let Some(lim) = limit {
-                query_params.push(("maxResults".to_string(), lim.to_string()));
-            }
-
-            let url = http::build_url(
+            let url_base = http::build_url(
                 &base_url,
                 "/rest/api/3/project/search",
                 &HashMap::new(),
-                &query_params,
+                &[],
             );
 
-            let result = http::execute_request(
-                client,
-                Method::GET,
-                &url,
-                Some(credential),
-                None,
-                &[],
-            )?;
+            if dry_run {
+                http::dry_run_request(&Method::GET, &url_base, None);
+                return Ok(());
+            }
 
-            if let Some(ref json_val) = result {
+            let results = http::execute_paginated_get(
+                client, &url_base, credential, &query_params, &[], limit, 50, false,
+            )?;
+            let json_val = serde_json::Value::Array(results);
+            if !json_val.as_array().is_none_or(|a| a.is_empty()) {
                 let formatted = output::format_response(
                     &json_val.to_string(),
                     output_format,
@@ -257,6 +254,12 @@ pub fn execute(
             );
 
             let url = format!("{}/rest/api/3/project", base_url);
+
+            if dry_run {
+                http::dry_run_request(&Method::POST, &url, Some(&request_body));
+                return Ok(());
+            }
+
             let result = http::execute_request(
                 client,
                 Method::POST,
@@ -341,6 +344,11 @@ pub fn execute(
                 &[],
             );
 
+            if dry_run {
+                http::dry_run_request(&Method::PUT, &url, Some(&request_body));
+                return Ok(());
+            }
+
             http::execute_request(
                 client,
                 Method::PUT,
@@ -360,15 +368,6 @@ pub fn execute(
         }
 
         ProjectCommands::Delete { key, yes } => {
-            if !yes
-                && !crate::jira::issue::confirm_delete_prompt(&format!(
-                    "Delete project {}? (y/N): ",
-                    key
-                ))?
-            {
-                return Ok(());
-            }
-
             let mut path_params = HashMap::new();
             path_params.insert("projectIdOrKey".to_string(), key.clone());
             let url = http::build_url(
@@ -377,6 +376,20 @@ pub fn execute(
                 &path_params,
                 &[],
             );
+
+            if dry_run {
+                http::dry_run_request(&Method::DELETE, &url, None);
+                return Ok(());
+            }
+
+            if !yes
+                && !crate::jira::issue::confirm_delete_prompt(&format!(
+                    "Delete project {}? (y/N): ",
+                    key
+                ))?
+            {
+                return Ok(());
+            }
 
             http::execute_request(
                 client,
@@ -397,10 +410,10 @@ pub fn execute(
         }
 
         ProjectCommands::Component { command } => {
-            component::execute(command, credential, client, &base_url, output_format, color_enabled)
+            component::execute(command, credential, client, &base_url, output_format, color_enabled, dry_run)
         }
         ProjectCommands::Version { command } => {
-            version::execute(command, credential, client, &base_url, output_format, color_enabled)
+            version::execute(command, credential, client, &base_url, output_format, color_enabled, dry_run)
         }
     }
 }

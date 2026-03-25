@@ -39,6 +39,9 @@ pub enum BoardCommands {
         /// Saved filter ID to back this board
         #[arg(long)]
         filter_id: u64,
+        /// Full JSON payload from file (overrides all typed flags)
+        #[arg(long)]
+        from_json: Option<String>,
     },
     /// View a board
     View {
@@ -52,6 +55,11 @@ pub enum BoardCommands {
         /// Skip confirmation prompt
         #[arg(short = 'y', long)]
         yes: bool,
+    },
+    /// View board configuration
+    Config {
+        /// Board ID
+        id: String,
     },
 }
 
@@ -99,6 +107,7 @@ pub fn execute(
     output_format: &OutputFormat,
     color: &ColorChoice,
     limit: Option<u32>,
+    dry_run: bool,
 ) -> Result<(), ShrugError> {
     let base_url = http::build_base_url(credential);
     let color_enabled = match color {
@@ -116,38 +125,28 @@ pub fn execute(
             board_type,
             name,
         } => {
-            let mut query_params = build_list_query_params(
+            let query_params = build_list_query_params(
                 project.as_deref(),
                 board_type.as_deref(),
                 name.as_deref(),
             );
-            if let Some(lim) = limit {
-                query_params.push(("maxResults".to_string(), lim.to_string()));
-            }
-
-            let url = http::build_url(
-                &base_url,
-                "/rest/agile/1.0/board",
-                &HashMap::new(),
-                &query_params,
+            let url_base = http::build_url(
+                &base_url, "/rest/agile/1.0/board", &HashMap::new(), &[],
             );
 
-            let result = http::execute_request(
-                client,
-                Method::GET,
-                &url,
-                Some(credential),
-                None,
-                &[],
-            )?;
+            if dry_run {
+                http::dry_run_request(&Method::GET, &url_base, None);
+                return Ok(());
+            }
 
-            if let Some(ref json_val) = result {
+            let results = http::execute_paginated_get(
+                client, &url_base, credential, &query_params, &[], limit, 50, false,
+            )?;
+            let json_val = serde_json::Value::Array(results);
+            if !json_val.as_array().is_none_or(|a| a.is_empty()) {
                 let formatted = output::format_response(
-                    &json_val.to_string(),
-                    output_format,
-                    is_terminal::is_terminal(std::io::stdout()),
-                    color_enabled,
-                    None,
+                    &json_val.to_string(), output_format,
+                    is_terminal::is_terminal(std::io::stdout()), color_enabled, None,
                 );
                 println!("{}", formatted);
             }
@@ -158,10 +157,22 @@ pub fn execute(
             name,
             board_type,
             filter_id,
+            from_json,
         } => {
-            let request_body = build_create_body(name, board_type, *filter_id);
+            let request_body = if let Some(ref path) = from_json {
+                tracing::debug!("Using --from-json, ignoring typed flags");
+                crate::jira::issue::read_json_file(path)?
+            } else {
+                build_create_body(name, board_type, *filter_id)
+            };
 
             let url = format!("{}/rest/agile/1.0/board", base_url);
+
+            if dry_run {
+                http::dry_run_request(&Method::POST, &url, Some(&request_body));
+                return Ok(());
+            }
+
             let result = http::execute_request(
                 client,
                 Method::POST,
@@ -257,6 +268,38 @@ pub fn execute(
             }
             Ok(())
         }
+
+        BoardCommands::Config { id } => {
+            let mut path_params = HashMap::new();
+            path_params.insert("boardId".to_string(), id.clone());
+            let url = http::build_url(
+                &base_url,
+                "/rest/agile/1.0/board/{boardId}/configuration",
+                &path_params,
+                &[],
+            );
+
+            let result = http::execute_request(
+                client,
+                Method::GET,
+                &url,
+                Some(credential),
+                None,
+                &[],
+            )?;
+
+            if let Some(ref json_val) = result {
+                let formatted = output::format_response(
+                    &json_val.to_string(),
+                    output_format,
+                    is_terminal::is_terminal(std::io::stdout()),
+                    color_enabled,
+                    None,
+                );
+                println!("{}", formatted);
+            }
+            Ok(())
+        }
     }
 }
 
@@ -299,5 +342,18 @@ mod tests {
             &[],
         );
         assert!(url.contains("/rest/agile/1.0/board/42"));
+    }
+
+    #[test]
+    fn test_board_config_url() {
+        let mut path_params = HashMap::new();
+        path_params.insert("boardId".to_string(), "42".to_string());
+        let url = http::build_url(
+            "https://site.atlassian.net",
+            "/rest/agile/1.0/board/{boardId}/configuration",
+            &path_params,
+            &[],
+        );
+        assert!(url.contains("/rest/agile/1.0/board/42/configuration"));
     }
 }

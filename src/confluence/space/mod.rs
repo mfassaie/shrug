@@ -163,6 +163,7 @@ pub fn execute(
     output_format: &OutputFormat,
     color: &ColorChoice,
     limit: Option<u32>,
+    dry_run: bool,
 ) -> Result<(), ShrugError> {
     let base_url = http::build_base_url(credential);
     let color_enabled = match color {
@@ -180,38 +181,28 @@ pub fn execute(
             status,
             query,
         } => {
-            let mut query_params = build_list_query_params(
+            let query_params = build_list_query_params(
                 space_type.as_deref(),
                 status.as_deref(),
                 query.as_deref(),
             );
-            if let Some(lim) = limit {
-                query_params.push(("limit".to_string(), lim.to_string()));
-            }
-
-            let url = http::build_url(
-                &base_url,
-                "/wiki/api/v2/spaces",
-                &HashMap::new(),
-                &query_params,
+            let url_base = http::build_url(
+                &base_url, "/wiki/api/v2/spaces", &HashMap::new(), &[],
             );
 
-            let result = http::execute_request(
-                client,
-                Method::GET,
-                &url,
-                Some(credential),
-                None,
-                &[],
-            )?;
+            if dry_run {
+                http::dry_run_request(&Method::GET, &url_base, None);
+                return Ok(());
+            }
 
-            if let Some(ref json_val) = result {
+            let results = http::execute_paginated_get(
+                client, &url_base, credential, &query_params, &[], limit, 25, true,
+            )?;
+            let json_val = serde_json::Value::Array(results);
+            if !json_val.as_array().is_none_or(|a| a.is_empty()) {
                 let formatted = output::format_response(
-                    &json_val.to_string(),
-                    output_format,
-                    is_terminal::is_terminal(std::io::stdout()),
-                    color_enabled,
-                    None,
+                    &json_val.to_string(), output_format,
+                    is_terminal::is_terminal(std::io::stdout()), color_enabled, None,
                 );
                 println!("{}", formatted);
             }
@@ -233,6 +224,12 @@ pub fn execute(
             };
 
             let url = format!("{}/wiki/api/v2/spaces", base_url);
+
+            if dry_run {
+                http::dry_run_request(&Method::POST, &url, Some(&request_body));
+                return Ok(());
+            }
+
             let result = http::execute_request(
                 client,
                 Method::POST,

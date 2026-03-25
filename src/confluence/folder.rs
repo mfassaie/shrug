@@ -77,6 +77,7 @@ pub fn execute(
     output_format: &OutputFormat,
     color: &ColorChoice,
     _limit: Option<u32>,
+    dry_run: bool,
 ) -> Result<(), ShrugError> {
     let base_url = http::build_base_url(credential);
     let color_enabled = match color {
@@ -97,6 +98,12 @@ pub fn execute(
             let request_body = build_create_body(title, space_id, parent_id.as_deref());
 
             let url = format!("{}/wiki/api/v2/folders", base_url);
+
+            if dry_run {
+                http::dry_run_request(&Method::POST, &url, Some(&request_body));
+                return Ok(());
+            }
+
             let result = http::execute_request(
                 client,
                 Method::POST,

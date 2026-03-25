@@ -131,6 +131,7 @@ pub fn execute(
     output_format: &OutputFormat,
     color: &ColorChoice,
     limit: Option<u32>,
+    dry_run: bool,
 ) -> Result<(), ShrugError> {
     let base_url = http::build_base_url(credential);
     let color_enabled = match color {
@@ -185,44 +186,73 @@ pub fn execute(
                 )
             };
 
-            let mut query_params: Vec<(String, String)> = Vec::new();
+            let mut base_params: Vec<(String, String)> = Vec::new();
             if let Some(ref q) = resolved_cql {
-                query_params.push(("cql".to_string(), q.clone()));
-            }
-            if let Some(lim) = limit {
-                query_params.push(("limit".to_string(), lim.to_string()));
+                base_params.push(("cql".to_string(), q.clone()));
             }
             if let Some(ref e) = expand {
-                query_params.push(("expand".to_string(), e.clone()));
+                base_params.push(("expand".to_string(), e.clone()));
             }
             if *include_archived {
-                query_params.push(("includeArchivedSpaces".to_string(), "true".to_string()));
+                base_params.push(("includeArchivedSpaces".to_string(), "true".to_string()));
             }
 
-            // Search uses v1 API
-            let url = http::build_url(
-                &base_url,
-                "/wiki/rest/api/search",
-                &HashMap::new(),
-                &query_params,
+            let url_base = http::build_url(
+                &base_url, "/wiki/rest/api/search", &HashMap::new(), &[],
             );
 
-            let result = http::execute_request(
-                client,
-                Method::GET,
-                &url,
-                Some(credential),
-                None,
-                &[],
-            )?;
+            if dry_run {
+                http::dry_run_request(&Method::GET, &url_base, None);
+                return Ok(());
+            }
 
-            if let Some(ref json_val) = result {
+            // Confluence v1 search uses `start`/`limit` params (not startAt/maxResults)
+            let page_size: u32 = 25;
+            let effective_limit = limit.unwrap_or(u32::MAX) as usize;
+            let mut all_results: Vec<serde_json::Value> = Vec::new();
+            let mut start: u64 = 0;
+
+            loop {
+                let mut page_params = base_params.clone();
+                page_params.push(("start".to_string(), start.to_string()));
+                page_params.push(("limit".to_string(), page_size.to_string()));
+
+                let url = http::build_url(&url_base, "", &std::collections::HashMap::new(), &page_params);
+                let result = http::execute_request(
+                    client, Method::GET, &url, Some(credential), None, &[],
+                )?;
+
+                let json_val = match result {
+                    Some(v) => v,
+                    None => break,
+                };
+
+                let page_results = crate::core::pagination::extract_results(&json_val)
+                    .cloned().unwrap_or_default();
+                let count = page_results.len() as u32;
+
+                if count == 0 { break; }
+                all_results.extend(page_results);
+
+                if all_results.len() >= effective_limit {
+                    all_results.truncate(effective_limit);
+                    break;
+                }
+
+                // Confluence v1 search uses `totalSize` or link-based pagination
+                if !crate::core::pagination::has_more_link(&json_val) {
+                    // Fallback: check if we got a full page
+                    if count < page_size { break; }
+                }
+
+                start += count as u64;
+            }
+
+            let json_val = serde_json::Value::Array(all_results);
+            if !json_val.as_array().is_none_or(|a| a.is_empty()) {
                 let formatted = output::format_response(
-                    &json_val.to_string(),
-                    output_format,
-                    is_terminal::is_terminal(std::io::stdout()),
-                    color_enabled,
-                    None,
+                    &json_val.to_string(), output_format,
+                    is_terminal::is_terminal(std::io::stdout()), color_enabled, None,
                 );
                 println!("{}", formatted);
             }

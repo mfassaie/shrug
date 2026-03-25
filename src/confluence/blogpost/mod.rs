@@ -135,15 +135,15 @@ pub enum BlogpostCommands {
 // Body builders
 // ---------------------------------------------------------------------------
 
-/// Read body content from --body or --body-file. Returns raw storage format text.
+/// Read body content from --body or --body-file. Converts markdown to
+/// Confluence storage format (XHTML) before returning.
 fn read_body_content(
     body: Option<&str>,
     body_file: Option<&str>,
 ) -> Result<Option<String>, ShrugError> {
-    if let Some(text) = body {
-        return Ok(Some(text.to_string()));
-    }
-    if let Some(path) = body_file {
+    let raw = if let Some(text) = body {
+        Some(text.to_string())
+    } else if let Some(path) = body_file {
         let content = if path == "-" {
             let mut buf = String::new();
             io::stdin().read_to_string(&mut buf).map_err(|e| {
@@ -155,9 +155,12 @@ fn read_body_content(
                 ShrugError::UsageError(format!("Failed to read {}: {}", path, e))
             })?
         };
-        return Ok(Some(content));
-    }
-    Ok(None)
+        Some(content)
+    } else {
+        None
+    };
+
+    Ok(raw.map(|text| crate::content::markdown_to_storage::markdown_to_storage(&text)))
 }
 
 /// Build JSON request body for blogpost creation.
@@ -286,6 +289,7 @@ pub fn execute(
     output_format: &OutputFormat,
     color: &ColorChoice,
     limit: Option<u32>,
+    dry_run: bool,
 ) -> Result<(), ShrugError> {
     let base_url = http::build_base_url(credential);
     let color_enabled = match color {
@@ -304,39 +308,29 @@ pub fn execute(
             status,
             order_by,
         } => {
-            let mut query_params = build_list_query_params(
+            let query_params = build_list_query_params(
                 space_id.as_deref(),
                 title.as_deref(),
                 status.as_deref(),
                 order_by.as_deref(),
             );
-            if let Some(lim) = limit {
-                query_params.push(("limit".to_string(), lim.to_string()));
-            }
-
-            let url = http::build_url(
-                &base_url,
-                "/wiki/api/v2/blogposts",
-                &HashMap::new(),
-                &query_params,
+            let url_base = http::build_url(
+                &base_url, "/wiki/api/v2/blogposts", &HashMap::new(), &[],
             );
 
-            let result = http::execute_request(
-                client,
-                Method::GET,
-                &url,
-                Some(credential),
-                None,
-                &[],
-            )?;
+            if dry_run {
+                http::dry_run_request(&Method::GET, &url_base, None);
+                return Ok(());
+            }
 
-            if let Some(ref json_val) = result {
+            let results = http::execute_paginated_get(
+                client, &url_base, credential, &query_params, &[], limit, 25, true,
+            )?;
+            let json_val = serde_json::Value::Array(results);
+            if !json_val.as_array().is_none_or(|a| a.is_empty()) {
                 let formatted = output::format_response(
-                    &json_val.to_string(),
-                    output_format,
-                    is_terminal::is_terminal(std::io::stdout()),
-                    color_enabled,
-                    None,
+                    &json_val.to_string(), output_format,
+                    is_terminal::is_terminal(std::io::stdout()), color_enabled, None,
                 );
                 println!("{}", formatted);
             }
@@ -365,6 +359,12 @@ pub fn execute(
             };
 
             let url = format!("{}/wiki/api/v2/blogposts", base_url);
+
+            if dry_run {
+                http::dry_run_request(&Method::POST, &url, Some(&request_body));
+                return Ok(());
+            }
+
             let result = http::execute_request(
                 client,
                 Method::POST,

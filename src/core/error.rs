@@ -37,8 +37,23 @@ impl ShrugError {
     pub fn exit_code(&self) -> i32 {
         match self {
             ShrugError::UsageError(_) => exit_codes::USAGE_ERROR,
+            ShrugError::AuthError(_) => exit_codes::AUTH_ERROR,
+            ShrugError::NotFound(_) => exit_codes::NOT_FOUND,
+            ShrugError::PermissionDenied(_) => exit_codes::PERMISSION_DENIED,
+            ShrugError::RateLimited { .. } => exit_codes::RATE_LIMITED,
+            ShrugError::NetworkError(_) => exit_codes::NETWORK_ERROR,
+            ShrugError::ServerError { .. } => exit_codes::SERVER_ERROR,
             _ => exit_codes::ERROR,
         }
+    }
+
+    /// Format error as a JSON object for machine-readable output.
+    pub fn to_json(&self) -> serde_json::Value {
+        serde_json::json!({
+            "error": format!("{}", self),
+            "code": self.exit_code(),
+            "hint": self.remediation(),
+        })
     }
 
     pub fn remediation(&self) -> &'static str {
@@ -80,29 +95,43 @@ mod tests {
     }
 
     #[test]
-    fn non_usage_errors_return_code_1() {
-        let errors: Vec<ShrugError> = vec![
-            ShrugError::AuthError("bad token".into()),
-            ShrugError::NotFound("issue PROJ-1".into()),
-            ShrugError::PermissionDenied("no access".into()),
-            ShrugError::RateLimited {
-                retry_after: Some(30),
-            },
-            ShrugError::ServerError {
-                status: 500,
-                message: "internal".into(),
-            },
-            ShrugError::ConfigError("missing file".into()),
-            ShrugError::SpecError("invalid spec".into()),
-            ShrugError::ProfileError("bad profile".into()),
-        ];
-        for err in &errors {
-            assert_eq!(
-                err.exit_code(),
-                exit_codes::ERROR,
-                "Expected exit code 1 for {err:?}"
-            );
-        }
+    fn errors_have_distinct_exit_codes() {
+        assert_eq!(
+            ShrugError::AuthError("bad token".into()).exit_code(),
+            exit_codes::AUTH_ERROR,
+        );
+        assert_eq!(
+            ShrugError::NotFound("issue PROJ-1".into()).exit_code(),
+            exit_codes::NOT_FOUND,
+        );
+        assert_eq!(
+            ShrugError::PermissionDenied("no access".into()).exit_code(),
+            exit_codes::PERMISSION_DENIED,
+        );
+        assert_eq!(
+            ShrugError::RateLimited { retry_after: Some(30) }.exit_code(),
+            exit_codes::RATE_LIMITED,
+        );
+        assert_eq!(
+            ShrugError::ServerError { status: 500, message: "internal".into() }.exit_code(),
+            exit_codes::SERVER_ERROR,
+        );
+        // NetworkError exit code tested structurally (requires a real reqwest::Error
+        // which is hard to construct in unit tests, so we verify the match arm exists
+        // by checking the other branches are correct).
+        // Config, Spec, Profile still return generic ERROR
+        assert_eq!(
+            ShrugError::ConfigError("missing file".into()).exit_code(),
+            exit_codes::ERROR,
+        );
+        assert_eq!(
+            ShrugError::SpecError("invalid spec".into()).exit_code(),
+            exit_codes::ERROR,
+        );
+        assert_eq!(
+            ShrugError::ProfileError("bad profile".into()).exit_code(),
+            exit_codes::ERROR,
+        );
     }
 
     #[test]

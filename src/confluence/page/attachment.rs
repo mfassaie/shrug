@@ -121,64 +121,105 @@ pub fn execute(
                 base_url, content_id
             );
 
-            let mut form = multipart::Form::new()
-                .file("file", file_path)
-                .map_err(|e| {
-                    ShrugError::UsageError(format!("Failed to read file {}: {}", file, e))
-                })?;
+            let max_attempts = 3;
+            let mut last_err: Option<ShrugError> = None;
 
-            if let Some(ref c) = comment {
-                form = form.text("comment", c.clone());
-            }
+            for attempt in 0..max_attempts {
+                // Rebuild the multipart form each attempt (Form is not cloneable)
+                let mut form = multipart::Form::new()
+                    .file("file", file_path)
+                    .map_err(|e| {
+                        ShrugError::UsageError(format!("Failed to read file {}: {}", file, e))
+                    })?;
 
-            let req = client
-                .post(&url)
-                .multipart(form)
-                .header("X-Atlassian-Token", "no-check");
-
-            let req = match &credential.scheme {
-                AuthScheme::Basic { email, api_token } => {
-                    req.basic_auth(email, Some(api_token))
+                if let Some(ref c) = comment {
+                    form = form.text("comment", c.clone());
                 }
-                AuthScheme::Bearer { access_token } => req.bearer_auth(access_token),
-            };
 
-            let response = req.send().map_err(ShrugError::NetworkError)?;
-            let status = response.status().as_u16();
+                let req = client
+                    .post(&url)
+                    .multipart(form)
+                    .header("X-Atlassian-Token", "no-check");
 
-            if !(200..300).contains(&status) {
-                let error_body = response.text().unwrap_or_default();
-                return Err(ShrugError::ServerError {
-                    status,
-                    message: error_body,
-                });
-            }
-
-            let text = response.text().map_err(ShrugError::NetworkError)?;
-            if !text.is_empty() {
-                let json_val: Value =
-                    serde_json::from_str(&text).unwrap_or_else(|_| Value::String(text));
-                match output_format {
-                    OutputFormat::Json => {
-                        println!(
-                            "{}",
-                            serde_json::to_string_pretty(&json_val).unwrap_or_default()
-                        );
+                let req = match &credential.scheme {
+                    AuthScheme::Basic { email, api_token } => {
+                        req.basic_auth(email, Some(api_token))
                     }
-                    _ => {
-                        if let Some(results) = json_val.get("results").and_then(|r| r.as_array()) {
-                            for att in results {
-                                if let Some(id) = att.get("id").and_then(|v| v.as_str()) {
-                                    println!("Created attachment {}", id);
+                    AuthScheme::Bearer { access_token } => req.bearer_auth(access_token),
+                };
+
+                match req.send() {
+                    Ok(response) => {
+                        let status = response.status().as_u16();
+
+                        if (200..300).contains(&status) {
+                            let text = response.text().map_err(ShrugError::NetworkError)?;
+                            if !text.is_empty() {
+                                let json_val: Value = serde_json::from_str(&text)
+                                    .unwrap_or_else(|_| Value::String(text));
+                                match output_format {
+                                    OutputFormat::Json => {
+                                        println!(
+                                            "{}",
+                                            serde_json::to_string_pretty(&json_val)
+                                                .unwrap_or_default()
+                                        );
+                                    }
+                                    _ => {
+                                        if let Some(results) =
+                                            json_val.get("results").and_then(|r| r.as_array())
+                                        {
+                                            for att in results {
+                                                if let Some(id) =
+                                                    att.get("id").and_then(|v| v.as_str())
+                                                {
+                                                    println!("Created attachment {}", id);
+                                                }
+                                            }
+                                        } else if let Some(id) =
+                                            json_val.get("id").and_then(|v| v.as_str())
+                                        {
+                                            println!("Created attachment {}", id);
+                                        }
+                                    }
                                 }
                             }
-                        } else if let Some(id) = json_val.get("id").and_then(|v| v.as_str()) {
-                            println!("Created attachment {}", id);
+                            return Ok(());
                         }
+
+                        if http::is_retryable_status(status) && attempt < max_attempts - 1 {
+                            let delay = std::time::Duration::from_secs(
+                                if attempt == 0 { 1 } else { 3 },
+                            );
+                            tracing::info!(attempt = attempt + 1, "Retrying attachment upload");
+                            std::thread::sleep(delay);
+                            let error_body = response.text().unwrap_or_default();
+                            last_err = Some(http::map_status_to_error(status, error_body));
+                            continue;
+                        }
+
+                        let error_body = response.text().unwrap_or_default();
+                        return Err(http::map_status_to_error(status, error_body));
+                    }
+                    Err(e) => {
+                        if (e.is_timeout() || e.is_connect()) && attempt < max_attempts - 1 {
+                            let delay = std::time::Duration::from_secs(
+                                if attempt == 0 { 1 } else { 3 },
+                            );
+                            tracing::info!(attempt = attempt + 1, "Retrying after network error");
+                            std::thread::sleep(delay);
+                            last_err = Some(ShrugError::NetworkError(e));
+                            continue;
+                        }
+                        return Err(ShrugError::NetworkError(e));
                     }
                 }
             }
-            Ok(())
+
+            Err(last_err.unwrap_or_else(|| ShrugError::ServerError {
+                status: 0,
+                message: "Upload failed after retries".into(),
+            }))
         }
 
         AttachmentCommands::View { attachment_id } => {

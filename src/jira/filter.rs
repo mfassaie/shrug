@@ -157,6 +157,7 @@ pub fn execute(
     output_format: &OutputFormat,
     color: &ColorChoice,
     limit: Option<u32>,
+    dry_run: bool,
 ) -> Result<(), ShrugError> {
     let base_url = http::build_base_url(credential);
     let color_enabled = match color {
@@ -175,33 +176,29 @@ pub fn execute(
             favourites,
             order_by,
         } => {
-            let mut query_params = build_list_query_params(
+            let query_params = build_list_query_params(
                 name.as_deref(),
                 owner.as_deref(),
                 *favourites,
                 order_by.as_deref(),
             );
-            if let Some(lim) = limit {
-                query_params.push(("maxResults".to_string(), lim.to_string()));
-            }
-
-            let url = http::build_url(
+            let url_base = http::build_url(
                 &base_url,
                 "/rest/api/3/filter/search",
                 &HashMap::new(),
-                &query_params,
+                &[],
             );
 
-            let result = http::execute_request(
-                client,
-                Method::GET,
-                &url,
-                Some(credential),
-                None,
-                &[],
-            )?;
+            if dry_run {
+                http::dry_run_request(&Method::GET, &url_base, None);
+                return Ok(());
+            }
 
-            if let Some(ref json_val) = result {
+            let results = http::execute_paginated_get(
+                client, &url_base, credential, &query_params, &[], limit, 50, false,
+            )?;
+            let json_val = serde_json::Value::Array(results);
+            if !json_val.as_array().is_none_or(|a| a.is_empty()) {
                 let formatted = output::format_response(
                     &json_val.to_string(),
                     output_format,

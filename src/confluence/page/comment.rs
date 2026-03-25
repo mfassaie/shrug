@@ -76,15 +76,15 @@ pub enum CommentCommands {
     },
 }
 
-/// Read body content from --body or --body-file.
+/// Read body content from --body or --body-file. Converts markdown to
+/// Confluence storage format (XHTML) before returning.
 fn read_body_content(
     body: Option<&str>,
     body_file: Option<&str>,
 ) -> Result<Option<String>, ShrugError> {
-    if let Some(text) = body {
-        return Ok(Some(text.to_string()));
-    }
-    if let Some(path) = body_file {
+    let raw = if let Some(text) = body {
+        Some(text.to_string())
+    } else if let Some(path) = body_file {
         let content = if path == "-" {
             let mut buf = String::new();
             io::stdin().read_to_string(&mut buf).map_err(|e| {
@@ -96,9 +96,12 @@ fn read_body_content(
                 ShrugError::UsageError(format!("Failed to read {}: {}", path, e))
             })?
         };
-        return Ok(Some(content));
-    }
-    Ok(None)
+        Some(content)
+    } else {
+        None
+    };
+
+    Ok(raw.map(|text| crate::content::markdown_to_storage::markdown_to_storage(&text)))
 }
 
 /// Resolve comment type string to API path segment.

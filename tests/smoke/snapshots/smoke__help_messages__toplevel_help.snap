@@ -21,6 +21,7 @@ Options:
   -v, --verbose...         Increase verbosity (-v, -vv, -vvv for trace)
   -n, --dry-run            Dry run — show what would happen without making changes
   -L, --limit <LIMIT>      Maximum number of results to fetch (implies pagination)
+  -w, --web                Open the resource in a browser instead of printing
   -q, --quiet              Suppress non-essential output
   -h, --help               Print help
   -V, --version            Print version

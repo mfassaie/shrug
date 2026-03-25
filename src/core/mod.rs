@@ -6,3 +6,4 @@ pub mod logging;
 pub mod output;
 pub mod pagination;
 pub mod quirks;
+pub mod web;
