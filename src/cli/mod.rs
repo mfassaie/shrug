@@ -348,24 +348,20 @@ mod tests {
         let cli = Cli::try_parse_from(["shrug", "c", "page", "list"]).unwrap();
         match cli.command {
             Some(Commands::Confluence {
-                command: ConfluenceCommands::External(ref args),
-            }) => {
-                assert_eq!(args, &["page", "list"]);
-            }
-            _ => panic!("Expected Confluence via alias 'c'"),
+                command: ConfluenceCommands::Page { .. },
+            }) => {}
+            _ => panic!("Expected Confluence Page via alias 'c'"),
         }
     }
 
     #[test]
     fn cli_confluence_alias_conf() {
-        let cli = Cli::try_parse_from(["shrug", "conf", "page", "get", "123"]).unwrap();
+        let cli = Cli::try_parse_from(["shrug", "conf", "page", "view", "123"]).unwrap();
         match cli.command {
             Some(Commands::Confluence {
-                command: ConfluenceCommands::External(ref args),
-            }) => {
-                assert_eq!(args, &["page", "get", "123"]);
-            }
-            _ => panic!("Expected Confluence via alias 'conf'"),
+                command: ConfluenceCommands::Page { .. },
+            }) => {}
+            _ => panic!("Expected Confluence Page via alias 'conf'"),
         }
     }
 }

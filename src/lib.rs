@@ -8,4 +8,5 @@ pub mod dynamic_completions;
 pub mod executor;    // still exists, will be stripped later
 pub mod jira;        // NEW: static Jira entity modules (Phase 5)
 pub mod jsw;         // NEW: static JSW entity modules (Phase 6)
+pub mod confluence;  // NEW: static Confluence entity modules (Phase 7)
 pub mod spec;        // still exists, will be stripped later

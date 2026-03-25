@@ -290,21 +290,182 @@ fn run(config: &ShrugConfig, cli: &Cli) -> Result<(), ShrugError> {
             }
         }
         Some(Commands::Confluence { command }) => {
+            let paths = handlers::get_paths()?;
+            let profile_store = handlers::get_profile_store(&paths)?;
+            let cred_store = handlers::get_credential_store(&paths)?;
+            let profile =
+                handlers::resolve_profile(&cli.profile, config, &profile_store)?;
+
+            if profile.is_none() && profile_store.list()?.is_empty() {
+                return Err(ShrugError::AuthError(
+                    "No profile configured. Run `shrug auth setup` to connect your Atlassian account.".into(),
+                ));
+            }
+
+            let credential = resolve_credential(&cred_store, profile.as_ref());
+
             match command {
+                ConfluenceCommands::Space { command: space_cmd } => {
+                    let cred = credential.ok_or_else(|| {
+                        ShrugError::AuthError(
+                            "No credentials found. Run `shrug auth setup` to configure.".into(),
+                        )
+                    })?;
+                    let client = shrug::core::http::create_client()?;
+                    shrug::confluence::space::execute(
+                        space_cmd,
+                        &cred,
+                        &client,
+                        &config.output_format,
+                        &config.color,
+                        cli.limit,
+                    )
+                }
+                ConfluenceCommands::Page { command: page_cmd } => {
+                    let cred = credential.ok_or_else(|| {
+                        ShrugError::AuthError(
+                            "No credentials found. Run `shrug auth setup` to configure.".into(),
+                        )
+                    })?;
+                    let client = shrug::core::http::create_client()?;
+                    shrug::confluence::page::execute(
+                        page_cmd,
+                        &cred,
+                        &client,
+                        &config.output_format,
+                        &config.color,
+                        cli.limit,
+                    )
+                }
+                ConfluenceCommands::Blogpost { command: blogpost_cmd } => {
+                    let cred = credential.ok_or_else(|| {
+                        ShrugError::AuthError(
+                            "No credentials found. Run `shrug auth setup` to configure.".into(),
+                        )
+                    })?;
+                    let client = shrug::core::http::create_client()?;
+                    shrug::confluence::blogpost::execute(
+                        blogpost_cmd,
+                        &cred,
+                        &client,
+                        &config.output_format,
+                        &config.color,
+                        cli.limit,
+                    )
+                }
+                ConfluenceCommands::Whiteboard { command: wb_cmd } => {
+                    let cred = credential.ok_or_else(|| {
+                        ShrugError::AuthError(
+                            "No credentials found. Run `shrug auth setup` to configure.".into(),
+                        )
+                    })?;
+                    let client = shrug::core::http::create_client()?;
+                    shrug::confluence::whiteboard::execute(
+                        wb_cmd,
+                        &cred,
+                        &client,
+                        &config.output_format,
+                        &config.color,
+                        cli.limit,
+                    )
+                }
+                ConfluenceCommands::Database { command: db_cmd } => {
+                    let cred = credential.ok_or_else(|| {
+                        ShrugError::AuthError(
+                            "No credentials found. Run `shrug auth setup` to configure.".into(),
+                        )
+                    })?;
+                    let client = shrug::core::http::create_client()?;
+                    shrug::confluence::database::execute(
+                        db_cmd,
+                        &cred,
+                        &client,
+                        &config.output_format,
+                        &config.color,
+                        cli.limit,
+                    )
+                }
+                ConfluenceCommands::Folder { command: folder_cmd } => {
+                    let cred = credential.ok_or_else(|| {
+                        ShrugError::AuthError(
+                            "No credentials found. Run `shrug auth setup` to configure.".into(),
+                        )
+                    })?;
+                    let client = shrug::core::http::create_client()?;
+                    shrug::confluence::folder::execute(
+                        folder_cmd,
+                        &cred,
+                        &client,
+                        &config.output_format,
+                        &config.color,
+                        cli.limit,
+                    )
+                }
+                ConfluenceCommands::CustomContent { command: cc_cmd } => {
+                    let cred = credential.ok_or_else(|| {
+                        ShrugError::AuthError(
+                            "No credentials found. Run `shrug auth setup` to configure.".into(),
+                        )
+                    })?;
+                    let client = shrug::core::http::create_client()?;
+                    shrug::confluence::custom_content::execute(
+                        cc_cmd,
+                        &cred,
+                        &client,
+                        &config.output_format,
+                        &config.color,
+                        cli.limit,
+                    )
+                }
+                ConfluenceCommands::SmartLink { command: sl_cmd } => {
+                    let cred = credential.ok_or_else(|| {
+                        ShrugError::AuthError(
+                            "No credentials found. Run `shrug auth setup` to configure.".into(),
+                        )
+                    })?;
+                    let client = shrug::core::http::create_client()?;
+                    shrug::confluence::smart_link::execute(
+                        sl_cmd,
+                        &cred,
+                        &client,
+                        &config.output_format,
+                        &config.color,
+                        cli.limit,
+                    )
+                }
+                ConfluenceCommands::Task { command: task_cmd } => {
+                    let cred = credential.ok_or_else(|| {
+                        ShrugError::AuthError(
+                            "No credentials found. Run `shrug auth setup` to configure.".into(),
+                        )
+                    })?;
+                    let client = shrug::core::http::create_client()?;
+                    shrug::confluence::task::execute(
+                        task_cmd,
+                        &cred,
+                        &client,
+                        &config.output_format,
+                        &config.color,
+                        cli.limit,
+                    )
+                }
+                ConfluenceCommands::Search { command: search_cmd } => {
+                    let cred = credential.ok_or_else(|| {
+                        ShrugError::AuthError(
+                            "No credentials found. Run `shrug auth setup` to configure.".into(),
+                        )
+                    })?;
+                    let client = shrug::core::http::create_client()?;
+                    shrug::confluence::search::execute(
+                        search_cmd,
+                        &cred,
+                        &client,
+                        &config.output_format,
+                        &config.color,
+                        cli.limit,
+                    )
+                }
                 ConfluenceCommands::External(args) => {
-                    let paths = handlers::get_paths()?;
-                    let profile_store = handlers::get_profile_store(&paths)?;
-                    let cred_store = handlers::get_credential_store(&paths)?;
-                    let profile =
-                        handlers::resolve_profile(&cli.profile, config, &profile_store)?;
-
-                    if profile.is_none() && profile_store.list()?.is_empty() {
-                        return Err(ShrugError::AuthError(
-                            "No profile configured. Run `shrug auth setup` to connect your Atlassian account.".into(),
-                        ));
-                    }
-
-                    let credential = resolve_credential(&cred_store, profile.as_ref());
                     let client = executor::create_client()?;
 
                     handlers::handle_product(
