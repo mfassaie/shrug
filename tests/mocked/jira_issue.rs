@@ -8,13 +8,12 @@ use httpmock::prelude::*;
 use crate::helpers::{self, MockEnv};
 
 #[test]
-fn test_issue_list_sends_post_search() {
+fn test_issue_list_sends_get_search() {
     let env = MockEnv::new();
 
     let mock = env.server.mock(|when, then| {
-        when.method(POST)
-            .path("/rest/api/3/search")
-            .header("content-type", "application/json");
+        when.method(GET)
+            .path("/rest/api/3/search/jql");
         then.status(200)
             .header("content-type", "application/json")
             .json_body_obj(&serde_json::json!({

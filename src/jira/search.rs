@@ -142,33 +142,38 @@ pub fn execute(
                 )
             };
 
-            let mut request_body = build_search_body(
-                resolved_jql.as_deref(),
-                None, // pagination controls maxResults per-page
-                fields.as_deref(),
-                expand.as_deref(),
-            );
-
-            let url = format!("{}/rest/api/3/search", base_url);
+            let base_search_url = format!("{}/rest/api/3/search/jql", base_url);
+            let mut query_params: Vec<(String, String)> = Vec::new();
+            let jql = resolved_jql.unwrap_or_else(|| "created >= -30d ORDER BY created DESC".to_string());
+            query_params.push(("jql".to_string(), jql));
+            if let Some(ref f) = fields {
+                query_params.push(("fields".to_string(), f.join(",")));
+            }
+            if let Some(ref e) = expand {
+                query_params.push(("expand".to_string(), e.clone()));
+            }
 
             if dry_run {
-                http::dry_run_request(&Method::POST, &url, Some(&request_body));
+                let url = http::build_url(&base_search_url, "", &std::collections::HashMap::new(), &query_params);
+                http::dry_run_request(&Method::GET, &url, None);
                 return Ok(());
             }
 
-            // POST-based inline pagination
+            // GET-based pagination (new /search/jql endpoint)
             let page_size: u32 = 50;
             let effective_limit = limit.unwrap_or(u32::MAX) as usize;
             let mut all_issues: Vec<serde_json::Value> = Vec::new();
             let mut start_at: u64 = 0;
 
             loop {
-                request_body["startAt"] = json!(start_at);
-                request_body["maxResults"] = json!(page_size);
+                let mut page_params = query_params.clone();
+                page_params.push(("startAt".to_string(), start_at.to_string()));
+                page_params.push(("maxResults".to_string(), page_size.to_string()));
 
+                let url = http::build_url(&base_search_url, "", &std::collections::HashMap::new(), &page_params);
                 let result = http::execute_request(
-                    client, Method::POST, &url, Some(credential),
-                    Some(&request_body), &[],
+                    client, Method::GET, &url, Some(credential),
+                    None, &[],
                 )?;
 
                 let json_val = match result {
