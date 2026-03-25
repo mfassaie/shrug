@@ -20,25 +20,137 @@ const SIGINT_EXIT: i32 = 130;
 fn run(config: &ShrugConfig, cli: &Cli) -> Result<(), ShrugError> {
     match &cli.command {
         Some(Commands::Jira { command }) => {
+            let paths = handlers::get_paths()?;
+            let profile_store = handlers::get_profile_store(&paths)?;
+            let cred_store = handlers::get_credential_store(&paths)?;
+            let profile =
+                handlers::resolve_profile(&cli.profile, config, &profile_store)?;
+
+            if profile.is_none() && profile_store.list()?.is_empty() {
+                return Err(ShrugError::AuthError(
+                    "No profile configured. Run `shrug auth setup` to connect your Atlassian account.".into(),
+                ));
+            }
+
+            let credential = resolve_credential(&cred_store, profile.as_ref());
+
             match command {
+                JiraCommands::Issue { command: issue_cmd } => {
+                    let cred = credential.ok_or_else(|| {
+                        ShrugError::AuthError(
+                            "No credentials found. Run `shrug auth setup` to configure.".into(),
+                        )
+                    })?;
+                    let client = shrug::core::http::create_client()?;
+                    shrug::jira::issue::execute(
+                        issue_cmd,
+                        &cred,
+                        &client,
+                        &config.output_format,
+                        &config.color,
+                        cli.limit,
+                    )
+                }
+                JiraCommands::Project { command: proj_cmd } => {
+                    let cred = credential.ok_or_else(|| {
+                        ShrugError::AuthError(
+                            "No credentials found. Run `shrug auth setup` to configure.".into(),
+                        )
+                    })?;
+                    let client = shrug::core::http::create_client()?;
+                    shrug::jira::project::execute(
+                        proj_cmd,
+                        &cred,
+                        &client,
+                        &config.output_format,
+                        &config.color,
+                        cli.limit,
+                    )
+                }
+                JiraCommands::Filter { command: filter_cmd } => {
+                    let cred = credential.ok_or_else(|| {
+                        ShrugError::AuthError(
+                            "No credentials found. Run `shrug auth setup` to configure.".into(),
+                        )
+                    })?;
+                    let client = shrug::core::http::create_client()?;
+                    shrug::jira::filter::execute(
+                        filter_cmd,
+                        &cred,
+                        &client,
+                        &config.output_format,
+                        &config.color,
+                        cli.limit,
+                    )
+                }
+                JiraCommands::Dashboard { command: dash_cmd } => {
+                    let cred = credential.ok_or_else(|| {
+                        ShrugError::AuthError(
+                            "No credentials found. Run `shrug auth setup` to configure.".into(),
+                        )
+                    })?;
+                    let client = shrug::core::http::create_client()?;
+                    shrug::jira::dashboard::execute(
+                        dash_cmd,
+                        &cred,
+                        &client,
+                        &config.output_format,
+                        &config.color,
+                        cli.limit,
+                    )
+                }
+                JiraCommands::Label { command: label_cmd } => {
+                    let cred = credential.ok_or_else(|| {
+                        ShrugError::AuthError(
+                            "No credentials found. Run `shrug auth setup` to configure.".into(),
+                        )
+                    })?;
+                    let client = shrug::core::http::create_client()?;
+                    shrug::jira::label::execute(
+                        label_cmd,
+                        &cred,
+                        &client,
+                        &config.output_format,
+                        &config.color,
+                        cli.limit,
+                    )
+                }
+                JiraCommands::Audit { command: audit_cmd } => {
+                    let cred = credential.ok_or_else(|| {
+                        ShrugError::AuthError(
+                            "No credentials found. Run `shrug auth setup` to configure.".into(),
+                        )
+                    })?;
+                    let client = shrug::core::http::create_client()?;
+                    shrug::jira::audit::execute(
+                        audit_cmd,
+                        &cred,
+                        &client,
+                        &config.output_format,
+                        &config.color,
+                        cli.limit,
+                    )
+                }
+                JiraCommands::Search { command: search_cmd } => {
+                    let cred = credential.ok_or_else(|| {
+                        ShrugError::AuthError(
+                            "No credentials found. Run `shrug auth setup` to configure.".into(),
+                        )
+                    })?;
+                    let client = shrug::core::http::create_client()?;
+                    shrug::jira::search::execute(
+                        search_cmd,
+                        &cred,
+                        &client,
+                        &config.output_format,
+                        &config.color,
+                        cli.limit,
+                    )
+                }
                 JiraCommands::External(args) => {
-                    // Temporary: route to old dynamic handler
-                    let paths = handlers::get_paths()?;
-                    let profile_store = handlers::get_profile_store(&paths)?;
-                    let cred_store = handlers::get_credential_store(&paths)?;
-                    let profile =
-                        handlers::resolve_profile(&cli.profile, config, &profile_store)?;
-
-                    if profile.is_none() && profile_store.list()?.is_empty() {
-                        return Err(ShrugError::AuthError(
-                            "No profile configured. Run `shrug auth setup` to connect your Atlassian account.".into(),
-                        ));
-                    }
-
-                    let credential = resolve_credential(&cred_store, profile.as_ref());
                     let client = executor::create_client()?;
 
-                    // JQL flag extraction for list verb
+                    // JQL flag extraction for list verb (dynamic entities)
                     let effective_args =
                         if args.len() >= 2 && args[1] == "list" {
                             let (shorthand, raw_jql, cleaned) =

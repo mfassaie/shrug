@@ -50,6 +50,7 @@ pub struct Cli {
 }
 
 #[derive(Subcommand)]
+#[allow(clippy::large_enum_variant)]
 pub enum Commands {
     /// Jira Cloud operations
     #[command(visible_alias = "j")]
@@ -175,7 +176,7 @@ mod tests {
     }
 
     #[test]
-    fn cli_parses_jira_subcommand() {
+    fn cli_parses_jira_external_subcommand() {
         let cli = Cli::try_parse_from(["shrug", "jira", "issues", "get-issue"]).unwrap();
         match cli.command {
             Some(Commands::Jira {
@@ -183,7 +184,36 @@ mod tests {
             }) => {
                 assert_eq!(args, &["issues", "get-issue"]);
             }
-            _ => panic!("Expected Jira command"),
+            _ => panic!("Expected Jira External command"),
+        }
+    }
+
+    #[test]
+    fn cli_parses_jira_issue_view() {
+        let cli =
+            Cli::try_parse_from(["shrug", "jira", "issue", "view", "TEAM-123"]).unwrap();
+        match cli.command {
+            Some(Commands::Jira {
+                command: JiraCommands::Issue { .. },
+            }) => {}
+            _ => panic!("Expected Jira Issue command"),
+        }
+    }
+
+    #[test]
+    fn cli_parses_jira_issue_create() {
+        let cli = Cli::try_parse_from([
+            "shrug", "jira", "issue", "create",
+            "-s", "Test bug",
+            "--project", "TEAM",
+            "--type", "Bug",
+        ])
+        .unwrap();
+        match cli.command {
+            Some(Commands::Jira {
+                command: JiraCommands::Issue { .. },
+            }) => {}
+            _ => panic!("Expected Jira Issue Create command"),
         }
     }
 
@@ -244,6 +274,7 @@ mod tests {
 
     #[test]
     fn jql_flags_pass_through_external_subcommand() {
+        // "issues" (plural) still routes to External for dynamic handler
         let cli = Cli::try_parse_from([
             "shrug",
             "jira",
@@ -264,20 +295,40 @@ mod tests {
                     &["issues", "list", "--project", "KAN", "--status", "Open"]
                 );
             }
-            _ => panic!("Expected Jira command"),
+            _ => panic!("Expected Jira External command"),
+        }
+    }
+
+    #[test]
+    fn jql_flags_parsed_on_static_issue_list() {
+        // "issue" (singular) routes to static handler with typed flags
+        let cli = Cli::try_parse_from([
+            "shrug",
+            "jira",
+            "issue",
+            "list",
+            "--project",
+            "KAN",
+            "--status",
+            "Open",
+        ])
+        .unwrap();
+        match cli.command {
+            Some(Commands::Jira {
+                command: JiraCommands::Issue { .. },
+            }) => {}
+            _ => panic!("Expected Jira Issue List command"),
         }
     }
 
     #[test]
     fn cli_jira_alias_j() {
-        let cli = Cli::try_parse_from(["shrug", "j", "issues", "list"]).unwrap();
+        let cli = Cli::try_parse_from(["shrug", "j", "issue", "view", "TEAM-1"]).unwrap();
         match cli.command {
             Some(Commands::Jira {
-                command: JiraCommands::External(ref args),
-            }) => {
-                assert_eq!(args, &["issues", "list"]);
-            }
-            _ => panic!("Expected Jira via alias 'j'"),
+                command: JiraCommands::Issue { .. },
+            }) => {}
+            _ => panic!("Expected Jira Issue via alias 'j'"),
         }
     }
 
