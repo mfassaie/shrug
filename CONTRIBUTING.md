@@ -27,7 +27,7 @@ cargo test --test smoke
 SHRUG_E2E_SITE=yoursite.atlassian.net \
 SHRUG_E2E_EMAIL=you@example.com \
 SHRUG_E2E_TOKEN=your-api-token \
-cargo test --test e2e -- --test-threads=1
+cargo test --test live -- --test-threads=1
 ```
 
 ## Code quality checks

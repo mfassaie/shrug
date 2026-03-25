@@ -358,4 +358,46 @@ mod tests {
             "https://site.atlassian.net/rest/api/3/issue/TEAM-123/comment/10042"
         );
     }
+
+    #[test]
+    fn test_comment_list_url() {
+        let mut path_params = HashMap::new();
+        path_params.insert("issueIdOrKey".to_string(), "TEAM-456".to_string());
+        let url = http::build_url(
+            "https://site.atlassian.net",
+            "/rest/api/3/issue/{issueIdOrKey}/comment",
+            &path_params,
+            &[],
+        );
+        assert_eq!(
+            url,
+            "https://site.atlassian.net/rest/api/3/issue/TEAM-456/comment"
+        );
+    }
+
+    #[test]
+    fn test_comment_delete_url() {
+        let mut path_params = HashMap::new();
+        path_params.insert("issueIdOrKey".to_string(), "TEAM-789".to_string());
+        path_params.insert("id".to_string(), "20001".to_string());
+        let url = http::build_url(
+            "https://site.atlassian.net",
+            "/rest/api/3/issue/{issueIdOrKey}/comment/{id}",
+            &path_params,
+            &[],
+        );
+        assert_eq!(
+            url,
+            "https://site.atlassian.net/rest/api/3/issue/TEAM-789/comment/20001"
+        );
+    }
+
+    #[test]
+    fn test_comment_edit_body() {
+        // Edit only sends body (no visibility), same ADF structure
+        let body = build_comment_body("Updated text", None, None);
+        assert!(body.get("body").is_some());
+        assert_eq!(body["body"]["type"], "doc");
+        assert!(body.get("visibility").is_none());
+    }
 }

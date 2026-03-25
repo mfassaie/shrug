@@ -486,4 +486,83 @@ mod tests {
         assert_eq!(body["body"]["value"], "<p>Custom data</p>");
         assert_eq!(body["pageId"], "67890");
     }
+
+    #[test]
+    fn test_custom_content_list_url() {
+        let query_params = build_list_query_params(
+            Some("ac:my-app:content"),
+            Some("12345"),
+        );
+        let url = http::build_url(
+            "https://site.atlassian.net",
+            "/wiki/api/v2/custom-content",
+            &HashMap::new(),
+            &query_params,
+        );
+        assert!(url.contains("/wiki/api/v2/custom-content"));
+        assert!(url.contains("space-id=12345"));
+    }
+
+    #[test]
+    fn test_custom_content_view_url() {
+        let mut path_params = HashMap::new();
+        path_params.insert("id".to_string(), "99999".to_string());
+        let url = http::build_url(
+            "https://site.atlassian.net",
+            "/wiki/api/v2/custom-content/{id}",
+            &path_params,
+            &[],
+        );
+        assert_eq!(
+            url,
+            "https://site.atlassian.net/wiki/api/v2/custom-content/99999"
+        );
+    }
+
+    #[test]
+    fn test_custom_content_edit_body() {
+        let body = build_edit_body(
+            "99999",
+            Some("Updated Title"),
+            Some("<p>Updated</p>"),
+            4,
+            Some("Version note"),
+        );
+        assert_eq!(body["id"], "99999");
+        assert_eq!(body["title"], "Updated Title");
+        assert_eq!(body["body"]["representation"], "storage");
+        assert_eq!(body["body"]["value"], "<p>Updated</p>");
+        assert_eq!(body["version"]["number"], 4);
+        assert_eq!(body["version"]["message"], "Version note");
+    }
+
+    #[test]
+    fn test_custom_content_delete_url() {
+        let mut path_params = HashMap::new();
+        path_params.insert("id".to_string(), "88888".to_string());
+        let url = http::build_url(
+            "https://site.atlassian.net",
+            "/wiki/api/v2/custom-content/{id}",
+            &path_params,
+            &[],
+        );
+        assert_eq!(
+            url,
+            "https://site.atlassian.net/wiki/api/v2/custom-content/88888"
+        );
+    }
+
+    #[test]
+    fn test_custom_content_create_with_from_json() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("custom.json");
+        std::fs::write(
+            &path,
+            r#"{"type":"ac:my-app:content","title":"From File","spaceId":"12345"}"#,
+        )
+        .unwrap();
+        let value = crate::jira::issue::read_json_file(path.to_str().unwrap()).unwrap();
+        assert_eq!(value["type"], "ac:my-app:content");
+        assert_eq!(value["title"], "From File");
+    }
 }

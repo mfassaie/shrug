@@ -216,4 +216,40 @@ mod tests {
         assert_eq!(body["id"], "12345");
         assert_eq!(body["status"], "complete");
     }
+
+    #[test]
+    fn test_task_list_url() {
+        let query_params = build_list_query_params(
+            Some("12345"),
+            Some("67890"),
+            Some("incomplete"),
+            None,
+        );
+        let url = http::build_url(
+            "https://site.atlassian.net",
+            "/wiki/api/v2/tasks",
+            &HashMap::new(),
+            &query_params,
+        );
+        assert!(url.contains("/wiki/api/v2/tasks"));
+        assert!(url.contains("space-id=12345"));
+        assert!(url.contains("page-id=67890"));
+        assert!(url.contains("status=incomplete"));
+    }
+
+    #[test]
+    fn test_task_view_url() {
+        let mut path_params = HashMap::new();
+        path_params.insert("id".to_string(), "55555".to_string());
+        let url = http::build_url(
+            "https://site.atlassian.net",
+            "/wiki/api/v2/tasks/{id}",
+            &path_params,
+            &[],
+        );
+        assert_eq!(
+            url,
+            "https://site.atlassian.net/wiki/api/v2/tasks/55555"
+        );
+    }
 }

@@ -59,6 +59,14 @@ unsafe_code = "forbid"
 name = "smoke"
 path = "tests/smoke/main.rs"
 
+[[test]]
+name = "mocked"
+path = "tests/mocked/main.rs"
+
+[[test]]
+name = "live"
+path = "tests/live/main.rs"
+
 [workspace.metadata.dist]
 cargo-dist-version = "0.27.0"
 ci = "github"

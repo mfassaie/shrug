@@ -381,4 +381,28 @@ mod tests {
             "https://site.atlassian.net/wiki/rest/api/content/12345/child/attachment"
         );
     }
+
+    #[test]
+    fn test_attachment_view_url_v2() {
+        let url = format!(
+            "{}/wiki/api/v2/attachments/{}",
+            "https://site.atlassian.net", "att-99001"
+        );
+        assert_eq!(
+            url,
+            "https://site.atlassian.net/wiki/api/v2/attachments/att-99001"
+        );
+    }
+
+    #[test]
+    fn test_attachment_delete_url_v2() {
+        let url = format!(
+            "{}/wiki/api/v2/attachments/{}",
+            "https://site.atlassian.net", "att-88001"
+        );
+        assert_eq!(
+            url,
+            "https://site.atlassian.net/wiki/api/v2/attachments/att-88001"
+        );
+    }
 }

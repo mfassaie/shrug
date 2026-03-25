@@ -358,4 +358,54 @@ mod tests {
         );
         assert!(view_url.contains("/wiki/api/v2/spaces/12345/properties/prop-1"));
     }
+
+    #[test]
+    fn test_space_property_create_body() {
+        use serde_json::{json, Value};
+        let json_value: Value = serde_json::from_str(r#"{"theme":"dark"}"#).unwrap();
+        let body = json!({
+            "key": "app.settings",
+            "value": json_value,
+        });
+        assert_eq!(body["key"], "app.settings");
+        assert_eq!(body["value"]["theme"], "dark");
+    }
+
+    #[test]
+    fn test_space_property_view_url() {
+        let url = format!(
+            "{}/wiki/api/v2/spaces/{}/properties/{}",
+            "https://site.atlassian.net", "12345", "prop-42"
+        );
+        assert_eq!(
+            url,
+            "https://site.atlassian.net/wiki/api/v2/spaces/12345/properties/prop-42"
+        );
+    }
+
+    #[test]
+    fn test_space_property_edit_body() {
+        use serde_json::{json, Value};
+        let json_value: Value = serde_json::from_str(r#"{"count":10}"#).unwrap();
+        let body = json!({
+            "value": json_value,
+            "version": {
+                "number": 3,
+            },
+        });
+        assert_eq!(body["value"]["count"], 10);
+        assert_eq!(body["version"]["number"], 3);
+    }
+
+    #[test]
+    fn test_space_property_delete_url() {
+        let url = format!(
+            "{}/wiki/api/v2/spaces/{}/properties/{}",
+            "https://site.atlassian.net", "12345", "prop-99"
+        );
+        assert_eq!(
+            url,
+            "https://site.atlassian.net/wiki/api/v2/spaces/12345/properties/prop-99"
+        );
+    }
 }

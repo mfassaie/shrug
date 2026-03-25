@@ -177,4 +177,16 @@ mod tests {
             "https://site.atlassian.net/wiki/rest/api/content/12345/label/reviewed"
         );
     }
+
+    #[test]
+    fn test_label_list_url() {
+        let url = format!(
+            "{}/wiki/api/v2/{}/{}/labels",
+            "https://site.atlassian.net", "pages", "12345"
+        );
+        assert_eq!(
+            url,
+            "https://site.atlassian.net/wiki/api/v2/pages/12345/labels"
+        );
+    }
 }

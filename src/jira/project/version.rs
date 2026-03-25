@@ -454,4 +454,38 @@ mod tests {
             "https://site.atlassian.net/rest/api/3/version/10001"
         );
     }
+
+    #[test]
+    fn test_version_edit_body() {
+        let body = build_edit_body(
+            Some("v3.0"),
+            None,
+            None,
+            Some("2025-06-01"),
+            true,
+            false,
+        );
+        assert_eq!(body["name"], "v3.0");
+        assert!(body.get("description").is_none());
+        assert!(body.get("startDate").is_none());
+        assert_eq!(body["releaseDate"], "2025-06-01");
+        assert_eq!(body["released"], true);
+        assert!(body.get("archived").is_none());
+    }
+
+    #[test]
+    fn test_version_delete_url() {
+        let mut path_params = HashMap::new();
+        path_params.insert("id".to_string(), "20001".to_string());
+        let url = http::build_url(
+            "https://site.atlassian.net",
+            "/rest/api/3/version/{id}",
+            &path_params,
+            &[],
+        );
+        assert_eq!(
+            url,
+            "https://site.atlassian.net/rest/api/3/version/20001"
+        );
+    }
 }

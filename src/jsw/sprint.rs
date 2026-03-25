@@ -494,4 +494,40 @@ mod tests {
 
         assert!(!should_error, "Validation should pass when dates are provided");
     }
+
+    #[test]
+    fn test_sprint_delete_url() {
+        let mut path_params = HashMap::new();
+        path_params.insert("sprintId".to_string(), "55".to_string());
+        let url = http::build_url(
+            "https://site.atlassian.net",
+            "/rest/agile/1.0/sprint/{sprintId}",
+            &path_params,
+            &[],
+        );
+        assert_eq!(
+            url,
+            "https://site.atlassian.net/rest/agile/1.0/sprint/55"
+        );
+    }
+
+    #[test]
+    fn test_sprint_create_with_from_json() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("sprint.json");
+        std::fs::write(&path, r#"{"name":"Sprint X","originBoardId":42}"#).unwrap();
+        let value = crate::jira::issue::read_json_file(path.to_str().unwrap()).unwrap();
+        assert_eq!(value["name"], "Sprint X");
+        assert_eq!(value["originBoardId"], 42);
+    }
+
+    #[test]
+    fn test_sprint_edit_with_from_json() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("sprint_edit.json");
+        std::fs::write(&path, r#"{"name":"Renamed Sprint","state":"closed"}"#).unwrap();
+        let value = crate::jira::issue::read_json_file(path.to_str().unwrap()).unwrap();
+        assert_eq!(value["name"], "Renamed Sprint");
+        assert_eq!(value["state"], "closed");
+    }
 }

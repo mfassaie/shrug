@@ -400,4 +400,37 @@ mod tests {
             "https://site.atlassian.net/rest/api/3/issue/TEAM-123/remotelink/10001"
         );
     }
+
+    #[test]
+    fn test_remote_link_list_url() {
+        let mut path_params = HashMap::new();
+        path_params.insert("issueIdOrKey".to_string(), "TEAM-456".to_string());
+        let url = http::build_url(
+            "https://site.atlassian.net",
+            "/rest/api/3/issue/{issueIdOrKey}/remotelink",
+            &path_params,
+            &[],
+        );
+        assert_eq!(
+            url,
+            "https://site.atlassian.net/rest/api/3/issue/TEAM-456/remotelink"
+        );
+    }
+
+    #[test]
+    fn test_remote_link_delete_url() {
+        let mut path_params = HashMap::new();
+        path_params.insert("issueIdOrKey".to_string(), "TEAM-789".to_string());
+        path_params.insert("remoteLinkId".to_string(), "20002".to_string());
+        let url = http::build_url(
+            "https://site.atlassian.net",
+            "/rest/api/3/issue/{issueIdOrKey}/remotelink/{remoteLinkId}",
+            &path_params,
+            &[],
+        );
+        assert_eq!(
+            url,
+            "https://site.atlassian.net/rest/api/3/issue/TEAM-789/remotelink/20002"
+        );
+    }
 }

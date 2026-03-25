@@ -383,4 +383,43 @@ mod tests {
         );
         assert!(url.contains("/wiki/api/v2/pages/12345/footer-comments"));
     }
+
+    #[test]
+    fn test_comment_view_url() {
+        let segment = comment_path_segment(None);
+        let url = format!(
+            "{}/wiki/api/v2/{}/{}",
+            "https://site.atlassian.net", segment, "99001"
+        );
+        assert_eq!(
+            url,
+            "https://site.atlassian.net/wiki/api/v2/footer-comments/99001"
+        );
+    }
+
+    #[test]
+    fn test_comment_edit_url() {
+        let segment = comment_path_segment(Some("inline"));
+        let url = format!(
+            "{}/wiki/api/v2/{}/{}",
+            "https://site.atlassian.net", segment, "88001"
+        );
+        assert_eq!(
+            url,
+            "https://site.atlassian.net/wiki/api/v2/inline-comments/88001"
+        );
+    }
+
+    #[test]
+    fn test_comment_delete_url() {
+        let segment = comment_path_segment(None);
+        let url = format!(
+            "{}/wiki/api/v2/{}/{}",
+            "https://site.atlassian.net", segment, "77001"
+        );
+        assert_eq!(
+            url,
+            "https://site.atlassian.net/wiki/api/v2/footer-comments/77001"
+        );
+    }
 }

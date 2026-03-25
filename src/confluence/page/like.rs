@@ -96,3 +96,39 @@ pub fn execute(
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn test_like_view_count_url() {
+        let url = format!(
+            "{}/wiki/api/v2/{}/{}/likes/count",
+            "https://site.atlassian.net", "pages", "12345"
+        );
+        assert_eq!(
+            url,
+            "https://site.atlassian.net/wiki/api/v2/pages/12345/likes/count"
+        );
+    }
+
+    #[test]
+    fn test_like_list_users_url() {
+        let url = format!(
+            "{}/wiki/api/v2/{}/{}/likes/users",
+            "https://site.atlassian.net", "pages", "12345"
+        );
+        assert_eq!(
+            url,
+            "https://site.atlassian.net/wiki/api/v2/pages/12345/likes/users"
+        );
+    }
+
+    #[test]
+    fn test_like_view_count_url_blogpost() {
+        let url = format!(
+            "{}/wiki/api/v2/{}/{}/likes/count",
+            "https://site.atlassian.net", "blogposts", "67890"
+        );
+        assert!(url.contains("/wiki/api/v2/blogposts/67890/likes/count"));
+    }
+}

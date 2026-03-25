@@ -352,4 +352,43 @@ mod tests {
         assert!(url.contains("filter=sprint"));
         assert!(url.contains("orderBy=name"));
     }
+
+    #[test]
+    fn test_dashboard_view_url() {
+        let mut path_params = HashMap::new();
+        path_params.insert("id".to_string(), "10300".to_string());
+        let url = http::build_url(
+            "https://site.atlassian.net",
+            "/rest/api/3/dashboard/{id}",
+            &path_params,
+            &[],
+        );
+        assert_eq!(
+            url,
+            "https://site.atlassian.net/rest/api/3/dashboard/10300"
+        );
+    }
+
+    #[test]
+    fn test_dashboard_edit_body() {
+        let body = build_edit_body(Some("New Name"), Some("Updated desc"));
+        assert_eq!(body["name"], "New Name");
+        assert_eq!(body["description"], "Updated desc");
+    }
+
+    #[test]
+    fn test_dashboard_delete_url() {
+        let mut path_params = HashMap::new();
+        path_params.insert("id".to_string(), "20300".to_string());
+        let url = http::build_url(
+            "https://site.atlassian.net",
+            "/rest/api/3/dashboard/{id}",
+            &path_params,
+            &[],
+        );
+        assert_eq!(
+            url,
+            "https://site.atlassian.net/rest/api/3/dashboard/20300"
+        );
+    }
 }

@@ -394,4 +394,34 @@ mod tests {
             "https://site.atlassian.net/rest/api/3/component/10042"
         );
     }
+
+    #[test]
+    fn test_component_edit_body() {
+        let body = build_edit_body(
+            Some("Updated Backend"),
+            Some("New desc"),
+            None,
+            Some("COMPONENT_LEAD"),
+        );
+        assert_eq!(body["name"], "Updated Backend");
+        assert_eq!(body["description"], "New desc");
+        assert!(body.get("leadAccountId").is_none());
+        assert_eq!(body["assigneeType"], "COMPONENT_LEAD");
+    }
+
+    #[test]
+    fn test_component_delete_url() {
+        let mut path_params = HashMap::new();
+        path_params.insert("id".to_string(), "30042".to_string());
+        let url = http::build_url(
+            "https://site.atlassian.net",
+            "/rest/api/3/component/{id}",
+            &path_params,
+            &[],
+        );
+        assert_eq!(
+            url,
+            "https://site.atlassian.net/rest/api/3/component/30042"
+        );
+    }
 }

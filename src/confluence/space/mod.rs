@@ -419,4 +419,46 @@ mod tests {
         assert!(url.contains("type=global"));
         assert!(url.contains("status=current"));
     }
+
+    #[test]
+    fn test_space_view_url() {
+        let mut path_params = HashMap::new();
+        path_params.insert("id".to_string(), "98765".to_string());
+        let url = http::build_url(
+            "https://site.atlassian.net",
+            "/wiki/api/v2/spaces/{id}",
+            &path_params,
+            &[],
+        );
+        assert_eq!(
+            url,
+            "https://site.atlassian.net/wiki/api/v2/spaces/98765"
+        );
+    }
+
+    #[test]
+    fn test_space_delete_url() {
+        let mut path_params = HashMap::new();
+        path_params.insert("spaceKey".to_string(), "OLD".to_string());
+        let url = http::build_url(
+            "https://site.atlassian.net",
+            "/wiki/rest/api/space/{spaceKey}",
+            &path_params,
+            &[],
+        );
+        assert_eq!(
+            url,
+            "https://site.atlassian.net/wiki/rest/api/space/OLD"
+        );
+    }
+
+    #[test]
+    fn test_space_create_with_from_json() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("space.json");
+        std::fs::write(&path, r#"{"key":"TEST","name":"Test Space","type":"global"}"#).unwrap();
+        let value = crate::jira::issue::read_json_file(path.to_str().unwrap()).unwrap();
+        assert_eq!(value["key"], "TEST");
+        assert_eq!(value["name"], "Test Space");
+    }
 }

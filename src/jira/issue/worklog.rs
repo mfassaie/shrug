@@ -401,4 +401,37 @@ mod tests {
         assert!(url.contains("adjustEstimate=new"));
         assert!(url.contains("newEstimate=4h"));
     }
+
+    #[test]
+    fn test_worklog_list_url() {
+        let mut path_params = HashMap::new();
+        path_params.insert("issueIdOrKey".to_string(), "TEAM-789".to_string());
+        let url = http::build_url(
+            "https://site.atlassian.net",
+            "/rest/api/3/issue/{issueIdOrKey}/worklog",
+            &path_params,
+            &[],
+        );
+        assert_eq!(
+            url,
+            "https://site.atlassian.net/rest/api/3/issue/TEAM-789/worklog"
+        );
+    }
+
+    #[test]
+    fn test_worklog_delete_url() {
+        let mut path_params = HashMap::new();
+        path_params.insert("issueIdOrKey".to_string(), "TEAM-100".to_string());
+        path_params.insert("id".to_string(), "99999".to_string());
+        let url = http::build_url(
+            "https://site.atlassian.net",
+            "/rest/api/3/issue/{issueIdOrKey}/worklog/{id}",
+            &path_params,
+            &[],
+        );
+        assert_eq!(
+            url,
+            "https://site.atlassian.net/rest/api/3/issue/TEAM-100/worklog/99999"
+        );
+    }
 }

@@ -274,4 +274,20 @@ mod tests {
             "https://site.atlassian.net/rest/api/3/issueLink/10500"
         );
     }
+
+    #[test]
+    fn test_link_delete_url() {
+        let mut path_params = HashMap::new();
+        path_params.insert("linkId".to_string(), "20500".to_string());
+        let url = http::build_url(
+            "https://site.atlassian.net",
+            "/rest/api/3/issueLink/{linkId}",
+            &path_params,
+            &[],
+        );
+        assert_eq!(
+            url,
+            "https://site.atlassian.net/rest/api/3/issueLink/20500"
+        );
+    }
 }

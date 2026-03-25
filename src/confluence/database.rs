@@ -203,4 +203,55 @@ pub fn execute(
 }
 
 #[cfg(test)]
-mod tests {}
+mod tests {
+    use super::*;
+    use std::collections::HashMap;
+
+    #[test]
+    fn test_database_create_body() {
+        let body = build_create_body("My Database", "12345", Some("67890"));
+        assert_eq!(body["title"], "My Database");
+        assert_eq!(body["spaceId"], "12345");
+        assert_eq!(body["parentId"], "67890");
+    }
+
+    #[test]
+    fn test_database_create_body_no_parent() {
+        let body = build_create_body("Simple DB", "11111", None);
+        assert_eq!(body["title"], "Simple DB");
+        assert_eq!(body["spaceId"], "11111");
+        assert!(body.get("parentId").is_none());
+    }
+
+    #[test]
+    fn test_database_view_url() {
+        let mut path_params = HashMap::new();
+        path_params.insert("id".to_string(), "33333".to_string());
+        let url = http::build_url(
+            "https://site.atlassian.net",
+            "/wiki/api/v2/databases/{id}",
+            &path_params,
+            &[],
+        );
+        assert_eq!(
+            url,
+            "https://site.atlassian.net/wiki/api/v2/databases/33333"
+        );
+    }
+
+    #[test]
+    fn test_database_delete_url() {
+        let mut path_params = HashMap::new();
+        path_params.insert("id".to_string(), "44444".to_string());
+        let url = http::build_url(
+            "https://site.atlassian.net",
+            "/wiki/api/v2/databases/{id}",
+            &path_params,
+            &[],
+        );
+        assert_eq!(
+            url,
+            "https://site.atlassian.net/wiki/api/v2/databases/44444"
+        );
+    }
+}

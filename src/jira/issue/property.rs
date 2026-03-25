@@ -294,4 +294,37 @@ mod tests {
             "--value and --value-file should conflict"
         );
     }
+
+    #[test]
+    fn test_property_list_url() {
+        let mut path_params = HashMap::new();
+        path_params.insert("issueIdOrKey".to_string(), "TEAM-456".to_string());
+        let url = http::build_url(
+            "https://site.atlassian.net",
+            "/rest/api/3/issue/{issueIdOrKey}/properties",
+            &path_params,
+            &[],
+        );
+        assert_eq!(
+            url,
+            "https://site.atlassian.net/rest/api/3/issue/TEAM-456/properties"
+        );
+    }
+
+    #[test]
+    fn test_property_delete_url() {
+        let mut path_params = HashMap::new();
+        path_params.insert("issueIdOrKey".to_string(), "TEAM-789".to_string());
+        path_params.insert("propertyKey".to_string(), "old.prop".to_string());
+        let url = http::build_url(
+            "https://site.atlassian.net",
+            "/rest/api/3/issue/{issueIdOrKey}/properties/{propertyKey}",
+            &path_params,
+            &[],
+        );
+        assert_eq!(
+            url,
+            "https://site.atlassian.net/rest/api/3/issue/TEAM-789/properties/old.prop"
+        );
+    }
 }

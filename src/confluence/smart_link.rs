@@ -216,4 +216,62 @@ pub fn execute(
 }
 
 #[cfg(test)]
-mod tests {}
+mod tests {
+    use super::*;
+    use std::collections::HashMap;
+
+    #[test]
+    fn test_smart_link_create_body() {
+        let body = build_create_body(
+            "https://example.com/doc",
+            "12345",
+            Some("67890"),
+            Some("My Embed"),
+        );
+        assert_eq!(body["url"], "https://example.com/doc");
+        assert_eq!(body["spaceId"], "12345");
+        assert_eq!(body["parentId"], "67890");
+        assert_eq!(body["title"], "My Embed");
+    }
+
+    #[test]
+    fn test_smart_link_create_body_minimal() {
+        let body = build_create_body("https://example.com", "11111", None, None);
+        assert_eq!(body["url"], "https://example.com");
+        assert_eq!(body["spaceId"], "11111");
+        assert!(body.get("parentId").is_none());
+        assert!(body.get("title").is_none());
+    }
+
+    #[test]
+    fn test_smart_link_view_url() {
+        let mut path_params = HashMap::new();
+        path_params.insert("id".to_string(), "33333".to_string());
+        let url = http::build_url(
+            "https://site.atlassian.net",
+            "/wiki/api/v2/embeds/{id}",
+            &path_params,
+            &[],
+        );
+        assert_eq!(
+            url,
+            "https://site.atlassian.net/wiki/api/v2/embeds/33333"
+        );
+    }
+
+    #[test]
+    fn test_smart_link_delete_url() {
+        let mut path_params = HashMap::new();
+        path_params.insert("id".to_string(), "44444".to_string());
+        let url = http::build_url(
+            "https://site.atlassian.net",
+            "/wiki/api/v2/embeds/{id}",
+            &path_params,
+            &[],
+        );
+        assert_eq!(
+            url,
+            "https://site.atlassian.net/wiki/api/v2/embeds/44444"
+        );
+    }
+}

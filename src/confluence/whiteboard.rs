@@ -213,4 +213,36 @@ mod tests {
         assert_eq!(body["spaceId"], "12345");
         assert_eq!(body["parentId"], "67890");
     }
+
+    #[test]
+    fn test_whiteboard_view_url() {
+        let mut path_params = HashMap::new();
+        path_params.insert("id".to_string(), "44444".to_string());
+        let url = http::build_url(
+            "https://site.atlassian.net",
+            "/wiki/api/v2/whiteboards/{id}",
+            &path_params,
+            &[],
+        );
+        assert_eq!(
+            url,
+            "https://site.atlassian.net/wiki/api/v2/whiteboards/44444"
+        );
+    }
+
+    #[test]
+    fn test_whiteboard_delete_url() {
+        let mut path_params = HashMap::new();
+        path_params.insert("id".to_string(), "55555".to_string());
+        let url = http::build_url(
+            "https://site.atlassian.net",
+            "/wiki/api/v2/whiteboards/{id}",
+            &path_params,
+            &[],
+        );
+        assert_eq!(
+            url,
+            "https://site.atlassian.net/wiki/api/v2/whiteboards/55555"
+        );
+    }
 }

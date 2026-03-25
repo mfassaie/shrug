@@ -311,4 +311,20 @@ mod tests {
             "https://site.atlassian.net/rest/api/3/attachment/99001"
         );
     }
+
+    #[test]
+    fn test_attachment_delete_url() {
+        let mut path_params = HashMap::new();
+        path_params.insert("id".to_string(), "88002".to_string());
+        let url = http::build_url(
+            "https://site.atlassian.net",
+            "/rest/api/3/attachment/{id}",
+            &path_params,
+            &[],
+        );
+        assert_eq!(
+            url,
+            "https://site.atlassian.net/rest/api/3/attachment/88002"
+        );
+    }
 }

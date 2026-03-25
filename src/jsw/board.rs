@@ -356,4 +356,31 @@ mod tests {
         );
         assert!(url.contains("/rest/agile/1.0/board/42/configuration"));
     }
+
+    #[test]
+    fn test_board_delete_url() {
+        let mut path_params = HashMap::new();
+        path_params.insert("boardId".to_string(), "99".to_string());
+        let url = http::build_url(
+            "https://site.atlassian.net",
+            "/rest/agile/1.0/board/{boardId}",
+            &path_params,
+            &[],
+        );
+        assert_eq!(
+            url,
+            "https://site.atlassian.net/rest/agile/1.0/board/99"
+        );
+    }
+
+    #[test]
+    fn test_board_create_with_from_json() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("board.json");
+        std::fs::write(&path, r#"{"name":"Custom","type":"kanban","filterId":999}"#).unwrap();
+        let value = crate::jira::issue::read_json_file(path.to_str().unwrap()).unwrap();
+        assert_eq!(value["name"], "Custom");
+        assert_eq!(value["type"], "kanban");
+        assert_eq!(value["filterId"], 999);
+    }
 }

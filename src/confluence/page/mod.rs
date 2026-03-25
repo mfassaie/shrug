@@ -625,4 +625,50 @@ mod tests {
         assert!(url.contains("space-id=12345"));
         assert!(url.contains("title=My+Page") || url.contains("title=My%20Page"));
     }
+
+    #[test]
+    fn test_page_view_url() {
+        let mut path_params = HashMap::new();
+        path_params.insert("id".to_string(), "55555".to_string());
+        let url = http::build_url(
+            "https://site.atlassian.net",
+            "/wiki/api/v2/pages/{id}",
+            &path_params,
+            &[],
+        );
+        assert_eq!(
+            url,
+            "https://site.atlassian.net/wiki/api/v2/pages/55555"
+        );
+    }
+
+    #[test]
+    fn test_page_delete_url() {
+        let mut path_params = HashMap::new();
+        path_params.insert("id".to_string(), "66666".to_string());
+        let url = http::build_url(
+            "https://site.atlassian.net",
+            "/wiki/api/v2/pages/{id}",
+            &path_params,
+            &[],
+        );
+        assert_eq!(
+            url,
+            "https://site.atlassian.net/wiki/api/v2/pages/66666"
+        );
+    }
+
+    #[test]
+    fn test_page_create_with_from_json() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("page.json");
+        std::fs::write(
+            &path,
+            r#"{"title":"Custom Page","spaceId":"12345","status":"current"}"#,
+        )
+        .unwrap();
+        let value = crate::jira::issue::read_json_file(path.to_str().unwrap()).unwrap();
+        assert_eq!(value["title"], "Custom Page");
+        assert_eq!(value["spaceId"], "12345");
+    }
 }

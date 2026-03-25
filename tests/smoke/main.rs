@@ -1,6 +1,6 @@
 //! Smoke tests for shrug CLI against an installed binary on PATH.
 //!
-//! Unlike the E2E tests (tests/e2e/) which use `cargo_bin("shrug")` to test the
+//! Unlike the live E2E tests (tests/live/) which use `cargo_bin("shrug")` to test the
 //! build output, these tests run against an installed shrug.exe found on PATH
 //! (or via the SHRUG_E2E_BINARY environment variable).
 //!

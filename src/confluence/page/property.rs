@@ -374,4 +374,41 @@ mod tests {
         );
         assert!(view_url.contains("/wiki/api/v2/blogposts/67890/properties/prop-1"));
     }
+
+    #[test]
+    fn test_property_view_url() {
+        let url = format!(
+            "{}/wiki/api/v2/{}/{}/properties/{}",
+            "https://site.atlassian.net", "pages", "12345", "prop-42"
+        );
+        assert_eq!(
+            url,
+            "https://site.atlassian.net/wiki/api/v2/pages/12345/properties/prop-42"
+        );
+    }
+
+    #[test]
+    fn test_property_edit_body() {
+        let json_value: Value = serde_json::from_str(r#"{"count":99}"#).unwrap();
+        let body = json!({
+            "value": json_value,
+            "version": {
+                "number": 5,
+            },
+        });
+        assert_eq!(body["value"]["count"], 99);
+        assert_eq!(body["version"]["number"], 5);
+    }
+
+    #[test]
+    fn test_property_delete_url() {
+        let url = format!(
+            "{}/wiki/api/v2/{}/{}/properties/{}",
+            "https://site.atlassian.net", "pages", "12345", "prop-99"
+        );
+        assert_eq!(
+            url,
+            "https://site.atlassian.net/wiki/api/v2/pages/12345/properties/prop-99"
+        );
+    }
 }

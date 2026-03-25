@@ -211,8 +211,6 @@ pub fn execute(
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-
     #[test]
     fn test_search_jql_from_shorthand() {
         // When no positional or --jql is given, shorthand flags are used

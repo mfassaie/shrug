@@ -580,4 +580,68 @@ mod tests {
         assert!(url.contains("space-id=12345"));
         assert!(url.contains("status=current"));
     }
+
+    #[test]
+    fn test_blogpost_view_url() {
+        let mut path_params = HashMap::new();
+        path_params.insert("id".to_string(), "77777".to_string());
+        let url = http::build_url(
+            "https://site.atlassian.net",
+            "/wiki/api/v2/blogposts/{id}",
+            &path_params,
+            &[],
+        );
+        assert_eq!(
+            url,
+            "https://site.atlassian.net/wiki/api/v2/blogposts/77777"
+        );
+    }
+
+    #[test]
+    fn test_blogpost_delete_url() {
+        let mut path_params = HashMap::new();
+        path_params.insert("id".to_string(), "88888".to_string());
+        let url = http::build_url(
+            "https://site.atlassian.net",
+            "/wiki/api/v2/blogposts/{id}",
+            &path_params,
+            &[],
+        );
+        assert_eq!(
+            url,
+            "https://site.atlassian.net/wiki/api/v2/blogposts/88888"
+        );
+    }
+
+    #[test]
+    fn test_blogpost_edit_body() {
+        let body = build_edit_body(
+            "999",
+            Some("Updated Post"),
+            Some("<p>New content</p>"),
+            Some("current"),
+            3,
+            Some("Revised draft"),
+        );
+        assert_eq!(body["id"], "999");
+        assert_eq!(body["title"], "Updated Post");
+        assert_eq!(body["body"]["representation"], "storage");
+        assert_eq!(body["body"]["value"], "<p>New content</p>");
+        assert_eq!(body["version"]["number"], 3);
+        assert_eq!(body["version"]["message"], "Revised draft");
+    }
+
+    #[test]
+    fn test_blogpost_create_with_from_json() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("blogpost.json");
+        std::fs::write(
+            &path,
+            r#"{"title":"Custom Post","spaceId":"12345","status":"draft"}"#,
+        )
+        .unwrap();
+        let value = crate::jira::issue::read_json_file(path.to_str().unwrap()).unwrap();
+        assert_eq!(value["title"], "Custom Post");
+        assert_eq!(value["status"], "draft");
+    }
 }

@@ -207,4 +207,20 @@ mod tests {
         assert!(url.contains("/rest/api/3/issue/TEAM-123/watchers"));
         assert!(url.contains("accountId=abc123"));
     }
+
+    #[test]
+    fn test_watcher_list_url() {
+        let mut path_params = HashMap::new();
+        path_params.insert("issueIdOrKey".to_string(), "TEAM-456".to_string());
+        let url = http::build_url(
+            "https://site.atlassian.net",
+            "/rest/api/3/issue/{issueIdOrKey}/watchers",
+            &path_params,
+            &[],
+        );
+        assert_eq!(
+            url,
+            "https://site.atlassian.net/rest/api/3/issue/TEAM-456/watchers"
+        );
+    }
 }

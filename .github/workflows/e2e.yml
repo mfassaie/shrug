@@ -52,4 +52,4 @@ jobs:
         run: cargo build --release
 
       - name: Run E2E tests
-        run: cargo test --test e2e --release -- --test-threads=1
+        run: cargo test --test live --release -- --test-threads=1

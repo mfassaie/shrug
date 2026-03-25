@@ -252,4 +252,20 @@ mod tests {
         ]);
         assert!(result.is_err(), "--done and --no-done should conflict");
     }
+
+    #[test]
+    fn test_epic_view_url() {
+        let mut path_params = HashMap::new();
+        path_params.insert("epicIdOrKey".to_string(), "TEAM-99".to_string());
+        let url = http::build_url(
+            "https://site.atlassian.net",
+            "/rest/agile/1.0/epic/{epicIdOrKey}",
+            &path_params,
+            &[],
+        );
+        assert_eq!(
+            url,
+            "https://site.atlassian.net/rest/agile/1.0/epic/TEAM-99"
+        );
+    }
 }

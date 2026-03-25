@@ -228,4 +228,16 @@ mod tests {
             "https://site.atlassian.net/wiki/rest/api/content/12345/restriction"
         );
     }
+
+    #[test]
+    fn test_restriction_delete_url() {
+        let url = format!(
+            "{}/wiki/rest/api/content/{}/restriction",
+            "https://site.atlassian.net", "67890"
+        );
+        assert_eq!(
+            url,
+            "https://site.atlassian.net/wiki/rest/api/content/67890/restriction"
+        );
+    }
 }

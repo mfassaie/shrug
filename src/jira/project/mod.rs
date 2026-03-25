@@ -465,4 +465,36 @@ mod tests {
         assert!(url.contains("query=team"));
         assert!(url.contains("typeKey=software"));
     }
+
+    #[test]
+    fn test_project_view_url() {
+        let mut path_params = HashMap::new();
+        path_params.insert("projectIdOrKey".to_string(), "TEAM".to_string());
+        let url = http::build_url(
+            "https://site.atlassian.net",
+            "/rest/api/3/project/{projectIdOrKey}",
+            &path_params,
+            &[],
+        );
+        assert_eq!(
+            url,
+            "https://site.atlassian.net/rest/api/3/project/TEAM"
+        );
+    }
+
+    #[test]
+    fn test_project_delete_url() {
+        let mut path_params = HashMap::new();
+        path_params.insert("projectIdOrKey".to_string(), "OLD".to_string());
+        let url = http::build_url(
+            "https://site.atlassian.net",
+            "/rest/api/3/project/{projectIdOrKey}",
+            &path_params,
+            &[],
+        );
+        assert_eq!(
+            url,
+            "https://site.atlassian.net/rest/api/3/project/OLD"
+        );
+    }
 }

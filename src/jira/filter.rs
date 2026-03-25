@@ -390,4 +390,48 @@ mod tests {
         assert!(url.contains("favourite=true"));
         assert!(url.contains("orderBy=name"));
     }
+
+    #[test]
+    fn test_filter_view_url() {
+        let mut path_params = HashMap::new();
+        path_params.insert("id".to_string(), "10100".to_string());
+        let url = http::build_url(
+            "https://site.atlassian.net",
+            "/rest/api/3/filter/{id}",
+            &path_params,
+            &[],
+        );
+        assert_eq!(
+            url,
+            "https://site.atlassian.net/rest/api/3/filter/10100"
+        );
+    }
+
+    #[test]
+    fn test_filter_edit_body() {
+        let body = build_edit_body(
+            Some("Updated Filter"),
+            Some("project = NEW"),
+            None,
+        );
+        assert_eq!(body["name"], "Updated Filter");
+        assert_eq!(body["jql"], "project = NEW");
+        assert!(body.get("description").is_none());
+    }
+
+    #[test]
+    fn test_filter_delete_url() {
+        let mut path_params = HashMap::new();
+        path_params.insert("id".to_string(), "20100".to_string());
+        let url = http::build_url(
+            "https://site.atlassian.net",
+            "/rest/api/3/filter/{id}",
+            &path_params,
+            &[],
+        );
+        assert_eq!(
+            url,
+            "https://site.atlassian.net/rest/api/3/filter/20100"
+        );
+    }
 }
