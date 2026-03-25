@@ -118,7 +118,9 @@ pub fn build_crud_mappings(spec: &ApiSpec) -> HashMap<String, CrudMapping> {
             })
             .collect();
 
-        // Prefer: no path params first, then list/search patterns, then shortest path
+        // Prefer: no path params first, then list/search patterns,
+        // then operations whose ID relates to the tag name, then shortest path.
+        let singular_tag = singularise(tag);
         let best_list = list_candidates
             .iter()
             .min_by_key(|op| {
@@ -128,8 +130,13 @@ pub fn build_crud_mappings(spec: &ApiSpec) -> HashMap<String, CrudMapping> {
                 } else {
                     1
                 };
+                let tag_relevance = if op.operation_id.to_lowercase().contains(&singular_tag) {
+                    0
+                } else {
+                    1
+                };
                 let path_len = op.path.len();
-                (has_path, is_pattern, path_len)
+                (has_path, is_pattern, tag_relevance, path_len)
             })
             .copied();
 
@@ -182,6 +189,17 @@ fn first_path_param(op: &Operation) -> Option<&crate::spec::model::Parameter> {
     op.parameters
         .iter()
         .find(|p| p.location == ParameterLocation::Path)
+}
+
+/// Simple singularisation: strip trailing 's' for tag-name matching.
+/// Covers the vast majority of Atlassian entity tags (issues→issue, projects→project).
+fn singularise(tag: &str) -> String {
+    let lower = tag.to_lowercase();
+    if lower.ends_with('s') && lower.len() > 1 {
+        lower[..lower.len() - 1].to_string()
+    } else {
+        lower
+    }
 }
 
 /// Check if an operation ID matches a list/search pattern.
@@ -418,10 +436,64 @@ mod tests {
     #[test]
     fn is_list_pattern_matches_search_prefix() {
         assert!(is_list_pattern("searchIssuesUsingJql"));
+        // Atlassian's live OpenAPI spec ships this operation ID with a typo
+        // ("Reconsile" instead of "Reconcile"). is_list_pattern handles it
+        // correctly because it matches the "search" prefix. If Atlassian
+        // fixes the typo, update this assertion to match the new ID.
         assert!(is_list_pattern("searchAndReconsileIssuesUsingJql"));
         assert!(is_list_pattern("listProjects"));
         assert!(is_list_pattern("getAllIssueTypes"));
         assert!(is_list_pattern("get_all_users"));
+    }
+
+    #[test]
+    fn list_heuristic_prefers_tag_relevant_operation() {
+        // Bug fix: when a tag has multiple parameterless GET operations,
+        // the heuristic should prefer the one whose ID relates to the tag name.
+        let spec = make_spec(vec![
+            make_op("getEvents", HttpMethod::Get, "/issues/events", "issues"),
+            make_op("searchIssues", HttpMethod::Get, "/issues/search", "issues"),
+        ]);
+        let mappings = build_crud_mappings(&spec);
+        let m = mappings.get("issues").unwrap();
+        assert!(m.list.is_some());
+        assert_eq!(
+            m.list.as_ref().unwrap().operation_id,
+            "searchIssues",
+            "Should select the operation related to the tag name, not 'getEvents'"
+        );
+    }
+
+    #[test]
+    fn list_heuristic_works_for_tags_not_ending_in_s() {
+        // Edge case: tag "search" doesn't end in 's', singularise degrades gracefully
+        let spec = make_spec(vec![
+            make_op(
+                "getSearchResults",
+                HttpMethod::Get,
+                "/search/results",
+                "search",
+            ),
+            make_op(
+                "getSearchConfig",
+                HttpMethod::Get,
+                "/search/config",
+                "search",
+            ),
+        ]);
+        let mappings = build_crud_mappings(&spec);
+        let m = mappings.get("search").unwrap();
+        // Both contain "search", so tag_relevance is equal; falls back to path_len
+        assert!(m.list.is_some());
+    }
+
+    #[test]
+    fn singularise_strips_trailing_s() {
+        assert_eq!(singularise("issues"), "issue");
+        assert_eq!(singularise("projects"), "project");
+        assert_eq!(singularise("search"), "search");
+        assert_eq!(singularise("status"), "statu");
+        assert_eq!(singularise("s"), "s"); // single char, no strip
     }
 
     #[test]

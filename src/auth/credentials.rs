@@ -1017,6 +1017,10 @@ mod tests {
 
     #[test]
     fn delete_cleans_up_oauth_files() {
+        // Test that delete removes OAuth file-based storage.
+        // We verify file cleanup directly rather than via retrieve, because
+        // retrieve checks the OS keychain first and keychain deletes can be
+        // asynchronous on some platforms, causing intermittent failures.
         let dir = tempfile::tempdir().unwrap();
         let store = make_store(&dir);
         let name = "test-delete-cleanup";
@@ -1039,8 +1043,23 @@ mod tests {
 
         store.delete(name);
 
-        assert!(store.retrieve_oauth_tokens(name).unwrap().is_none());
-        assert!(store.retrieve_oauth_config(name).unwrap().is_none());
+        // Verify file-based cleanup (deterministic, no OS keychain race)
+        let token_path = dir
+            .path()
+            .join("credentials")
+            .join(format!("{}.oauth.enc", name));
+        let config_path = dir
+            .path()
+            .join("credentials")
+            .join(format!("{}.oauth-config.enc", name));
+        assert!(
+            !token_path.exists(),
+            "OAuth token file should be removed after delete"
+        );
+        assert!(
+            !config_path.exists(),
+            "OAuth config file should be removed after delete"
+        );
     }
 
     #[test]

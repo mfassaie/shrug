@@ -1025,15 +1025,7 @@ fn test_crud_verb_lifecycle() {
 
     // LIST via CRUD verb
     let jql = format!("project = {} ORDER BY created DESC", project);
-    let list = runner.run(&[
-        "jira",
-        "Issues",
-        "list",
-        "--jql",
-        &jql,
-        "--maxResults",
-        "1",
-    ]);
+    let list = runner.run(&["jira", "Issues", "list", "--jql", &jql, "--maxResults", "1"]);
     assert!(
         list.exit_code == 0,
         "CRUD 'list' verb should succeed: {}",

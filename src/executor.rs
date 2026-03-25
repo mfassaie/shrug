@@ -1806,10 +1806,7 @@ mod tests {
 
     #[test]
     fn extract_json_body_only_json() {
-        let args: Vec<String> = vec!["--json", "{}"]
-            .into_iter()
-            .map(String::from)
-            .collect();
+        let args: Vec<String> = vec!["--json", "{}"].into_iter().map(String::from).collect();
         let (body, rest) = extract_json_body(&args);
         assert_eq!(body.unwrap(), "{}");
         assert!(rest.is_empty());
@@ -1867,7 +1864,10 @@ mod tests {
         mock.assert();
         match result {
             SendResult::Success(Some(body)) => assert!(body.contains("ok")),
-            other => panic!("Expected Success(Some), got: {:?}", std::mem::discriminant(&other)),
+            other => panic!(
+                "Expected Success(Some), got: {:?}",
+                std::mem::discriminant(&other)
+            ),
         }
     }
 
@@ -1896,7 +1896,10 @@ mod tests {
         mock.assert();
         match result {
             SendResult::Success(Some(body)) => assert!(body.contains("id")),
-            other => panic!("Expected Success(Some), got: {:?}", std::mem::discriminant(&other)),
+            other => panic!(
+                "Expected Success(Some), got: {:?}",
+                std::mem::discriminant(&other)
+            ),
         }
     }
 
@@ -1925,7 +1928,10 @@ mod tests {
         mock.assert();
         match result {
             SendResult::Success(Some(body)) => assert!(body.contains("updated")),
-            other => panic!("Expected Success(Some), got: {:?}", std::mem::discriminant(&other)),
+            other => panic!(
+                "Expected Success(Some), got: {:?}",
+                std::mem::discriminant(&other)
+            ),
         }
     }
 
@@ -1954,7 +1960,10 @@ mod tests {
         mock.assert();
         match result {
             SendResult::Success(None) => {}
-            other => panic!("Expected Success(None), got: {:?}", std::mem::discriminant(&other)),
+            other => panic!(
+                "Expected Success(None), got: {:?}",
+                std::mem::discriminant(&other)
+            ),
         }
     }
 
@@ -1983,7 +1992,10 @@ mod tests {
         mock.assert();
         match result {
             SendResult::Fatal(ShrugError::AuthError(_)) => {}
-            other => panic!("Expected Fatal(AuthError), got: {:?}", std::mem::discriminant(&other)),
+            other => panic!(
+                "Expected Fatal(AuthError), got: {:?}",
+                std::mem::discriminant(&other)
+            ),
         }
     }
 
@@ -2012,7 +2024,10 @@ mod tests {
         mock.assert();
         match result {
             SendResult::Fatal(ShrugError::PermissionDenied(_)) => {}
-            other => panic!("Expected Fatal(PermissionDenied), got: {:?}", std::mem::discriminant(&other)),
+            other => panic!(
+                "Expected Fatal(PermissionDenied), got: {:?}",
+                std::mem::discriminant(&other)
+            ),
         }
     }
 
@@ -2041,7 +2056,10 @@ mod tests {
         mock.assert();
         match result {
             SendResult::Fatal(ShrugError::NotFound(_)) => {}
-            other => panic!("Expected Fatal(NotFound), got: {:?}", std::mem::discriminant(&other)),
+            other => panic!(
+                "Expected Fatal(NotFound), got: {:?}",
+                std::mem::discriminant(&other)
+            ),
         }
     }
 
@@ -2074,7 +2092,10 @@ mod tests {
             SendResult::Retryable { retry_after, .. } => {
                 assert_eq!(retry_after, Some(5));
             }
-            other => panic!("Expected Retryable, got: {:?}", std::mem::discriminant(&other)),
+            other => panic!(
+                "Expected Retryable, got: {:?}",
+                std::mem::discriminant(&other)
+            ),
         }
     }
 
@@ -2103,7 +2124,10 @@ mod tests {
         mock.assert();
         match result {
             SendResult::Retryable { .. } => {}
-            other => panic!("Expected Retryable, got: {:?}", std::mem::discriminant(&other)),
+            other => panic!(
+                "Expected Retryable, got: {:?}",
+                std::mem::discriminant(&other)
+            ),
         }
     }
 

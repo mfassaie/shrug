@@ -14,19 +14,12 @@ pub enum Product {
     Confluence,
 }
 
-/// API spec format version.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum SpecFormat {
-    V3,
-}
-
 /// Metadata for an Atlassian product's API spec.
 pub struct ProductInfo {
     pub product: Product,
     pub display_name: &'static str,
     pub cli_prefix: &'static str,
     pub spec_url: &'static str,
-    pub spec_format: SpecFormat,
     pub cache_key: &'static str,
 }
 
@@ -37,7 +30,7 @@ static JIRA_INFO: ProductInfo = ProductInfo {
     display_name: "Jira Platform",
     cli_prefix: "jira",
     spec_url: "https://dac-static.atlassian.com/cloud/jira/platform/swagger-v3.v3.json",
-    spec_format: SpecFormat::V3,
+
     cache_key: "jira-platform",
 };
 
@@ -46,7 +39,7 @@ static JIRA_SOFTWARE_INFO: ProductInfo = ProductInfo {
     display_name: "Jira Software",
     cli_prefix: "jira-software",
     spec_url: "https://dac-static.atlassian.com/cloud/jira/software/swagger.v3.json",
-    spec_format: SpecFormat::V3,
+
     cache_key: "jira-software",
 };
 
@@ -55,7 +48,7 @@ static CONFLUENCE_INFO: ProductInfo = ProductInfo {
     display_name: "Confluence",
     cli_prefix: "confluence",
     spec_url: "https://dac-static.atlassian.com/cloud/confluence/openapi-v2.v3.json",
-    spec_format: SpecFormat::V3,
+
     cache_key: "confluence",
 };
 

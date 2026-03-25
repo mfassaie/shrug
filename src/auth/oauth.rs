@@ -657,14 +657,26 @@ mod tests {
             redirect_port: 9999,
         };
         let (url, _verifier, _state) = start_auth_flow(&config).unwrap();
-        assert!(url.contains("response_type=code"), "Missing response_type: {url}");
-        assert!(url.contains("client_id=test-client-id"), "Missing client_id: {url}");
+        assert!(
+            url.contains("response_type=code"),
+            "Missing response_type: {url}"
+        );
+        assert!(
+            url.contains("client_id=test-client-id"),
+            "Missing client_id: {url}"
+        );
         assert!(
             url.contains("redirect_uri=http%3A%2F%2F127.0.0.1%3A9999%2Fcallback"),
             "Missing or wrong redirect_uri: {url}"
         );
-        assert!(url.contains("code_challenge="), "Missing code_challenge: {url}");
-        assert!(url.contains("code_challenge_method=S256"), "Missing code_challenge_method: {url}");
+        assert!(
+            url.contains("code_challenge="),
+            "Missing code_challenge: {url}"
+        );
+        assert!(
+            url.contains("code_challenge_method=S256"),
+            "Missing code_challenge_method: {url}"
+        );
         assert!(url.contains("state="), "Missing state: {url}");
         assert!(url.contains("scope="), "Missing scope: {url}");
     }
@@ -678,6 +690,9 @@ mod tests {
         };
         assert_eq!(config.redirect_port, 12345);
         let (url, _, _) = start_auth_flow(&config).unwrap();
-        assert!(url.contains("12345"), "Custom port should appear in URL: {url}");
+        assert!(
+            url.contains("12345"),
+            "Custom port should appear in URL: {url}"
+        );
     }
 }
