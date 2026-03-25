@@ -49,7 +49,7 @@ pub fn handle_profile(
                 );
             }
         }
-        ProfileCommands::Get { name } => {
+        ProfileCommands::View { name } => {
             let profile = store.get(name)?;
             let is_default = store.is_default(name);
             let token_status = match cred_store.has_credential(name) {
@@ -62,6 +62,12 @@ pub fn handle_profile(
             println!("Auth type: {}", profile.auth_type);
             println!("Default:   {}", if is_default { "yes" } else { "no" });
             println!("Token:     {}", token_status);
+        }
+        ProfileCommands::Use { name } => {
+            // Verify profile exists
+            store.get(name)?;
+            store.set_default(name)?;
+            println!("Default profile set to '{}'.", name);
         }
         ProfileCommands::Update {
             name,

@@ -12,7 +12,7 @@ fn test_error_nonexistent_profile_show() {
     let config = skip_unless_binary!();
     let runner = SmokeRunner::new(config);
 
-    let result = runner.run(&["profile", "get", "nonexistent-xyz-999"]);
+    let result = runner.run(&["profile", "view", "nonexistent-xyz-999"]);
     assert_ne!(
         result.exit_code, 0,
         "Showing nonexistent profile should fail"
@@ -117,7 +117,7 @@ fn test_error_hint_present_on_profile_error() {
     let config = skip_unless_binary!();
     let runner = SmokeRunner::new(config);
 
-    let result = runner.run(&["profile", "get", "nonexistent-xyz-999"]);
+    let result = runner.run(&["profile", "view", "nonexistent-xyz-999"]);
     assert_ne!(result.exit_code, 0);
     // Verify the error follows the "Error: ...\nHint: ..." pattern
     assert!(
@@ -140,8 +140,8 @@ fn test_exit_codes_nonzero_on_error() {
     // Multiple error scenarios should all exit non-zero
     let scenarios: Vec<(&[&str], &str)> = vec![
         (
-            &["profile", "get", "nonexistent"],
-            "nonexistent profile show",
+            &["profile", "view", "nonexistent"],
+            "nonexistent profile view",
         ),
         (&["--output", "bad", "--help"], "invalid output format"),
         (&["--color", "bad", "--help"], "invalid color mode"),

@@ -18,7 +18,4 @@ pub enum JswCommands {
         #[command(subcommand)]
         command: crate::jsw::epic::EpicCommands,
     },
-    /// Accepts any arguments (temporary)
-    #[command(external_subcommand)]
-    External(Vec<String>),
 }

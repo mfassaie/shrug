@@ -26,7 +26,13 @@ pub enum ProfileCommands {
     List,
 
     /// Show details of a profile
-    Get {
+    View {
+        /// Profile name
+        name: String,
+    },
+
+    /// Set a profile as the default
+    Use {
         /// Profile name
         name: String,
     },

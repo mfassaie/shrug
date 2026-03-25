@@ -1,6 +1,5 @@
 ---
 source: tests/smoke/help_messages.rs
-assertion_line: 17
 expression: result.stdout
 ---
 A static CLI for Atlassian Cloud
@@ -13,7 +12,6 @@ Commands:
   confluence     Confluence operations [aliases: c, conf]
   auth           Authentication management (set-token, status)
   profile        Profile management (create, list, get, delete)
-  cache          Cache management (refresh specs)
   help           Print this message or the help of the given subcommand(s)
 
 Options:

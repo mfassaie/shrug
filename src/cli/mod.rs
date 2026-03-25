@@ -80,40 +80,6 @@ pub enum Commands {
         #[command(subcommand)]
         command: ProfileCommands,
     },
-    /// Cache management (refresh specs)
-    Cache {
-        #[command(subcommand)]
-        command: CacheCommands,
-    },
-    /// Internal: output completion values for dynamic tab-completion
-    #[command(name = "_complete", hide = true)]
-    Complete {
-        /// Completion type: projects, spaces, issues
-        completion_type: String,
-        /// Extra arguments (e.g. --project FOO)
-        #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
-        args: Vec<String>,
-    },
-}
-
-#[derive(Subcommand)]
-pub enum CacheCommands {
-    /// Show cached API specs with age and status
-    List,
-
-    /// Download/refresh API specs from Atlassian CDN
-    Refresh {
-        /// Product to refresh (jira, jira-software, confluence). All if not specified.
-        #[arg(long)]
-        product: Option<String>,
-    },
-
-    /// Delete cached API specs (all or by product)
-    Clear {
-        /// Product to clear (jira, jira-software, confluence). All if not specified.
-        #[arg(long)]
-        product: Option<String>,
-    },
 }
 
 #[cfg(test)]
@@ -176,19 +142,6 @@ mod tests {
     }
 
     #[test]
-    fn cli_parses_jira_external_subcommand() {
-        let cli = Cli::try_parse_from(["shrug", "jira", "issues", "get-issue"]).unwrap();
-        match cli.command {
-            Some(Commands::Jira {
-                command: JiraCommands::External(ref args),
-            }) => {
-                assert_eq!(args, &["issues", "get-issue"]);
-            }
-            _ => panic!("Expected Jira External command"),
-        }
-    }
-
-    #[test]
     fn cli_parses_jira_issue_view() {
         let cli =
             Cli::try_parse_from(["shrug", "jira", "issue", "view", "TEAM-123"]).unwrap();
@@ -239,30 +192,24 @@ mod tests {
     }
 
     #[test]
-    fn cli_parses_profile_get() {
-        let cli = Cli::try_parse_from(["shrug", "profile", "get", "myprofile"]).unwrap();
+    fn cli_parses_profile_view() {
+        let cli = Cli::try_parse_from(["shrug", "profile", "view", "myprofile"]).unwrap();
         match cli.command {
             Some(Commands::Profile {
-                command: ProfileCommands::Get { ref name },
+                command: ProfileCommands::View { ref name },
             }) => assert_eq!(name, "myprofile"),
-            _ => panic!("Expected Profile Get"),
+            _ => panic!("Expected Profile View"),
         }
     }
 
     #[test]
-    fn cli_rejects_profile_use() {
-        let result = Cli::try_parse_from(["shrug", "profile", "use", "test"]);
-        assert!(result.is_err(), "profile use should be rejected");
-    }
-
-    #[test]
-    fn cli_parses_cache_refresh() {
-        let cli = Cli::try_parse_from(["shrug", "cache", "refresh"]).unwrap();
+    fn cli_parses_profile_use() {
+        let cli = Cli::try_parse_from(["shrug", "profile", "use", "myprofile"]).unwrap();
         match cli.command {
-            Some(Commands::Cache {
-                command: CacheCommands::Refresh { product },
-            }) => assert!(product.is_none()),
-            _ => panic!("Expected Cache Refresh"),
+            Some(Commands::Profile {
+                command: ProfileCommands::Use { ref name },
+            }) => assert_eq!(name, "myprofile"),
+            _ => panic!("Expected Profile Use"),
         }
     }
 
@@ -270,33 +217,6 @@ mod tests {
     fn jql_flags_not_global() {
         let result = Cli::try_parse_from(["shrug", "--project", "KAN"]);
         assert!(result.is_err(), "JQL flags should no longer be global");
-    }
-
-    #[test]
-    fn jql_flags_pass_through_external_subcommand() {
-        // "issues" (plural) still routes to External for dynamic handler
-        let cli = Cli::try_parse_from([
-            "shrug",
-            "jira",
-            "issues",
-            "list",
-            "--project",
-            "KAN",
-            "--status",
-            "Open",
-        ])
-        .unwrap();
-        match cli.command {
-            Some(Commands::Jira {
-                command: JiraCommands::External(ref args),
-            }) => {
-                assert_eq!(
-                    args,
-                    &["issues", "list", "--project", "KAN", "--status", "Open"]
-                );
-            }
-            _ => panic!("Expected Jira External command"),
-        }
     }
 
     #[test]

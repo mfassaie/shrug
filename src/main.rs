@@ -8,12 +8,8 @@ use owo_colors::OwoColorize;
 use shrug::auth::credentials::ResolvedCredential;
 use shrug::cli::{Cli, ColorChoice, Commands, JiraCommands, JswCommands, ConfluenceCommands};
 use shrug::core::config::{self, ShrugConfig};
-use shrug::dynamic_completions;
 use shrug::core::error::ShrugError;
-use shrug::executor;
-use shrug::content::jql;
 use shrug::core::logging;
-use shrug::spec::registry::Product;
 
 const SIGINT_EXIT: i32 = 130;
 
@@ -147,43 +143,6 @@ fn run(config: &ShrugConfig, cli: &Cli) -> Result<(), ShrugError> {
                         cli.limit,
                     )
                 }
-                JiraCommands::External(args) => {
-                    let client = executor::create_client()?;
-
-                    // JQL flag extraction for list verb (dynamic entities)
-                    let effective_args =
-                        if args.len() >= 2 && args[1] == "list" {
-                            let (shorthand, raw_jql, cleaned) =
-                                jql::extract_jql_flags(&args[2..]);
-                            if !shorthand.is_empty() || raw_jql.is_some() {
-                                let mut new_args = vec![args[0].clone(), args[1].clone()];
-                                if let Some(jql_str) =
-                                    shorthand.build_jql(raw_jql.as_deref())
-                                {
-                                    new_args.push("--jql".to_string());
-                                    new_args.push(jql_str);
-                                }
-                                new_args.extend(cleaned);
-                                new_args
-                            } else {
-                                args.clone()
-                            }
-                        } else {
-                            args.clone()
-                        };
-
-                    handlers::handle_product(
-                        Product::Jira,
-                        &effective_args,
-                        config,
-                        &client,
-                        credential.as_ref(),
-                        cli.dry_run,
-                        cli.limit,
-                        &config.output_format,
-                        &config.color,
-                    )
-                }
             }
         }
         Some(Commands::JiraSoftware { command }) => {
@@ -248,43 +207,6 @@ fn run(config: &ShrugConfig, cli: &Cli) -> Result<(), ShrugError> {
                         &config.output_format,
                         &config.color,
                         cli.limit,
-                    )
-                }
-                JswCommands::External(args) => {
-                    let client = executor::create_client()?;
-
-                    // JQL flag extraction for list verb
-                    let effective_args =
-                        if args.len() >= 2 && args[1] == "list" {
-                            let (shorthand, raw_jql, cleaned) =
-                                jql::extract_jql_flags(&args[2..]);
-                            if !shorthand.is_empty() || raw_jql.is_some() {
-                                let mut new_args = vec![args[0].clone(), args[1].clone()];
-                                if let Some(jql_str) =
-                                    shorthand.build_jql(raw_jql.as_deref())
-                                {
-                                    new_args.push("--jql".to_string());
-                                    new_args.push(jql_str);
-                                }
-                                new_args.extend(cleaned);
-                                new_args
-                            } else {
-                                args.clone()
-                            }
-                        } else {
-                            args.clone()
-                        };
-
-                    handlers::handle_product(
-                        Product::JiraSoftware,
-                        &effective_args,
-                        config,
-                        &client,
-                        credential.as_ref(),
-                        cli.dry_run,
-                        cli.limit,
-                        &config.output_format,
-                        &config.color,
                     )
                 }
             }
@@ -465,21 +387,6 @@ fn run(config: &ShrugConfig, cli: &Cli) -> Result<(), ShrugError> {
                         cli.limit,
                     )
                 }
-                ConfluenceCommands::External(args) => {
-                    let client = executor::create_client()?;
-
-                    handlers::handle_product(
-                        Product::Confluence,
-                        args,
-                        config,
-                        &client,
-                        credential.as_ref(),
-                        cli.dry_run,
-                        cli.limit,
-                        &config.output_format,
-                        &config.color,
-                    )
-                }
             }
         }
         Some(Commands::Auth { command }) => {
@@ -493,33 +400,6 @@ fn run(config: &ShrugConfig, cli: &Cli) -> Result<(), ShrugError> {
             let profile_store = handlers::get_profile_store(&paths)?;
             let cred_store = handlers::get_credential_store(&paths)?;
             handlers::handle_profile(command, &profile_store, &cred_store)
-        }
-        Some(Commands::Cache { command }) => handlers::handle_cache(command, config),
-        Some(Commands::Complete {
-            completion_type,
-            args,
-        }) => {
-            let paths = handlers::get_paths()?;
-            let comp_cache =
-                dynamic_completions::CompletionCache::new(paths.cache_dir().to_path_buf())?;
-            let profile_store = handlers::get_profile_store(&paths)?;
-            let cred_store = handlers::get_credential_store(&paths)?;
-            let credential = match handlers::resolve_profile(&cli.profile, config, &profile_store) {
-                Ok(Some(ref profile)) => cred_store.resolve(profile, None).ok().flatten(),
-                _ => None,
-            };
-            let comp_client = executor::create_client()?;
-            let values = dynamic_completions::complete(
-                completion_type,
-                &comp_client,
-                credential.as_ref(),
-                &comp_cache,
-                args,
-            );
-            for value in values {
-                println!("{}", value);
-            }
-            Ok(())
         }
         None => {
             eprintln!("Run `shrug --help` for usage information.");

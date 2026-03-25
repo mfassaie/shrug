@@ -37,16 +37,6 @@ fn test_help_snapshot_profile() {
     insta::assert_snapshot!("profile_help", result.stdout);
 }
 
-#[test]
-fn test_help_snapshot_cache() {
-    let config = skip_unless_binary!();
-    let runner = SmokeRunner::new(config);
-
-    let result = runner.run(&["cache", "--help"]);
-    result.assert_success();
-    insta::assert_snapshot!("cache_help", result.stdout);
-}
-
 // ─── Structure Validation Tests ──────────────────────────────────────────
 
 #[test]
@@ -79,7 +69,6 @@ fn test_help_toplevel_lists_commands() {
         stdout.contains("profile"),
         "Help should list profile command"
     );
-    assert!(stdout.contains("cache"), "Help should list cache command");
 }
 
 #[test]

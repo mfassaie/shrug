@@ -1,1 +1,0 @@
-{"openapi":"3.0.1","info":{"title":"Confluence","version":"1001.0.0-SNAPSHOT"},"servers":[{"url":"https://your-domain.atlassian.net/wiki"}],"tags":[{"name":"content","description":"Content operations"},{"name":"space","description":"Space operations"}],"paths":{}}

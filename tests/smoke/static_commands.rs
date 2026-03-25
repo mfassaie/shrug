@@ -1,4 +1,4 @@
-//! Static command smoke tests — offline tests for profile, auth, cache, and completions.
+//! Static command smoke tests — offline tests for profile and auth.
 //!
 //! All tests in this module run without Atlassian credentials.
 //! They exercise local CLI commands against the installed shrug binary.
@@ -52,14 +52,14 @@ fn test_profile_create_and_list() {
 }
 
 #[test]
-fn test_profile_get_details() {
+fn test_profile_view_details() {
     let config = skip_unless_binary!();
     let runner = SmokeRunner::new(config);
-    let name = unique_name("smoke-get");
+    let name = unique_name("smoke-view");
 
     create_test_profile(&runner, &name);
 
-    let result = runner.run(&["profile", "get", &name]);
+    let result = runner.run(&["profile", "view", &name]);
     result.assert_success();
     result.assert_stdout_contains(&name);
     result.assert_stdout_contains("test.atlassian.net");
@@ -125,36 +125,5 @@ fn test_auth_status_with_profile() {
     delete_test_profile(&runner, &name);
 }
 
-// ─── Cache Tests ─────────────────────────────────────────────────────────
-
-#[test]
-fn test_cache_help() {
-    let config = skip_unless_binary!();
-    let runner = SmokeRunner::new(config);
-
-    let result = runner.run(&["cache", "--help"]);
-    result.assert_success();
-    result.assert_stdout_contains("refresh");
-}
-
 // Shell completions: no CLI subcommand exposed. Covered by 11 unit tests
 // in src/completions.rs (bash, zsh, fish, powershell — static + dynamic).
-
-// ─── Dynamic Completions ────────────────────────────────────────────────
-
-#[test]
-fn test_dynamic_complete_subcommand_exists() {
-    let config = skip_unless_binary!();
-    let runner = SmokeRunner::new(config);
-
-    // _complete is a hidden subcommand for shell tab-completion
-    // It needs a valid completion type. "projects" needs auth so may fail,
-    // but the subcommand itself should be recognised (not "unrecognized subcommand").
-    let result = runner.run(&["_complete", "projects"]);
-    // May fail with auth error (exit 3) but should NOT fail with usage error (exit 2)
-    assert!(
-        result.exit_code != 2,
-        "_complete subcommand should be recognised (got exit 2): {}",
-        result.stderr
-    );
-}

@@ -56,7 +56,4 @@ pub enum ConfluenceCommands {
         #[command(subcommand)]
         command: crate::confluence::search::SearchCommands,
     },
-    /// Temporary fallback for dynamic commands
-    #[command(external_subcommand)]
-    External(Vec<String>),
 }

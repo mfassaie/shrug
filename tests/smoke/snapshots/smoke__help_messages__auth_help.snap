@@ -1,6 +1,5 @@
 ---
 source: tests/smoke/help_messages.rs
-assertion_line: 27
 expression: result.stdout
 ---
 Authentication management (set-token, status)

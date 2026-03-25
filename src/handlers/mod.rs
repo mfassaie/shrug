@@ -1,11 +1,7 @@
 mod auth;
-mod cache;
-mod product;
 mod profile;
 
 pub use auth::handle_auth;
-pub use cache::handle_cache;
-pub use product::handle_product;
 pub use profile::handle_profile;
 
 use std::env;

@@ -1,6 +1,5 @@
 ---
 source: tests/smoke/help_messages.rs
-assertion_line: 37
 expression: result.stdout
 ---
 Profile management (create, list, get, delete)
@@ -10,7 +9,8 @@ Usage: shrug.exe profile [OPTIONS] <COMMAND>
 Commands:
   create  Create a new profile
   list    List all profiles
-  get     Show details of a profile
+  view    Show details of a profile
+  use     Set a profile as the default
   update  Update an existing profile
   delete  Delete a profile
   help    Print this message or the help of the given subcommand(s)

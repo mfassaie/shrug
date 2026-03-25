@@ -38,7 +38,4 @@ pub enum JiraCommands {
         #[command(subcommand)]
         command: crate::jira::search::SearchCommands,
     },
-    /// Accepts any arguments (temporary — remaining entity subcommands added later)
-    #[command(external_subcommand)]
-    External(Vec<String>),
 }
