@@ -528,7 +528,7 @@ impl CredentialStore {
             ))
         })?;
 
-        match oauth::refresh_tokens(&config, &tokens.refresh_token) {
+        match oauth::refresh_tokens(&config, &tokens.refresh_token, oauth::ATLASSIAN_TOKEN_URL) {
             Ok(new_tokens) => {
                 self.store_oauth_tokens(&profile.name, &new_tokens)?;
                 tracing::info!(profile = %profile.name, "OAuth tokens refreshed successfully");
@@ -1156,6 +1156,24 @@ mod tests {
         assert!(store.has_credential(name).unwrap());
 
         store.delete(name);
+    }
+
+    #[test]
+    fn oauth_token_corrupted_file_returns_error() {
+        let dir = tempfile::tempdir().unwrap();
+        let store = make_store(&dir);
+
+        // Write invalid JSON to the OAuth token file path directly
+        let path = dir.path().join("credentials").join("corrupted.oauth.enc");
+        fs::write(&path, "not valid json at all").unwrap();
+
+        let result = store.retrieve_oauth_tokens("corrupted");
+        assert!(result.is_err(), "Corrupted OAuth file should return error");
+        let msg = format!("{}", result.unwrap_err());
+        assert!(
+            msg.contains("Corrupted") || msg.contains("Failed"),
+            "Error should mention corruption or failure: {msg}"
+        );
     }
 
     // === token file operation tests ===

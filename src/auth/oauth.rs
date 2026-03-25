@@ -297,14 +297,18 @@ pub fn exchange_code(
     parse_token_response(response)
 }
 
+/// Production Atlassian OAuth token endpoint.
+pub const ATLASSIAN_TOKEN_URL: &str = "https://auth.atlassian.com/oauth/token";
+
 /// Refresh OAuth tokens using a refresh token.
 pub fn refresh_tokens(
     config: &OAuthConfig,
     refresh_token: &str,
+    token_url: &str,
 ) -> Result<OAuthTokens, ShrugError> {
     let client = reqwest::blocking::Client::new();
     let response = client
-        .post("https://auth.atlassian.com/oauth/token")
+        .post(token_url)
         .json(&serde_json::json!({
             "grant_type": "refresh_token",
             "client_id": config.client_id,
@@ -694,5 +698,31 @@ mod tests {
             url.contains("12345"),
             "Custom port should appear in URL: {url}"
         );
+    }
+
+    #[test]
+    fn refresh_tokens_with_mock() {
+        let server = httpmock::MockServer::start();
+        let mock = server.mock(|when, then| {
+            when.method(httpmock::Method::POST).path("/oauth/token");
+            then.status(200).body(
+                r#"{"access_token":"new-access","refresh_token":"new-refresh","expires_in":3600,"scope":"read write"}"#,
+            );
+        });
+
+        let config = OAuthConfig {
+            client_id: "test-client".to_string(),
+            client_secret: "test-secret".to_string(),
+            redirect_port: 8080,
+        };
+
+        let result = refresh_tokens(&config, "old-refresh-token", &server.url("/oauth/token"));
+        mock.assert();
+
+        let tokens = result.unwrap();
+        assert_eq!(tokens.access_token, "new-access");
+        assert_eq!(tokens.refresh_token, "new-refresh");
+        assert!(tokens.expires_at.is_some());
+        assert_eq!(tokens.scopes, vec!["read", "write"]);
     }
 }

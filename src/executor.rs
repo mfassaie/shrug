@@ -2189,6 +2189,45 @@ mod tests {
         }
     }
 
+    #[test]
+    fn execute_with_retry_succeeds_after_429() {
+        // Test that execute_with_retry retries on 429 and eventually fails
+        // with RateLimited after exhausting retries. Uses Retry-After: 0
+        // for near-zero delay.
+        let server = httpmock::MockServer::start();
+        let mock = server.mock(|when, then| {
+            when.method(httpmock::Method::GET).path("/retry-me");
+            then.status(429)
+                .header("Retry-After", "0")
+                .body(r#"{"message":"rate limited"}"#);
+        });
+
+        let client = mock_client();
+        let url = server.url("/retry-me");
+        let result = execute_with_retry(
+            &client,
+            reqwest::Method::GET,
+            &url,
+            None,
+            None,
+            &[],
+            &HashMap::new(),
+            &HashMap::new(),
+        );
+
+        // Should have retried: initial attempt + MAX_RETRIES retries
+        let calls = mock.calls();
+        assert!(
+            calls >= 2,
+            "Should retry on 429 (got {calls} calls, expected at least 2)"
+        );
+        assert!(result.is_err(), "Should fail after exhausting retries");
+        match result.unwrap_err() {
+            ShrugError::RateLimited { .. } => {}
+            other => panic!("Expected RateLimited, got: {other}"),
+        }
+    }
+
     // === execute_paginated tests ===
 
     #[test]

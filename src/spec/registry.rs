@@ -549,4 +549,74 @@ mod tests {
         let loaded = loader.load_or_stale(&Product::Jira).unwrap();
         assert_eq!(loaded.title, "Stale API", "Should prefer stale cache");
     }
+
+    #[test]
+    fn background_refresh_saves_to_cache() {
+        use httpmock::prelude::*;
+
+        let server = MockServer::start();
+        let minimal_spec =
+            r#"{"openapi":"3.0.1","info":{"title":"BgRefresh","version":"1.0"},"paths":{}}"#;
+
+        let mock = server.mock(|when, then| {
+            when.method(GET).path("/spec.json");
+            then.status(200)
+                .header("ETag", "\"test-etag-123\"")
+                .body(minimal_spec);
+        });
+
+        let tmp = TempDir::new().unwrap();
+        background_refresh(
+            tmp.path().to_path_buf(),
+            server.url("/spec.json"),
+            "test-bg-refresh".to_string(),
+            None,
+        );
+
+        mock.assert();
+
+        // Verify the cache file was written
+        let cache = crate::spec::cache::SpecCache::new(tmp.path().to_path_buf()).unwrap();
+        let loaded = cache.load("test-bg-refresh", 24).unwrap();
+        assert!(loaded.is_some(), "Cache should contain the refreshed spec");
+        assert_eq!(loaded.unwrap().title, "BgRefresh");
+    }
+
+    #[test]
+    fn background_refresh_304_does_not_rewrite() {
+        use httpmock::prelude::*;
+
+        let server = MockServer::start();
+        let mock = server.mock(|when, then| {
+            when.method(GET)
+                .path("/spec.json")
+                .header("If-None-Match", "\"existing-etag\"");
+            then.status(304);
+        });
+
+        let tmp = TempDir::new().unwrap();
+
+        // Pre-populate the cache so touch_ttl has something to touch
+        let cache = crate::spec::cache::SpecCache::new(tmp.path().to_path_buf()).unwrap();
+        let spec = test_spec("Existing", "1.0");
+        cache
+            .save_with_etag("test-304", &spec, Some("\"existing-etag\"".to_string()))
+            .unwrap();
+
+        background_refresh(
+            tmp.path().to_path_buf(),
+            server.url("/spec.json"),
+            "test-304".to_string(),
+            Some("\"existing-etag\"".to_string()),
+        );
+
+        mock.assert();
+
+        // Spec should still be loadable (TTL was touched, not rewritten)
+        let loaded = cache.load("test-304", 24).unwrap();
+        assert!(
+            loaded.is_some(),
+            "Cache should still contain the spec after 304"
+        );
+    }
 }

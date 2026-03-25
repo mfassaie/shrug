@@ -455,4 +455,44 @@ mod tests {
         assert!(toml_str.contains("output_format"));
         assert!(toml_str.contains("table"));
     }
+
+    #[test]
+    fn load_config_layered_precedence() {
+        let _guard = ENV_LOCK.lock().unwrap();
+        let dir = tempfile::tempdir().unwrap();
+
+        // User config: output = json, page_size = 75
+        let user_path = dir.path().join("user.toml");
+        fs::write(&user_path, "output_format = \"json\"\npage_size = 75\n").unwrap();
+
+        // Project config: output = table (overrides user)
+        let project_path = dir.path().join("project.toml");
+        fs::write(&project_path, "output_format = \"table\"\n").unwrap();
+
+        // Load and merge: user first, then project on top
+        let user_partial = load_toml_file(&user_path).unwrap();
+        let project_partial = load_toml_file(&project_path).unwrap();
+
+        let mut config = ShrugConfig::default();
+        config.merge(user_partial);
+        config.merge(project_partial);
+
+        // Before env: project wins over user for output, user's page_size preserved
+        assert_eq!(config.output_format, OutputFormat::Table);
+        assert_eq!(config.page_size, 75);
+
+        // Env var override: SHRUG_OUTPUT=csv wins over everything
+        let orig = env::var("SHRUG_OUTPUT").ok();
+        env::set_var("SHRUG_OUTPUT", "csv");
+        let result = apply_env_overrides(&mut config);
+        match orig {
+            Some(v) => env::set_var("SHRUG_OUTPUT", v),
+            None => env::remove_var("SHRUG_OUTPUT"),
+        }
+        result.unwrap();
+
+        assert_eq!(config.output_format, OutputFormat::Csv); // env wins
+        assert_eq!(config.page_size, 75); // user config preserved
+        assert_eq!(config.cache_ttl_hours, 24); // default preserved
+    }
 }
