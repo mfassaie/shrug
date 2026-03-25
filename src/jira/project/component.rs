@@ -156,10 +156,12 @@ pub fn execute(
                 return Ok(());
             }
 
-            let results = http::execute_paginated_get(
-                client, &url_base, credential, &[], &[], None, 50, false,
+            // Component list returns a bare JSON array (not paginated).
+            let result = http::execute_request(
+                client, Method::GET, &url_base, Some(credential), None, &[],
             )?;
-            let json_val = serde_json::Value::Array(results);
+            let json_val = result
+                .unwrap_or_else(|| serde_json::Value::Array(Vec::new()));
             if !json_val.as_array().is_none_or(|a| a.is_empty()) {
                 let formatted = output::format_response(
                     &json_val.to_string(), output_format,

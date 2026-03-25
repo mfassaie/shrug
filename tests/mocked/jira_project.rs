@@ -35,7 +35,7 @@ fn test_project_list_sends_get_search() {
 
     let (stdout, _stderr) = helpers::assert_success(
         env.cmd()
-            .args(&["--output", "json", "jira", "project", "list"]),
+            .args(["--output", "json", "jira", "project", "list"]),
     );
 
     mock.assert();
@@ -64,7 +64,7 @@ fn test_project_create_sends_post() {
     });
 
     let (stdout, _stderr) = helpers::assert_success(
-        env.cmd().args(&[
+        env.cmd().args([
             "--output", "json",
             "jira", "project", "create",
             "--key", "NEW",
@@ -102,7 +102,7 @@ fn test_project_view_sends_get_by_key() {
 
     let (stdout, _stderr) = helpers::assert_success(
         env.cmd()
-            .args(&["--output", "json", "jira", "project", "view", "TEAM"]),
+            .args(["--output", "json", "jira", "project", "view", "TEAM"]),
     );
 
     mock.assert();
@@ -110,4 +110,59 @@ fn test_project_view_sends_get_by_key() {
     let json = helpers::parse_json(&stdout);
     assert_eq!(json["key"], "TEAM");
     assert_eq!(json["name"], "Team Project");
+}
+
+#[test]
+fn test_project_edit_sends_put() {
+    let env = MockEnv::new();
+
+    let mock = env.server.mock(|when, then| {
+        when.method(PUT)
+            .path("/rest/api/3/project/TEAM")
+            .header("content-type", "application/json");
+        then.status(200)
+            .header("content-type", "application/json")
+            .json_body_obj(&serde_json::json!({
+                "id": "10000",
+                "key": "TEAM",
+                "name": "Renamed Project"
+            }));
+    });
+
+    let (stdout, _stderr) = helpers::assert_success(
+        env.cmd().args([
+            "jira", "project", "edit", "TEAM",
+            "--name", "Renamed Project",
+        ]),
+    );
+
+    mock.assert();
+    assert!(
+        stdout.contains("Updated") || stdout.contains("TEAM"),
+        "Expected edit confirmation in stdout: {}",
+        stdout
+    );
+}
+
+#[test]
+fn test_project_delete_sends_delete() {
+    let env = MockEnv::new();
+
+    let mock = env.server.mock(|when, then| {
+        when.method(DELETE)
+            .path("/rest/api/3/project/TEAM");
+        then.status(204);
+    });
+
+    let (stdout, _stderr) = helpers::assert_success(
+        env.cmd()
+            .args(["jira", "project", "delete", "TEAM", "--yes"]),
+    );
+
+    mock.assert();
+    assert!(
+        stdout.contains("Deleted") || stdout.contains("TEAM"),
+        "Expected delete confirmation in stdout: {}",
+        stdout
+    );
 }

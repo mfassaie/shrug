@@ -1,6 +1,6 @@
 [package]
 name = "shrug"
-version = "1.0.0-beta.1"
+version = "1.0.0"
 edition = "2021"
 description = "A static CLI for Atlassian Cloud"
 license = "MIT"
@@ -42,6 +42,7 @@ is-terminal = "0.4"
 pulldown-cmark = "0.13"
 strsim = "0.11"
 rkyv = { version = "0.8", features = ["bytecheck"] }
+include_dir = "0.7"
 
 [dev-dependencies]
 assert_cmd = "2"

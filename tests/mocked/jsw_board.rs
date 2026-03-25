@@ -34,7 +34,7 @@ fn test_board_list_sends_get_all_boards() {
 
     let (stdout, _stderr) = helpers::assert_success(
         env.cmd()
-            .args(&["--output", "json", "jira-software", "board", "list"]),
+            .args(["--output", "json", "jira-software", "board", "list"]),
     );
 
     mock.assert();
@@ -64,7 +64,7 @@ fn test_board_create_sends_post() {
     });
 
     let (stdout, _stderr) = helpers::assert_success(
-        env.cmd().args(&[
+        env.cmd().args([
             "--output", "json",
             "jira-software", "board", "create",
             "--name", "Test Board",
@@ -99,7 +99,7 @@ fn test_board_view_sends_get_by_id() {
 
     let (stdout, _stderr) = helpers::assert_success(
         env.cmd()
-            .args(&["--output", "json", "jira-software", "board", "view", "42"]),
+            .args(["--output", "json", "jira-software", "board", "view", "42"]),
     );
 
     mock.assert();
@@ -121,8 +121,36 @@ fn test_board_delete_sends_delete() {
 
     helpers::assert_success(
         env.cmd()
-            .args(&["jira-software", "board", "delete", "42", "--yes"]),
+            .args(["jira-software", "board", "delete", "42", "--yes"]),
     );
 
     mock.assert();
+}
+
+#[test]
+fn test_board_config_sends_get_configuration() {
+    let env = MockEnv::new();
+
+    let mock = env.server.mock(|when, then| {
+        when.method(GET)
+            .path("/rest/agile/1.0/board/42/configuration");
+        then.status(200)
+            .header("content-type", "application/json")
+            .json_body_obj(&serde_json::json!({
+                "id": 42,
+                "name": "Test Board",
+                "type": "scrum",
+                "filter": {"id": "100", "self": "https://example.atlassian.net/rest/api/3/filter/100"}
+            }));
+    });
+
+    let (stdout, _stderr) = helpers::assert_success(
+        env.cmd()
+            .args(["--output", "json", "jira-software", "board", "config", "42"]),
+    );
+
+    mock.assert();
+
+    let json = helpers::parse_json(&stdout);
+    assert_eq!(json["id"], 42);
 }

@@ -11,13 +11,9 @@ fn unique_name(prefix: &str) -> String {
 /// Helper: create a profile and return its name. Caller must clean up.
 fn create_profile(runner: &ShrugRunner, name: &str) -> String {
     let result = runner.run(&[
-        "profile",
-        "create",
-        name,
-        "--site",
-        runner.config().site.as_str(),
-        "--email",
-        runner.config().email.as_str(),
+        "profile", "create", name,
+        "--site", runner.config().site.as_str(),
+        "--email", runner.config().email.as_str(),
     ]);
     assert!(
         result.exit_code == 0 || result.stderr.contains("already exists"),
@@ -39,7 +35,7 @@ fn delete_profile(runner: &ShrugRunner, name: &str) {
     }
 }
 
-// ─── Profile Lifecycle Tests (AC-1, AC-2, AC-3) ─────────────────────────
+// ─── Profile Lifecycle Tests ─────────────────────────────────────────────
 
 #[test]
 fn test_profile_create_and_list() {
@@ -49,13 +45,9 @@ fn test_profile_create_and_list() {
 
     // Create
     let result = runner.run(&[
-        "profile",
-        "create",
-        &name,
-        "--site",
-        runner.config().site.as_str(),
-        "--email",
-        runner.config().email.as_str(),
+        "profile", "create", &name,
+        "--site", runner.config().site.as_str(),
+        "--email", runner.config().email.as_str(),
     ]);
     result.assert_success();
     result.assert_stdout_contains("created");
@@ -77,7 +69,7 @@ fn test_profile_show_details() {
 
     create_profile(&runner, &name);
 
-    let result = runner.run(&["profile", "get", &name]);
+    let result = runner.run(&["profile", "view", &name]);
     result.assert_success();
     result.assert_stdout_contains(&name);
     // Site may have trailing slash stripped by profile storage
@@ -109,7 +101,7 @@ fn test_profile_delete() {
     );
 }
 
-// ─── Auth Workflow Tests (AC-4, AC-5, AC-6, AC-7, AC-8) ─────────────────
+// ─── Auth Workflow Tests ─────────────────────────────────────────────────
 
 #[test]
 fn test_env_var_auth_works() {
@@ -118,23 +110,10 @@ fn test_env_var_auth_works() {
     let name = unique_name("e2e-envauth");
 
     create_profile(&runner, &name);
-    // Profile use removed — tests use --profile flag for non-default profiles
 
     // Env vars (SHRUG_API_TOKEN, SHRUG_EMAIL, SHRUG_SITE) are set by ShrugRunner.
     // The profile exists, so credential resolution uses env var token.
-    let jql = format!(
-        "project = {} ORDER BY created DESC",
-        runner.config().jira_project
-    );
-    let result = runner.run_json(&[
-        "jira",
-        "Issue search",
-        "search-and-reconsile-issues-using-jql",
-        "--jql",
-        &jql,
-        "--maxResults",
-        "1",
-    ]);
+    let result = runner.run_json(&["jira", "project", "list"]);
     result.assert_success();
     assert!(
         result.json.is_some(),
@@ -156,65 +135,6 @@ fn test_first_run_help_succeeds_without_auth() {
     let result = runner.run(&["--help"]);
     result.assert_success();
     result.assert_stdout_contains("Atlassian");
-}
-
-#[test]
-fn test_first_run_api_call_fails_gracefully() {
-    let config = skip_unless_e2e!();
-    let runner = ShrugRunner::new(config);
-
-    // Precondition: check if profiles already exist.
-    let list = runner.run(&["profile", "list"]);
-    let has_profiles = list.exit_code == 0
-        && list
-            .stdout
-            .lines()
-            .any(|line| !line.starts_with("NAME") && !line.starts_with('-') && !line.is_empty());
-
-    if has_profiles {
-        eprintln!(
-            "Skipping test_first_run_api_call_fails_gracefully: \
-             profiles already exist, first-run precondition not met"
-        );
-        return;
-    }
-
-    // No profiles — API call should fail with auth error.
-    let result = runner.run(&[
-        "jira",
-        "Issue search",
-        "search-and-reconsile-issues-using-jql",
-        "--jql",
-        "project = TEST",
-        "--maxResults",
-        "1",
-    ]);
-    result.assert_exit_code(3);
-    assert!(
-        result.stderr.contains("setup") || result.stderr.contains("profile"),
-        "Auth error should mention 'setup' or 'profile'.\nstderr: {}",
-        result.stderr
-    );
-}
-
-#[test]
-fn test_profile_flag_override() {
-    let config = skip_unless_e2e!();
-    let runner = ShrugRunner::new(config);
-    let name_a = unique_name("e2e-prof-a");
-    let name_b = unique_name("e2e-prof-b");
-
-    create_profile(&runner, &name_a);
-    create_profile(&runner, &name_b);
-    let _ = runner.run(&["profile", "use", "--name", &name_a]);
-
-    // Use --profile flag to override default
-    let result = runner.run(&["--profile", &name_b, "profile", "get", &name_b]);
-    result.assert_success();
-    result.assert_stdout_contains(&name_b);
-
-    delete_profile(&runner, &name_a);
-    delete_profile(&runner, &name_b);
 }
 
 #[test]

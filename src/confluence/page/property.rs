@@ -102,11 +102,11 @@ fn read_json_value(
 }
 
 /// Fetch a property to extract its current version number.
-fn fetch_property_version(
+fn fetch_property_key_and_version(
     client: &Client,
     credential: &ResolvedCredential,
     url: &str,
-) -> Result<u64, ShrugError> {
+) -> Result<(String, u64), ShrugError> {
     let result = http::execute_request(
         client,
         Method::GET,
@@ -118,7 +118,12 @@ fn fetch_property_version(
 
     match result {
         Some(json_val) => {
-            json_val
+            let key = json_val
+                .get("key")
+                .and_then(|k| k.as_str())
+                .unwrap_or("")
+                .to_string();
+            let version = json_val
                 .get("version")
                 .and_then(|v| v.get("number"))
                 .and_then(|n| n.as_u64())
@@ -126,10 +131,11 @@ fn fetch_property_version(
                     ShrugError::UsageError(
                         "Could not determine current property version from API response".into(),
                     )
-                })
+                })?;
+            Ok((key, version))
         }
         None => Err(ShrugError::UsageError(
-            "Empty response when fetching property version".into(),
+            "Empty response when fetching property".into(),
         )),
     }
 }
@@ -264,11 +270,12 @@ pub fn execute(
                 "{}/wiki/api/v2/{}/{}/properties/{}",
                 base_url, parent_type, content_id, property_id
             );
-            let current_version =
-                fetch_property_version(client, credential, &view_url)?;
+            let (property_key, current_version) =
+                fetch_property_key_and_version(client, credential, &view_url)?;
             let next_version = current_version + 1;
 
             let request_body = json!({
+                "key": property_key,
                 "value": json_value,
                 "version": {
                     "number": next_version,

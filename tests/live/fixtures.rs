@@ -86,7 +86,7 @@ impl Drop for ResourceTracker {
     }
 }
 
-/// Create a Jira test issue and track it for cleanup.
+/// Create a Jira test issue using static CLI and track it for cleanup.
 ///
 /// Returns the parsed JSON response (contains "key", "id", "self" fields).
 #[allow(dead_code)]
@@ -97,18 +97,16 @@ pub fn create_test_issue(
     summary: &str,
 ) -> serde_json::Value {
     let result = runner.run_json(&[
-        "jira",
-        "+create",
-        "--project",
-        project_key,
-        "--summary",
-        summary,
+        "jira", "issue", "create",
+        "-s", summary,
+        "--project", project_key,
+        "--type", "Task",
     ]);
     result.assert_success();
 
     let json = result
         .json
-        .expect("Expected JSON response from jira +create");
+        .expect("Expected JSON response from jira issue create");
 
     if let Some(key) = json.get("key").and_then(|k| k.as_str()) {
         tracker.track(
@@ -116,9 +114,10 @@ pub fn create_test_issue(
             key,
             vec![
                 "jira".into(),
-                "issues".into(),
-                "deleteIssue".into(),
-                format!("--issueIdOrKey={}", key),
+                "issue".into(),
+                "delete".into(),
+                key.into(),
+                "--yes".into(),
             ],
         );
     }
@@ -126,15 +125,10 @@ pub fn create_test_issue(
     json
 }
 
-/// Delete a Jira issue by key.
+/// Delete a Jira issue by key using static CLI.
 #[allow(dead_code)]
 pub fn delete_test_issue(runner: &ShrugRunner, issue_key: &str) {
-    let result = runner.run(&[
-        "jira",
-        "issues",
-        "deleteIssue",
-        &format!("--issueIdOrKey={}", issue_key),
-    ]);
+    let result = runner.run(&["jira", "issue", "delete", issue_key, "--yes"]);
     if result.exit_code != 0 {
         eprintln!(
             "Warning: failed to delete issue '{}': {}",

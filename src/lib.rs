@@ -1,8 +1,9 @@
 pub mod auth;
 pub mod cli;
-pub mod completions;
 pub mod confluence;
 pub mod content;
 pub mod core;
+pub mod install_skill;
 pub mod jira;
 pub mod jsw;
+pub mod template;

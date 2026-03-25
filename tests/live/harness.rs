@@ -1,6 +1,7 @@
 //! E2E test harness: environment config, CLI runner, skip guard, rate limiter.
 
 use std::env;
+use std::io::Write;
 use std::thread;
 use std::time::Duration;
 
@@ -156,24 +157,40 @@ impl ShrugRunner {
         result
     }
 
-    /// Execute shrug with --json body prepended (global flag) and --output json, parsing response.
-    /// Use for operations that send a request body and return JSON.
+    /// Execute shrug with --from-json body (written to temp file) and --output json.
+    /// Use for create/edit operations that need a raw JSON payload via the escape hatch.
     #[allow(dead_code)]
     pub fn run_json_with_body(&self, body: &str, args: &[&str]) -> RunResult {
-        let mut all_args: Vec<&str> = vec!["--output", "json", "--json", body];
+        let mut tmp = tempfile::NamedTempFile::new().expect("Failed to create temp file for body");
+        tmp.write_all(body.as_bytes())
+            .expect("Failed to write body to temp file");
+        let path = tmp.path().to_str().expect("Temp path not UTF-8").to_string();
+
+        let mut all_args: Vec<&str> = vec!["--output", "json"];
         all_args.extend_from_slice(args);
+        all_args.push("--from-json");
+        all_args.push(&path);
 
         let mut result = self.run(&all_args);
         result.json = serde_json::from_str(&result.stdout).ok();
+        // tmp is dropped here, cleaning up the temp file
         result
     }
 
-    /// Execute shrug with --json body prepended (global flag), no JSON output parsing.
-    /// Use for operations that send a request body but return 204 No Content.
+    /// Execute shrug with --from-json body (written to temp file), no JSON output parsing.
+    /// Use for operations that return 204 No Content.
     #[allow(dead_code)]
     pub fn run_with_body(&self, body: &str, args: &[&str]) -> RunResult {
-        let mut all_args: Vec<&str> = vec!["--json", body];
+        let mut tmp = tempfile::NamedTempFile::new().expect("Failed to create temp file for body");
+        tmp.write_all(body.as_bytes())
+            .expect("Failed to write body to temp file");
+        let path = tmp.path().to_str().expect("Temp path not UTF-8").to_string();
+
+        let mut all_args: Vec<&str> = Vec::new();
         all_args.extend_from_slice(args);
+        all_args.push("--from-json");
+        all_args.push(&path);
+
         self.run(&all_args)
     }
 

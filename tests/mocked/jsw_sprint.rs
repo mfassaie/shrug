@@ -35,7 +35,7 @@ fn test_sprint_list_sends_get_by_board() {
     });
 
     let (stdout, _stderr) = helpers::assert_success(
-        env.cmd().args(&[
+        env.cmd().args([
             "--output", "json",
             "jira-software", "sprint", "list",
             "--board", "42",
@@ -71,7 +71,7 @@ fn test_sprint_create_sends_post() {
     });
 
     let (stdout, _stderr) = helpers::assert_success(
-        env.cmd().args(&[
+        env.cmd().args([
             "--output", "json",
             "jira-software", "sprint", "create",
             "--name", "New Sprint",
@@ -90,7 +90,21 @@ fn test_sprint_create_sends_post() {
 fn test_sprint_edit_sends_put() {
     let env = MockEnv::new();
 
-    let mock = env.server.mock(|when, then| {
+    // Sprint edit now fetches current sprint first (to fill in required name/state)
+    let get_mock = env.server.mock(|when, then| {
+        when.method(GET)
+            .path("/rest/agile/1.0/sprint/99");
+        then.status(200)
+            .header("content-type", "application/json")
+            .json_body_obj(&serde_json::json!({
+                "id": 99,
+                "name": "Current Sprint",
+                "state": "future",
+                "originBoardId": 42
+            }));
+    });
+
+    let put_mock = env.server.mock(|when, then| {
         when.method(PUT)
             .path("/rest/agile/1.0/sprint/99")
             .header("content-type", "application/json");
@@ -106,7 +120,7 @@ fn test_sprint_edit_sends_put() {
     });
 
     let (stdout, _stderr) = helpers::assert_success(
-        env.cmd().args(&[
+        env.cmd().args([
             "--output", "json",
             "jira-software", "sprint", "edit", "99",
             "--name", "Renamed Sprint",
@@ -114,7 +128,8 @@ fn test_sprint_edit_sends_put() {
         ]),
     );
 
-    mock.assert();
+    get_mock.assert();
+    put_mock.assert();
 
     let json = helpers::parse_json(&stdout);
     assert_eq!(json["status"], "updated");
@@ -132,7 +147,7 @@ fn test_sprint_delete_sends_delete() {
 
     helpers::assert_success(
         env.cmd()
-            .args(&["jira-software", "sprint", "delete", "99", "--yes"]),
+            .args(["jira-software", "sprint", "delete", "99", "--yes"]),
     );
 
     mock.assert();

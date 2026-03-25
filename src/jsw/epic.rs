@@ -32,8 +32,8 @@ pub enum EpicCommands {
         #[arg(long, conflicts_with = "done")]
         no_done: bool,
         /// Epic colour label key (e.g. ghx-label-3)
-        #[arg(long)]
-        color: Option<String>,
+        #[arg(long = "epic-color")]
+        epic_color: Option<String>,
         /// New epic name
         #[arg(long)]
         name: Option<String>,
@@ -137,7 +137,7 @@ pub fn execute(
             key,
             done,
             no_done,
-            color: color_opt,
+            epic_color: color_opt,
             name,
         } => {
             let request_body = build_edit_body(

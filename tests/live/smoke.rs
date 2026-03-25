@@ -25,17 +25,18 @@ fn test_help_output() {
 }
 
 #[test]
-fn test_jira_help_loads_spec() {
+fn test_jira_help_loads_commands() {
     let config = skip_unless_e2e!();
     let runner = ShrugRunner::new(config);
 
     let result = runner.run(&["jira", "--help"]);
     result.assert_success();
-    // Jira spec should produce command groups from tags
+    // Static CLI should show entity subcommands
     let stdout = &result.stdout;
     assert!(
-        !stdout.is_empty(),
-        "Expected jira --help to list command groups, got empty output"
+        stdout.contains("issue") || stdout.contains("project"),
+        "Expected jira --help to list entity subcommands, got:\n{}",
+        stdout
     );
 }
 
@@ -44,16 +45,11 @@ fn test_live_api_connection() {
     let config = skip_unless_e2e!();
     let runner = ShrugRunner::new(config);
 
-    // The CLI requires a profile to exist before env var auth works.
-    // Create a temporary profile, run the test, then delete it.
+    // Create a temporary profile for the test
     let create_result = runner.run(&[
-        "profile",
-        "create",
-        "e2e-temp",
-        "--site",
-        runner.config().site.as_str(),
-        "--email",
-        runner.config().email.as_str(),
+        "profile", "create", "e2e-temp",
+        "--site", runner.config().site.as_str(),
+        "--email", runner.config().email.as_str(),
     ]);
     assert!(
         create_result.exit_code == 0 || create_result.stderr.contains("already exists"),
@@ -61,23 +57,8 @@ fn test_live_api_connection() {
         create_result.stderr
     );
 
-    // Set this as the default profile
-    // profile use removed — default is hardcoded to "default" profile name
-
-    // Use the Jira project from E2E config to build a bounded JQL query
-    let jql = format!(
-        "project = {} ORDER BY created DESC",
-        runner.config().jira_project
-    );
-    let result = runner.run_json(&[
-        "jira",
-        "Issue search",
-        "search-and-reconsile-issues-using-jql",
-        "--jql",
-        &jql,
-        "--maxResults",
-        "1",
-    ]);
+    // Use project list as a basic API connectivity check
+    let result = runner.run_json(&["jira", "project", "list"]);
     result.assert_success();
     assert!(
         result.json.is_some(),

@@ -421,6 +421,12 @@ fn run(config: &ShrugConfig, cli: &Cli) -> Result<(), ShrugError> {
             let cred_store = handlers::get_credential_store(&paths)?;
             handlers::handle_profile(command, &profile_store, &cred_store)
         }
+        Some(Commands::Template { command }) => {
+            shrug::template::execute(command)
+        }
+        Some(Commands::InstallSkill { scope }) => {
+            shrug::install_skill::execute(scope)
+        }
         None => {
             eprintln!("Run `shrug --help` for usage information.");
             Ok(())

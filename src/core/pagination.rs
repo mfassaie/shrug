@@ -9,9 +9,9 @@ use serde_json::Value;
 /// Count the number of results in a paginated response.
 ///
 /// Tries known array field names: issues (Jira search), values (Jira PageBean),
-/// results (Confluence). Falls back to top-level array.
+/// results (Confluence), records (Jira audit). Falls back to top-level array.
 pub fn count_results(json: &Value) -> u32 {
-    for key in &["issues", "values", "results"] {
+    for key in &["issues", "values", "results", "records"] {
         if let Some(arr) = json.get(key).and_then(|v| v.as_array()) {
             return arr.len() as u32;
         }
@@ -26,7 +26,7 @@ pub fn count_results(json: &Value) -> u32 {
 ///
 /// Returns the array under the first matching key, or the top-level array.
 pub fn extract_results(json: &Value) -> Option<&Vec<Value>> {
-    for key in &["issues", "values", "results"] {
+    for key in &["issues", "values", "results", "records"] {
         if let Some(arr) = json.get(key).and_then(|v| v.as_array()) {
             return Some(arr);
         }

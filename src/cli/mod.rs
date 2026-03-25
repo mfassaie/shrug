@@ -1,16 +1,20 @@
 pub mod auth;
 pub mod confluence;
 pub mod global;
+pub mod install_skill;
 pub mod jira;
 pub mod jsw;
 pub mod profile;
+pub mod template;
 
 pub use auth::AuthCommands;
 pub use confluence::ConfluenceCommands;
 pub use global::{ColorChoice, OutputFormat};
+pub use install_skill::InstallSkillScope;
 pub use jira::JiraCommands;
 pub use jsw::JswCommands;
 pub use profile::ProfileCommands;
+pub use template::TemplateCommands;
 
 use clap::{Parser, Subcommand};
 
@@ -83,6 +87,18 @@ pub enum Commands {
     Profile {
         #[command(subcommand)]
         command: ProfileCommands,
+    },
+    /// Generate JSON body templates for --from-json
+    Template {
+        #[command(subcommand)]
+        command: TemplateCommands,
+    },
+    /// Install the shrug Claude Code skill
+    #[command(name = "install-skill")]
+    InstallSkill {
+        /// Where to install: user (~/.claude/skills) or project (.claude/skills)
+        #[arg(long)]
+        scope: InstallSkillScope,
     },
 }
 

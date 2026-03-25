@@ -36,7 +36,7 @@ fn test_space_list_sends_get_v2_spaces() {
 
     let (stdout, _stderr) = helpers::assert_success(
         env.cmd()
-            .args(&["--output", "json", "confluence", "space", "list"]),
+            .args(["--output", "json", "confluence", "space", "list"]),
     );
 
     mock.assert();
@@ -67,7 +67,7 @@ fn test_space_create_sends_post_v2() {
     });
 
     let (stdout, _stderr) = helpers::assert_success(
-        env.cmd().args(&[
+        env.cmd().args([
             "--output", "json",
             "confluence", "space", "create",
             "--key", "NEW",
@@ -106,7 +106,7 @@ fn test_space_view_sends_get_v2_by_id() {
 
     let (stdout, _stderr) = helpers::assert_success(
         env.cmd()
-            .args(&["--output", "json", "confluence", "space", "view", "12345"]),
+            .args(["--output", "json", "confluence", "space", "view", "12345"]),
     );
 
     mock.assert();
@@ -114,4 +114,63 @@ fn test_space_view_sends_get_v2_by_id() {
     let json = helpers::parse_json(&stdout);
     assert_eq!(json["key"], "DOCS");
     assert_eq!(json["name"], "Documentation");
+}
+
+#[test]
+fn test_space_edit_sends_put_v1() {
+    let env = MockEnv::new();
+
+    // Space edit uses v1 API with space key (not v2 ID)
+    let mock = env.server.mock(|when, then| {
+        when.method(PUT)
+            .path("/wiki/rest/api/space/DOCS")
+            .header("content-type", "application/json");
+        then.status(200)
+            .header("content-type", "application/json")
+            .json_body_obj(&serde_json::json!({
+                "key": "DOCS",
+                "name": "Updated Docs",
+                "type": "global"
+            }));
+    });
+
+    let (stdout, _stderr) = helpers::assert_success(
+        env.cmd().args([
+            "confluence", "space", "edit", "DOCS",
+            "--name", "Updated Docs",
+        ]),
+    );
+
+    mock.assert();
+    assert!(
+        stdout.contains("Updated") || stdout.contains("DOCS"),
+        "Expected edit confirmation: {}",
+        stdout
+    );
+}
+
+#[test]
+fn test_space_delete_sends_delete_v1() {
+    let env = MockEnv::new();
+
+    // Space delete uses v1 API with space key
+    let mock = env.server.mock(|when, then| {
+        when.method(DELETE)
+            .path("/wiki/rest/api/space/DOCS");
+        then.status(202)
+            .header("content-type", "application/json")
+            .json_body_obj(&serde_json::json!({}));
+    });
+
+    let (stdout, _stderr) = helpers::assert_success(
+        env.cmd()
+            .args(["confluence", "space", "delete", "DOCS", "--yes"]),
+    );
+
+    mock.assert();
+    assert!(
+        stdout.contains("Deleted") || stdout.contains("DOCS"),
+        "Expected delete confirmation: {}",
+        stdout
+    );
 }

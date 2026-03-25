@@ -41,7 +41,7 @@ fn test_issue_list_sends_get_search() {
 
     let (stdout, _stderr) = helpers::assert_success(
         env.cmd()
-            .args(&["--output", "json", "jira", "issue", "list", "--project", "TEAM"]),
+            .args(["--output", "json", "jira", "issue", "list", "--project", "TEAM"]),
     );
 
     mock.assert();
@@ -72,7 +72,7 @@ fn test_issue_create_sends_post_issue() {
     });
 
     let (stdout, _stderr) = helpers::assert_success(
-        env.cmd().args(&[
+        env.cmd().args([
             "--output", "json",
             "jira", "issue", "create",
             "-s", "Test bug",
@@ -109,7 +109,7 @@ fn test_issue_view_sends_get_with_key() {
 
     let (stdout, _stderr) = helpers::assert_success(
         env.cmd()
-            .args(&["--output", "json", "jira", "issue", "view", "TEAM-123"]),
+            .args(["--output", "json", "jira", "issue", "view", "TEAM-123"]),
     );
 
     mock.assert();
@@ -131,7 +131,7 @@ fn test_issue_edit_sends_put() {
     });
 
     let (stdout, _stderr) = helpers::assert_success(
-        env.cmd().args(&[
+        env.cmd().args([
             "jira", "issue", "edit", "TEAM-10",
             "-s", "Updated summary",
         ]),
@@ -157,7 +157,7 @@ fn test_issue_delete_sends_delete_with_yes() {
 
     let (stdout, _stderr) = helpers::assert_success(
         env.cmd()
-            .args(&["jira", "issue", "delete", "TEAM-99", "--yes"]),
+            .args(["jira", "issue", "delete", "TEAM-99", "--yes"]),
     );
 
     mock.assert();
@@ -175,7 +175,7 @@ fn test_issue_dry_run_does_not_send_request() {
     // No mock registered: if the CLI sends a request, httpmock will not match
     // and the CLI will get an unexpected response. Dry run should skip the request.
     let (stdout, stderr) = helpers::assert_success(
-        env.cmd().args(&[
+        env.cmd().args([
             "--dry-run",
             "jira", "issue", "create",
             "-s", "Dry run test",

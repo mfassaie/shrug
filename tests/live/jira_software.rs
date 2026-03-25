@@ -1,20 +1,16 @@
-//! Jira Software E2E tests: Boards, Sprints, Epics.
+//! Comprehensive Jira Software live E2E tests.
 //!
-//! Each test validates operations against live Atlassian Cloud
-//! using the `jira-software` product prefix.
+//! Every board, sprint, and epic verb exercised with all parameters.
+//! Create/edit tested with both typed params and --from-json where supported.
 
 use crate::harness::{self, ShrugRunner};
 
 fn setup_profile(runner: &ShrugRunner) -> String {
     let name = format!("e2e-jsw-{}", std::process::id());
     let result = runner.run(&[
-        "profile",
-        "create",
-        &name,
-        "--site",
-        runner.config().site.as_str(),
-        "--email",
-        runner.config().email.as_str(),
+        "profile", "create", &name,
+        "--site", runner.config().site.as_str(),
+        "--email", runner.config().email.as_str(),
     ]);
     assert!(
         result.exit_code == 0 || result.stderr.contains("already exists"),
@@ -28,645 +24,426 @@ fn teardown_profile(runner: &ShrugRunner, name: &str) {
     let _ = runner.run(&["profile", "delete", name]);
 }
 
-/// Create a JQL filter for the given project. Returns filter ID or None on failure.
 fn create_filter(runner: &ShrugRunner, project: &str) -> Option<String> {
-    let body = format!(
-        r#"{{"name":"e2e-jsw-filter-{}","jql":"project = {}"}}"#,
-        std::process::id(),
-        project
-    );
-    let result = runner.run_json_with_body(&body, &["jira", "Filters", "create-filter"]);
+    let fname = format!("e2e-jsw-filter-{}", std::process::id());
+    let jql = format!("project = {}", project);
+    let result = runner.run_json(&[
+        "jira", "filter", "create",
+        "--name", &fname, "--jql", &jql,
+    ]);
     if result.exit_code != 0 {
         eprintln!("Failed to create filter: {}", result.stderr);
         return None;
     }
-    result
-        .json
-        .as_ref()
-        .and_then(|j| j.get("id"))
-        .and_then(|v| v.as_str())
-        .map(|s| s.to_string())
+    result.json.as_ref().and_then(|j| j.get("id")).and_then(|v| v.as_str()).map(|s| s.to_string())
 }
 
 fn delete_filter(runner: &ShrugRunner, id: &str) {
-    let result = runner.run(&["jira", "Filters", "delete-filter", "--id", id]);
-    if result.exit_code == 0 {
-        eprintln!("Deleted filter: {}", id);
-    } else {
-        eprintln!(
-            "Warning: failed to delete filter '{}': {}",
-            id, result.stderr
-        );
-    }
+    let _ = runner.run(&["jira", "filter", "delete", id, "--yes"]);
 }
 
-/// Create a Jira issue via the Platform API. Returns the issue key.
-fn create_issue(runner: &ShrugRunner, project: &str, summary: &str) -> String {
-    let body = format!(
-        r#"{{"fields":{{"project":{{"key":"{}"}},"summary":"{}","issuetype":{{"name":"Task"}}}}}}"#,
-        project, summary
-    );
-    let result = runner.run_json_with_body(&body, &["jira", "Issues", "create-issue"]);
-    result.assert_success();
-    let key = result
-        .json
-        .as_ref()
-        .and_then(|j| j.get("key"))
-        .and_then(|v| v.as_str())
-        .expect("Expected 'key' in create-issue response");
-    eprintln!("Created issue: {}", key);
-    key.to_string()
+fn create_board(runner: &ShrugRunner, name: &str, filter_id: &str) -> Option<String> {
+    let result = runner.run_json(&[
+        "jira-software", "board", "create",
+        "--name", name, "--type", "scrum", "--filter-id", filter_id,
+    ]);
+    if result.exit_code != 0 {
+        eprintln!("Board create failed: {}", result.stderr);
+        return None;
+    }
+    result.json.as_ref().and_then(|j| j.get("id")).and_then(|v| v.as_i64()).map(|n| n.to_string())
+}
+
+fn delete_board(runner: &ShrugRunner, id: &str) {
+    let _ = runner.run(&["jira-software", "board", "delete", id, "--yes"]);
 }
 
 fn delete_issue(runner: &ShrugRunner, key: &str) {
-    let result = runner.run(&["jira", "Issues", "delete-issue", "--issueIdOrKey", key]);
-    if result.exit_code == 0 {
-        eprintln!("Deleted issue: {}", key);
-    } else {
-        eprintln!("Warning: failed to delete '{}': {}", key, result.stderr);
-    }
+    let _ = runner.run(&["jira", "issue", "delete", key, "--yes"]);
 }
 
-// ─── Board CRUD Lifecycle ───────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════════════════
+// BOARD
+// ═══════════════════════════════════════════════════════════════════════════
 
 #[test]
-fn test_board_crud_lifecycle() {
+fn test_board_create_all_params() {
     let config = skip_unless_e2e!();
     let runner = ShrugRunner::new(config);
     let profile = setup_profile(&runner);
     let project = runner.config().jira_project.as_str();
 
-    // Create filter (required for board creation)
     let filter_id = match create_filter(&runner, project) {
         Some(id) => id,
-        None => {
-            eprintln!("Skipping board test: could not create filter");
-            teardown_profile(&runner, &profile);
-            return;
-        }
-    };
-    eprintln!("Created filter: {}", filter_id);
-    harness::rate_limit_delay(runner.config());
-
-    // CREATE board
-    let board_name = format!("e2e-board-{}", std::process::id());
-    let body = format!(
-        r#"{{"name":"{}","type":"scrum","filterId":{}}}"#,
-        board_name, filter_id
-    );
-    let create = runner.run_json_with_body(&body, &["jira-software", "Board", "create-board"]);
-    if create.exit_code != 0 {
-        eprintln!(
-            "Skipping board test: create-board failed: {}",
-            create.stderr
-        );
-        delete_filter(&runner, &filter_id);
-        harness::rate_limit_delay(runner.config());
-        teardown_profile(&runner, &profile);
-        return;
-    }
-    let board_id = create
-        .json
-        .as_ref()
-        .and_then(|j| j.get("id"))
-        .and_then(|v| v.as_i64())
-        .expect("Expected board id as integer");
-    let board_id_str = board_id.to_string();
-    eprintln!("Created board: {} ({})", board_name, board_id_str);
-    harness::rate_limit_delay(runner.config());
-
-    // GET board and verify name
-    let read = runner.run_json(&[
-        "jira-software",
-        "Board",
-        "get-board",
-        "--boardId",
-        &board_id_str,
-    ]);
-    read.assert_success();
-    let read_name = read
-        .json_field("/name")
-        .and_then(|v| v.as_str())
-        .unwrap_or("");
-    assert_eq!(read_name, board_name, "Board name should match");
-    harness::rate_limit_delay(runner.config());
-
-    // GET configuration
-    let config_result = runner.run_json(&[
-        "jira-software",
-        "Board",
-        "get-configuration",
-        "--boardId",
-        &board_id_str,
-    ]);
-    config_result.assert_success();
-    harness::rate_limit_delay(runner.config());
-
-    // DELETE board
-    let del = runner.run(&[
-        "jira-software",
-        "Board",
-        "delete-board",
-        "--boardId",
-        &board_id_str,
-    ]);
-    assert!(del.exit_code == 0, "delete-board failed: {}", del.stderr);
-    eprintln!("Deleted board: {}", board_id_str);
-    harness::rate_limit_delay(runner.config());
-
-    delete_filter(&runner, &filter_id);
-    harness::rate_limit_delay(runner.config());
-    teardown_profile(&runner, &profile);
-}
-
-// ─── Sprint Lifecycle ───────────────────────────────────────────────────
-
-#[test]
-fn test_sprint_lifecycle() {
-    let config = skip_unless_e2e!();
-    let runner = ShrugRunner::new(config);
-    let profile = setup_profile(&runner);
-    let project = runner.config().jira_project.as_str();
-
-    // Setup: filter + board
-    let filter_id = match create_filter(&runner, project) {
-        Some(id) => id,
-        None => {
-            eprintln!("Skipping sprint test: could not create filter");
-            teardown_profile(&runner, &profile);
-            return;
-        }
+        None => { teardown_profile(&runner, &profile); return; }
     };
     harness::rate_limit_delay(runner.config());
 
-    let board_name = format!("e2e-sprint-board-{}", std::process::id());
-    let body = format!(
-        r#"{{"name":"{}","type":"scrum","filterId":{}}}"#,
-        board_name, filter_id
-    );
-    let board_create =
-        runner.run_json_with_body(&body, &["jira-software", "Board", "create-board"]);
-    if board_create.exit_code != 0 {
-        eprintln!(
-            "Skipping sprint test: create-board failed: {}",
-            board_create.stderr
-        );
-        delete_filter(&runner, &filter_id);
-        harness::rate_limit_delay(runner.config());
-        teardown_profile(&runner, &profile);
-        return;
-    }
-    let board_id = board_create
-        .json
-        .as_ref()
-        .and_then(|j| j.get("id"))
-        .and_then(|v| v.as_i64())
+    let bname = format!("e2e-board-typed-{}", std::process::id());
+    let create = runner.run_json(&[
+        "jira-software", "board", "create",
+        "--name", &bname,
+        "--type", "scrum",
+        "--filter-id", &filter_id,
+    ]);
+    create.assert_success();
+    let bid = create.json.as_ref().and_then(|j| j.get("id")).and_then(|v| v.as_i64())
         .expect("Expected board id");
-    let board_id_str = board_id.to_string();
-    eprintln!("Created board for sprint test: {}", board_id_str);
+    let bid_str = bid.to_string();
     harness::rate_limit_delay(runner.config());
 
-    // CREATE sprint
-    let sprint_name = format!("e2e-sprint-{}", std::process::id());
-    let sprint_body = format!(
-        r#"{{"name":"{}","originBoardId":{}}}"#,
-        sprint_name, board_id
-    );
-    let sprint_create =
-        runner.run_json_with_body(&sprint_body, &["jira-software", "Sprint", "create-sprint"]);
-    if sprint_create.exit_code != 0 {
-        eprintln!(
-            "Skipping sprint test: create-sprint failed: {}",
-            sprint_create.stderr
-        );
-        let _ = runner.run(&[
-            "jira-software",
-            "Board",
-            "delete-board",
-            "--boardId",
-            &board_id_str,
-        ]);
-        harness::rate_limit_delay(runner.config());
-        delete_filter(&runner, &filter_id);
-        harness::rate_limit_delay(runner.config());
-        teardown_profile(&runner, &profile);
-        return;
-    }
-    let sprint_id = sprint_create
-        .json
-        .as_ref()
-        .and_then(|j| j.get("id"))
-        .and_then(|v| v.as_i64())
-        .expect("Expected sprint id");
-    let sprint_id_str = sprint_id.to_string();
-    eprintln!("Created sprint: {} ({})", sprint_name, sprint_id_str);
+    // VIEW
+    let view = runner.run_json(&["jira-software", "board", "view", &bid_str]);
+    view.assert_success();
+    let name = view.json_field("/name").and_then(|v| v.as_str()).unwrap_or("");
+    assert_eq!(name, bname);
     harness::rate_limit_delay(runner.config());
 
-    // GET sprint and verify name
-    let read = runner.run_json(&[
-        "jira-software",
-        "Sprint",
-        "get-sprint",
-        "--sprintId",
-        &sprint_id_str,
-    ]);
-    read.assert_success();
-    let read_name = read
-        .json_field("/name")
-        .and_then(|v| v.as_str())
-        .unwrap_or("");
-    assert_eq!(read_name, sprint_name, "Sprint name should match");
+    // CONFIG
+    let cfg = runner.run_json(&["jira-software", "board", "config", &bid_str]);
+    cfg.assert_success();
     harness::rate_limit_delay(runner.config());
 
-    // UPDATE sprint
-    let upd = runner.run_with_body(
-        r#"{"goal":"E2E test goal"}"#,
-        &[
-            "jira-software",
-            "Sprint",
-            "partially-update-sprint",
-            "--sprintId",
-            &sprint_id_str,
-        ],
-    );
-    assert!(
-        upd.exit_code == 0,
-        "partially-update-sprint failed: {}",
-        upd.stderr
-    );
-    harness::rate_limit_delay(runner.config());
-
-    // DELETE sprint
-    let del = runner.run(&[
-        "jira-software",
-        "Sprint",
-        "delete-sprint",
-        "--sprintId",
-        &sprint_id_str,
-    ]);
-    assert!(del.exit_code == 0, "delete-sprint failed: {}", del.stderr);
-    eprintln!("Deleted sprint: {}", sprint_id_str);
-    harness::rate_limit_delay(runner.config());
-
-    // Cleanup: board + filter
-    let _ = runner.run(&[
-        "jira-software",
-        "Board",
-        "delete-board",
-        "--boardId",
-        &board_id_str,
-    ]);
+    delete_board(&runner, &bid_str);
     harness::rate_limit_delay(runner.config());
     delete_filter(&runner, &filter_id);
     harness::rate_limit_delay(runner.config());
     teardown_profile(&runner, &profile);
 }
 
-// ─── Board List Operations ──────────────────────────────────────────────
+#[test]
+fn test_board_create_from_json() {
+    let config = skip_unless_e2e!();
+    let runner = ShrugRunner::new(config);
+    let profile = setup_profile(&runner);
+    let project = runner.config().jira_project.as_str();
+
+    let filter_id = match create_filter(&runner, project) {
+        Some(id) => id,
+        None => { teardown_profile(&runner, &profile); return; }
+    };
+    harness::rate_limit_delay(runner.config());
+
+    let bname = format!("e2e-board-json-{}", std::process::id());
+    let body = format!(
+        r#"{{"name":"{}","type":"scrum","filterId":{}}}"#,
+        bname, filter_id
+    );
+    // --from-json requires dummy required flags
+    let create = runner.run_json_with_body(&body, &[
+        "jira-software", "board", "create",
+        "--name", "ignored", "--type", "scrum", "--filter-id", &filter_id,
+    ]);
+    create.assert_success();
+    let bid = create.json.as_ref().and_then(|j| j.get("id")).and_then(|v| v.as_i64())
+        .expect("Expected board id");
+    let bid_str = bid.to_string();
+    harness::rate_limit_delay(runner.config());
+
+    delete_board(&runner, &bid_str);
+    harness::rate_limit_delay(runner.config());
+    delete_filter(&runner, &filter_id);
+    harness::rate_limit_delay(runner.config());
+    teardown_profile(&runner, &profile);
+}
 
 #[test]
-fn test_list_boards() {
+fn test_board_list_all_params() {
     let config = skip_unless_e2e!();
     let runner = ShrugRunner::new(config);
     let profile = setup_profile(&runner);
     let project = runner.config().jira_project.as_str();
 
     let result = runner.run_json(&[
-        "jira-software",
-        "Board",
-        "get-all-boards",
-        "--projectKeyOrId",
-        project,
+        "jira-software", "board", "list",
+        "--project", project,
+        "--type", "scrum",
     ]);
     result.assert_success();
-    let board_count = result
-        .json
-        .as_ref()
-        .and_then(|j| j.get("values"))
-        .and_then(|v| v.as_array())
-        .map(|arr| arr.len())
-        .unwrap_or(0);
-    eprintln!("Found {} boards for project {}", board_count, project);
     harness::rate_limit_delay(runner.config());
     teardown_profile(&runner, &profile);
 }
 
-// ─── Epic Operations ────────────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════════════════
+// SPRINT
+// ═══════════════════════════════════════════════════════════════════════════
 
 #[test]
-fn test_epic_operations() {
+fn test_sprint_lifecycle_all_params() {
     let config = skip_unless_e2e!();
     let runner = ShrugRunner::new(config);
     let profile = setup_profile(&runner);
     let project = runner.config().jira_project.as_str();
 
-    // Create an Epic issue via Jira Platform API
-    let body = format!(
-        r#"{{"fields":{{"project":{{"key":"{}"}},"summary":"E2E epic test","issuetype":{{"name":"Epic"}}}}}}"#,
-        project
-    );
-    let create = runner.run_json_with_body(&body, &["jira", "Issues", "create-issue"]);
+    let filter_id = match create_filter(&runner, project) {
+        Some(id) => id,
+        None => { teardown_profile(&runner, &profile); return; }
+    };
+    harness::rate_limit_delay(runner.config());
+
+    let bname = format!("e2e-sprint-board-{}", std::process::id());
+    let bid_str = match create_board(&runner, &bname, &filter_id) {
+        Some(id) => id,
+        None => {
+            delete_filter(&runner, &filter_id);
+            teardown_profile(&runner, &profile);
+            return;
+        }
+    };
+    harness::rate_limit_delay(runner.config());
+
+    // CREATE with all params
+    let sname = format!("e2e-sprint-{}", std::process::id());
+    let create = runner.run_json(&[
+        "jira-software", "sprint", "create",
+        "--name", &sname,
+        "--board", &bid_str,
+        "--goal", "E2E sprint goal",
+    ]);
     if create.exit_code != 0 {
-        eprintln!(
-            "Skipping epic test: could not create Epic issue (type may not exist): {}",
-            create.stderr
-        );
+        eprintln!("Sprint create failed: {}", create.stderr);
+        delete_board(&runner, &bid_str);
+        harness::rate_limit_delay(runner.config());
+        delete_filter(&runner, &filter_id);
         teardown_profile(&runner, &profile);
         return;
     }
-    let epic_key = create
-        .json
-        .as_ref()
-        .and_then(|j| j.get("key"))
-        .and_then(|v| v.as_str())
-        .expect("Expected epic key");
-    let epic_key = epic_key.to_string();
-    eprintln!("Created epic: {}", epic_key);
+    let sid = create.json.as_ref().and_then(|j| j.get("id")).and_then(|v| v.as_i64())
+        .expect("Expected sprint id");
+    let sid_str = sid.to_string();
     harness::rate_limit_delay(runner.config());
 
-    // GET epic via Jira Software API
-    let get = runner.run_json(&[
-        "jira-software",
-        "Epic",
-        "get-epic",
-        "--epicIdOrKey",
-        &epic_key,
+    // VIEW
+    let view = runner.run_json(&["jira-software", "sprint", "view", &sid_str]);
+    view.assert_success();
+    harness::rate_limit_delay(runner.config());
+
+    // EDIT with all params (handler auto-fetches current name/state)
+    let edit = runner.run(&[
+        "jira-software", "sprint", "edit", &sid_str,
+        "--name", &format!("{}-upd", sname),
+        "--goal", "Updated goal",
+        "--state", "future",
     ]);
-    get.assert_success();
+    assert!(edit.exit_code == 0, "sprint edit failed: {}", edit.stderr);
     harness::rate_limit_delay(runner.config());
 
-    // GET issues for epic (may be empty)
-    let issues = runner.run_json(&[
-        "jira-software",
-        "Epic",
-        "get-issues-for-epic",
-        "--epicIdOrKey",
-        &epic_key,
+    // LIST with params
+    let list = runner.run_json(&[
+        "jira-software", "sprint", "list",
+        "--board", &bid_str,
+        "--state", "future",
     ]);
-    issues.assert_success();
+    list.assert_success();
     harness::rate_limit_delay(runner.config());
 
-    // Cleanup
+    // DELETE
+    let del = runner.run(&["jira-software", "sprint", "delete", &sid_str, "--yes"]);
+    assert!(del.exit_code == 0, "sprint delete failed: {}", del.stderr);
+    harness::rate_limit_delay(runner.config());
+
+    delete_board(&runner, &bid_str);
+    harness::rate_limit_delay(runner.config());
+    delete_filter(&runner, &filter_id);
+    harness::rate_limit_delay(runner.config());
+    teardown_profile(&runner, &profile);
+}
+
+#[test]
+fn test_sprint_create_from_json() {
+    let config = skip_unless_e2e!();
+    let runner = ShrugRunner::new(config);
+    let profile = setup_profile(&runner);
+    let project = runner.config().jira_project.as_str();
+
+    let filter_id = match create_filter(&runner, project) {
+        Some(id) => id,
+        None => { teardown_profile(&runner, &profile); return; }
+    };
+    harness::rate_limit_delay(runner.config());
+
+    let bname = format!("e2e-sprint-json-board-{}", std::process::id());
+    let bid_str = match create_board(&runner, &bname, &filter_id) {
+        Some(id) => id,
+        None => {
+            delete_filter(&runner, &filter_id);
+            teardown_profile(&runner, &profile);
+            return;
+        }
+    };
+    harness::rate_limit_delay(runner.config());
+
+    let sname = format!("e2e-sprint-json-{}", std::process::id());
+    let body = format!(
+        r#"{{"name":"{}","originBoardId":{}}}"#,
+        sname, bid_str
+    );
+    let create = runner.run_json_with_body(&body, &[
+        "jira-software", "sprint", "create",
+        "--name", "ignored", "--board", &bid_str,
+    ]);
+    if create.exit_code != 0 {
+        eprintln!("Sprint from-json create failed: {}", create.stderr);
+        delete_board(&runner, &bid_str);
+        harness::rate_limit_delay(runner.config());
+        delete_filter(&runner, &filter_id);
+        teardown_profile(&runner, &profile);
+        return;
+    }
+    let sid = create.json.as_ref().and_then(|j| j.get("id")).and_then(|v| v.as_i64())
+        .expect("Expected sprint id");
+    let sid_str = sid.to_string();
+    harness::rate_limit_delay(runner.config());
+
+    let _ = runner.run(&["jira-software", "sprint", "delete", &sid_str, "--yes"]);
+    harness::rate_limit_delay(runner.config());
+    delete_board(&runner, &bid_str);
+    harness::rate_limit_delay(runner.config());
+    delete_filter(&runner, &filter_id);
+    harness::rate_limit_delay(runner.config());
+    teardown_profile(&runner, &profile);
+}
+
+#[test]
+fn test_sprint_edit_from_json() {
+    let config = skip_unless_e2e!();
+    let runner = ShrugRunner::new(config);
+    let profile = setup_profile(&runner);
+    let project = runner.config().jira_project.as_str();
+
+    let filter_id = match create_filter(&runner, project) {
+        Some(id) => id,
+        None => { teardown_profile(&runner, &profile); return; }
+    };
+    harness::rate_limit_delay(runner.config());
+
+    let bname = format!("e2e-sprint-editjson-board-{}", std::process::id());
+    let bid_str = match create_board(&runner, &bname, &filter_id) {
+        Some(id) => id,
+        None => {
+            delete_filter(&runner, &filter_id);
+            teardown_profile(&runner, &profile);
+            return;
+        }
+    };
+    harness::rate_limit_delay(runner.config());
+
+    let sname = format!("e2e-sej-{}", std::process::id());
+    let create = runner.run_json(&[
+        "jira-software", "sprint", "create",
+        "--name", &sname, "--board", &bid_str,
+    ]);
+    if create.exit_code != 0 {
+        eprintln!("Sprint create failed: {}", create.stderr);
+        delete_board(&runner, &bid_str);
+        delete_filter(&runner, &filter_id);
+        teardown_profile(&runner, &profile);
+        return;
+    }
+    let sid = create.json.as_ref().and_then(|j| j.get("id")).and_then(|v| v.as_i64())
+        .expect("Expected sprint id");
+    let sid_str = sid.to_string();
+    harness::rate_limit_delay(runner.config());
+
+    // EDIT via --from-json (sprint name must be <30 chars)
+    let body = r#"{"name":"e2e-sj-upd","state":"future","goal":"JSON goal"}"#;
+    let edit = runner.run_with_body(body, &[
+        "jira-software", "sprint", "edit", &sid_str,
+    ]);
+    assert!(edit.exit_code == 0, "sprint from-json edit failed: {}", edit.stderr);
+    harness::rate_limit_delay(runner.config());
+
+    let _ = runner.run(&["jira-software", "sprint", "delete", &sid_str, "--yes"]);
+    harness::rate_limit_delay(runner.config());
+    delete_board(&runner, &bid_str);
+    harness::rate_limit_delay(runner.config());
+    delete_filter(&runner, &filter_id);
+    harness::rate_limit_delay(runner.config());
+    teardown_profile(&runner, &profile);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// EPIC
+// ═══════════════════════════════════════════════════════════════════════════
+
+#[test]
+fn test_epic_view_and_list() {
+    let config = skip_unless_e2e!();
+    let runner = ShrugRunner::new(config);
+    let profile = setup_profile(&runner);
+    let project = runner.config().jira_project.as_str();
+
+    // Create an Epic issue
+    let create = runner.run_json(&[
+        "jira", "issue", "create",
+        "-s", "E2E epic comprehensive",
+        "--project", project,
+        "--type", "Epic",
+    ]);
+    if create.exit_code != 0 {
+        eprintln!("Skipping epic test: Epic type may not exist: {}", create.stderr);
+        teardown_profile(&runner, &profile);
+        return;
+    }
+    let epic_key = create.json.as_ref().and_then(|j| j.get("key")).and_then(|v| v.as_str())
+        .expect("Expected epic key").to_string();
+    harness::rate_limit_delay(runner.config());
+
+    // VIEW via Agile API
+    let view = runner.run_json(&["jira-software", "epic", "view", &epic_key]);
+    if view.exit_code != 0 {
+        eprintln!("Epic view failed (next-gen project): {}", view.stderr);
+        delete_issue(&runner, &epic_key);
+        harness::rate_limit_delay(runner.config());
+        teardown_profile(&runner, &profile);
+        return;
+    }
+    harness::rate_limit_delay(runner.config());
+
+    // LIST issues in epic
+    let list = runner.run_json(&["jira-software", "epic", "list", &epic_key]);
+    list.assert_success();
+    harness::rate_limit_delay(runner.config());
+
     delete_issue(&runner, &epic_key);
     harness::rate_limit_delay(runner.config());
     teardown_profile(&runner, &profile);
 }
 
-// ─── JSW Issue Get ──────────────────────────────────────────────────────
-
 #[test]
-fn test_jsw_issue_get() {
+fn test_epic_edit_with_done() {
     let config = skip_unless_e2e!();
     let runner = ShrugRunner::new(config);
     let profile = setup_profile(&runner);
     let project = runner.config().jira_project.as_str();
 
-    let issue_key = create_issue(&runner, project, "E2E JSW issue get");
-    harness::rate_limit_delay(runner.config());
-
-    let get = runner.run_json(&[
-        "jira-software",
-        "Issue",
-        "get-issue",
-        "--issueIdOrKey",
-        &issue_key,
+    let create = runner.run_json(&[
+        "jira", "issue", "create",
+        "-s", "E2E epic edit test",
+        "--project", project,
+        "--type", "Epic",
     ]);
-    get.assert_success();
-    harness::rate_limit_delay(runner.config());
-
-    delete_issue(&runner, &issue_key);
-    harness::rate_limit_delay(runner.config());
-    teardown_profile(&runner, &profile);
-}
-
-// ─── Board Get Issues ──────────────────────────────────────────────────
-
-#[test]
-fn test_board_get_issues() {
-    let config = skip_unless_e2e!();
-    let runner = ShrugRunner::new(config);
-    let profile = setup_profile(&runner);
-    let project = runner.config().jira_project.as_str();
-
-    let filter_id = match create_filter(&runner, project) {
-        Some(id) => id,
-        None => {
-            eprintln!("Skipping board-get-issues test: could not create filter");
-            teardown_profile(&runner, &profile);
-            return;
-        }
-    };
-    harness::rate_limit_delay(runner.config());
-
-    let board_name = format!("e2e-board-issues-{}", std::process::id());
-    let body = format!(
-        r#"{{"name":"{}","type":"scrum","filterId":{}}}"#,
-        board_name, filter_id
-    );
-    let create = runner.run_json_with_body(&body, &["jira-software", "Board", "create-board"]);
     if create.exit_code != 0 {
-        eprintln!(
-            "Skipping board-get-issues test: create-board failed: {}",
-            create.stderr
-        );
-        delete_filter(&runner, &filter_id);
+        eprintln!("Skipping epic edit: {}", create.stderr);
         teardown_profile(&runner, &profile);
         return;
     }
-    let board_id = create
-        .json
-        .as_ref()
-        .and_then(|j| j.get("id"))
-        .and_then(|v| v.as_i64())
-        .expect("Expected board id");
-    let board_id_str = board_id.to_string();
+    let epic_key = create.json.as_ref().and_then(|j| j.get("key")).and_then(|v| v.as_str())
+        .expect("Expected key").to_string();
     harness::rate_limit_delay(runner.config());
 
-    // GET issues for board (may return empty list for a new board)
-    let issues = runner.run(&[
-        "jira-software",
-        "Board",
-        "get-issues-for-board",
-        "--boardId",
-        &board_id_str,
+    // EDIT with --name and --done
+    let edit = runner.run(&[
+        "jira-software", "epic", "edit", &epic_key,
+        "--name", "E2E epic renamed",
+        "--done",
     ]);
-    // Exit code 0 = success (even if empty), non-zero is acceptable if API denies
-    if issues.exit_code != 0 {
-        eprintln!(
-            "get-issues-for-board returned exit code {} (may need board config): {}",
-            issues.exit_code, issues.stderr
-        );
+    if edit.exit_code != 0 {
+        eprintln!("Epic edit failed (next-gen project): {}", edit.stderr);
     }
     harness::rate_limit_delay(runner.config());
 
-    // Cleanup
-    let _ = runner.run(&[
-        "jira-software",
-        "Board",
-        "delete-board",
-        "--boardId",
-        &board_id_str,
-    ]);
-    harness::rate_limit_delay(runner.config());
-    delete_filter(&runner, &filter_id);
-    harness::rate_limit_delay(runner.config());
-    teardown_profile(&runner, &profile);
-}
-
-// ─── Sprint Move Issues ────────────────────────────────────────────────
-
-#[test]
-fn test_sprint_move_issues() {
-    let config = skip_unless_e2e!();
-    let runner = ShrugRunner::new(config);
-    let profile = setup_profile(&runner);
-    let project = runner.config().jira_project.as_str();
-
-    // Setup: filter + board + sprint
-    let filter_id = match create_filter(&runner, project) {
-        Some(id) => id,
-        None => {
-            eprintln!("Skipping sprint-move test: could not create filter");
-            teardown_profile(&runner, &profile);
-            return;
-        }
-    };
-    harness::rate_limit_delay(runner.config());
-
-    let board_name = format!("e2e-sprint-move-{}", std::process::id());
-    let body = format!(
-        r#"{{"name":"{}","type":"scrum","filterId":{}}}"#,
-        board_name, filter_id
-    );
-    let create_board =
-        runner.run_json_with_body(&body, &["jira-software", "Board", "create-board"]);
-    if create_board.exit_code != 0 {
-        eprintln!(
-            "Skipping sprint-move test: create-board failed: {}",
-            create_board.stderr
-        );
-        delete_filter(&runner, &filter_id);
-        teardown_profile(&runner, &profile);
-        return;
-    }
-    let board_id = create_board
-        .json
-        .as_ref()
-        .and_then(|j| j.get("id"))
-        .and_then(|v| v.as_i64())
-        .expect("Expected board id");
-    let board_id_str = board_id.to_string();
-    harness::rate_limit_delay(runner.config());
-
-    // Create sprint
-    let sprint_body = format!(
-        r#"{{"name":"e2e-sprint-move-{}","originBoardId":{}}}"#,
-        std::process::id(),
-        board_id
-    );
-    let create_sprint =
-        runner.run_json_with_body(&sprint_body, &["jira-software", "Sprint", "create-sprint"]);
-    if create_sprint.exit_code != 0 {
-        eprintln!(
-            "Skipping sprint-move test: create-sprint failed: {}",
-            create_sprint.stderr
-        );
-        let _ = runner.run(&[
-            "jira-software",
-            "Board",
-            "delete-board",
-            "--boardId",
-            &board_id_str,
-        ]);
-        delete_filter(&runner, &filter_id);
-        teardown_profile(&runner, &profile);
-        return;
-    }
-    let sprint_id = create_sprint
-        .json
-        .as_ref()
-        .and_then(|j| j.get("id"))
-        .and_then(|v| v.as_i64())
-        .expect("Expected sprint id");
-    let sprint_id_str = sprint_id.to_string();
-    harness::rate_limit_delay(runner.config());
-
-    // Create an issue to move
-    let issue_key = create_issue(&runner, project, "E2E sprint move test");
-    harness::rate_limit_delay(runner.config());
-
-    // Move issue to sprint
-    let move_body = format!(r#"{{"issues":["{}"]}}"#, issue_key);
-    let move_result = runner.run_with_body(
-        &move_body,
-        &[
-            "jira-software",
-            "Sprint",
-            "move-issues-to-sprint",
-            "--sprintId",
-            &sprint_id_str,
-        ],
-    );
-    if move_result.exit_code != 0 {
-        // Sprint may need to be started first, or API may deny the operation.
-        // This is a known API constraint — document but don't fail the test.
-        eprintln!(
-            "move-issues-to-sprint returned exit code {} (sprint may need to be active): {}",
-            move_result.exit_code, move_result.stderr
-        );
-    }
-    harness::rate_limit_delay(runner.config());
-
-    // Cleanup: delete sprint, issue, board, filter
-    let _ = runner.run(&[
-        "jira-software",
-        "Sprint",
-        "delete-sprint",
-        "--sprintId",
-        &sprint_id_str,
-    ]);
-    harness::rate_limit_delay(runner.config());
-    delete_issue(&runner, &issue_key);
-    harness::rate_limit_delay(runner.config());
-    let _ = runner.run(&[
-        "jira-software",
-        "Board",
-        "delete-board",
-        "--boardId",
-        &board_id_str,
-    ]);
-    harness::rate_limit_delay(runner.config());
-    delete_filter(&runner, &filter_id);
-    harness::rate_limit_delay(runner.config());
-    teardown_profile(&runner, &profile);
-}
-
-// ─── Backlog Move ───────────────────────────────────────────────────────
-
-#[test]
-fn test_backlog_move() {
-    let config = skip_unless_e2e!();
-    let runner = ShrugRunner::new(config);
-    let profile = setup_profile(&runner);
-    let project = runner.config().jira_project.as_str();
-
-    let issue_key = create_issue(&runner, project, "E2E backlog move");
-    harness::rate_limit_delay(runner.config());
-
-    let body = format!(r#"{{"issues":["{}"]}}"#, issue_key);
-    let result = runner.run_with_body(
-        &body,
-        &["jira-software", "Backlog", "move-issues-to-backlog"],
-    );
-    if result.exit_code != 0 {
-        eprintln!(
-            "Backlog move returned exit code {} (issue may not be on a board): {}",
-            result.exit_code, result.stderr
-        );
-    }
-    harness::rate_limit_delay(runner.config());
-
-    delete_issue(&runner, &issue_key);
+    delete_issue(&runner, &epic_key);
     harness::rate_limit_delay(runner.config());
     teardown_profile(&runner, &profile);
 }

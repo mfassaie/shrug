@@ -305,19 +305,6 @@ pub fn execute(
                 }
             }
 
-            let request_body = if let Some(ref path) = from_json {
-                tracing::debug!("Using --from-json, ignoring typed flags");
-                crate::jira::issue::read_json_file(path)?
-            } else {
-                build_edit_body(
-                    name.as_deref(),
-                    goal.as_deref(),
-                    start_date.as_deref(),
-                    end_date.as_deref(),
-                    state.as_deref(),
-                )
-            };
-
             let mut path_params = HashMap::new();
             path_params.insert("sprintId".to_string(), id.clone());
             let url = http::build_url(
@@ -326,6 +313,38 @@ pub fn execute(
                 &path_params,
                 &[],
             );
+
+            let request_body = if let Some(ref path) = from_json {
+                tracing::debug!("Using --from-json, ignoring typed flags");
+                crate::jira::issue::read_json_file(path)?
+            } else {
+                // Jira Agile API requires name and state for sprint PUT.
+                // Fetch current values to fill in any missing required fields.
+                let effective_name;
+                let effective_state;
+                if name.is_none() || state.is_none() {
+                    let current = http::execute_request(
+                        client, Method::GET, &url, Some(credential), None, &[],
+                    )?;
+                    let current_json = current.unwrap_or_default();
+                    effective_name = name.clone().or_else(|| {
+                        current_json.get("name").and_then(|v| v.as_str()).map(|s| s.to_string())
+                    });
+                    effective_state = state.clone().or_else(|| {
+                        current_json.get("state").and_then(|v| v.as_str()).map(|s| s.to_string())
+                    });
+                } else {
+                    effective_name = name.clone();
+                    effective_state = state.clone();
+                }
+                build_edit_body(
+                    effective_name.as_deref(),
+                    goal.as_deref(),
+                    start_date.as_deref(),
+                    end_date.as_deref(),
+                    effective_state.as_deref(),
+                )
+            };
 
             if dry_run {
                 http::dry_run_request(&Method::PUT, &url, Some(&request_body));

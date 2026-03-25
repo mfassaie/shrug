@@ -4,19 +4,21 @@
 
 <h1 align="center">shrug</h1>
 
-A dynamic CLI for Atlassian Cloud. Commands are generated at runtime from Atlassian's OpenAPI specifications, so the binary ships with no hardcoded API knowledge and automatically supports every endpoint across Jira, Jira Software, and Confluence (~925 operations).
+A static CLI for Atlassian Cloud. Manage Jira issues, Jira Software boards, and Confluence pages from your terminal with typed flags and curated commands, without learning the API.
 
 ## Features
 
-- **Dynamic command generation** from OpenAPI 3.0.1 specs
-- **Three Atlassian products** with a single binary: Jira, Jira Software, Confluence
+- **Static command tree**: `shrug <product> <entity> <verb>` with 37 entities and 140+ commands
+- **Three Atlassian products** with a single binary: Jira (16 entities), Jira Software (3 entities), Confluence (18 entities)
+- **Typed flags** for every command: `--summary`, `--project`, `--type`, `--status`, `--label`, etc.
+- **Three input tiers**: typed flags for common fields, `--body`/`--body-file` for descriptions, `--from-json` for full JSON control
+- **Three output formats**: JSON, table, CSV with TTY detection
+- **Template generation**: `shrug template` generates JSON scaffolds for `--from-json`
+- **Claude Code skill**: `shrug install-skill` installs an AI assistant skill for Atlassian workflows
 - **Multi-profile authentication** with OS keychain storage, OAuth 2.0 (PKCE), and encrypted file fallback
-- **Five output formats**: JSON, table, YAML, CSV, plain text with TTY detection
-- **Helper commands**: `+create`, `+search`, `+transition` shortcuts for common Jira workflows
+- **Markdown input**: write issue descriptions in Markdown (auto-converted to ADF or Confluence storage format)
 - **JQL shorthand**: `--project`, `--assignee me`, `--status` flags build JQL queries
-- **Markdown to ADF**: write issue descriptions and comments in Markdown
-- **Shell completions**: bash, zsh, fish, PowerShell with dynamic resource completion
-- **Binary spec caching**: rkyv zero-copy deserialisation for <30ms warm startup
+- **Global flags**: `--dry-run`, `--web`, `--limit`, `--output`, `--fields`
 - **Cross-platform**: Windows, macOS, Linux
 
 ## Installation
@@ -48,55 +50,107 @@ cargo install --git https://github.com/mfassaie/shrug
 ### 1. Create a profile
 
 ```sh
-shrug profile create --name work --site mysite.atlassian.net --email me@company.com
+shrug profile create work --site mysite.atlassian.net --email me@company.com
 shrug auth set-token --profile work
+shrug profile use work
 ```
 
-### 2. Search for issues
+### 2. Work with Jira issues
 
 ```sh
-shrug jira +search --project PROJ --assignee me --status "In Progress"
+# List issues
+shrug jira issue list --project PROJ --status "In Progress"
+
+# Create an issue
+shrug jira issue create --summary "Fix login bug" --project PROJ --type Bug
+
+# View an issue
+shrug jira issue view PROJ-123
+
+# Edit an issue
+shrug jira issue edit PROJ-123 --priority High --label urgent
 ```
 
-### 3. Create an issue
+### 3. Work with Confluence pages
 
 ```sh
-shrug jira +create --project PROJ --summary "Fix login bug" --issue-type Bug
+# List pages in a space
+shrug confluence page list --space-id 12345
+
+# Create a page with markdown body
+shrug confluence page create --space-id 12345 --title "Meeting notes" --body "## Agenda\n- Item one"
+
+# View a page
+shrug confluence page view 67890
 ```
 
-### 4. List Confluence pages
+### 4. Work with Jira Software
 
 ```sh
-shrug confluence Page get-pages --output table
+# List boards
+shrug jira-software board list
+
+# List sprints for a board
+shrug jira-software sprint list --board-id 1
+
+# View an epic
+shrug jira-software epic view 10001
 ```
 
 ### 5. Use different output formats
 
 ```sh
-shrug jira Issues get-issue --issueIdOrKey PROJ-123 --output json
-shrug jira Issues get-issue --issueIdOrKey PROJ-123 --output yaml
-shrug jira Issues get-issue --issueIdOrKey PROJ-123 --output table --fields key,summary,status
+shrug jira issue view PROJ-123 --output json
+shrug jira issue list --project PROJ --output csv
+shrug jira issue view PROJ-123 --output table --fields key,summary,status
 ```
 
-## How it works
+### 6. Generate templates for --from-json
 
-shrug downloads OpenAPI specifications from Atlassian's CDN and generates a command tree at runtime.
+```sh
+# Generate all templates
+shrug template all --output-dir ./templates
+
+# Generate a single template
+shrug template jira issue create --output-dir ./templates
+
+# Use a template
+shrug jira issue create --from-json templates/jira-issue-create.json
+```
+
+### 7. Install the Claude Code skill
+
+```sh
+# Install for all projects
+shrug install-skill --scope user
+
+# Install for current project only
+shrug install-skill --scope project
+```
+
+## Command structure
 
 ```
-shrug jira issues list --project TEST --output table
-      │    │      │
-      │    │      └── operationId from spec → HTTP method + URL
-      │    └────────── tag from spec → command group
-      └──────────────── product → which spec to load
+shrug <product> <entity> <verb> [flags]
+      |          |        |
+      |          |        └── list, create, view, edit, delete
+      |          └────────── issue, page, board, sprint, space, ...
+      └──────────────────── jira, jira-software, confluence
 ```
 
-Tags become command groups. Operation IDs become leaf commands. Parameters become flags. The binary never hardcodes API endpoints, so new Atlassian APIs are available as soon as they appear in the published specs.
+Sub-entities nest under their parent: `shrug jira issue comment create PROJ-123 --body "Fixed"`.
 
-Specs are cached locally with rkyv binary serialisation (zero-copy deserialisation in <1ms) and refreshed in the background using ETag-based conditional requests.
+## Supported products
+
+| Product | Command | Alias | Entities | Commands |
+|---------|---------|-------|----------|----------|
+| Jira Cloud | `shrug jira` | `j` | 16 | 63 |
+| Jira Software | `shrug jira-software` | `jsw` | 3 | 12 |
+| Confluence | `shrug confluence` | `c`, `conf` | 18 | 65 |
 
 ## Authentication
 
-shrug supports two authentication methods:
+shrug supports two authentication methods.
 
 **API token (Basic Auth)** — the simplest option. Generate a token at [id.atlassian.com/manage-profile/security/api-tokens](https://id.atlassian.com/manage-profile/security/api-tokens).
 
@@ -105,30 +159,6 @@ shrug supports two authentication methods:
 Credentials are stored in the OS keychain (macOS Keychain, Windows Credential Manager, Linux Secret Service). An encrypted file fallback is available when the keychain is not accessible.
 
 For CI/CD, set `SHRUG_SITE`, `SHRUG_EMAIL`, and `SHRUG_API_TOKEN` environment variables.
-
-## Supported products
-
-| Product | Command | Spec format | Operations |
-|---------|---------|-------------|------------|
-| Jira Platform | `shrug jira` | OpenAPI 3.0.1 | ~620 |
-| Jira Software | `shrug jira-software` | OpenAPI 3.0.1 | ~95 |
-| Confluence | `shrug confluence` | OpenAPI 3.0.1 | ~210 |
-
-## Shell completions
-
-```sh
-# Bash
-shrug completions bash > ~/.local/share/bash-completion/completions/shrug
-
-# Zsh
-shrug completions zsh > ~/.zfunc/_shrug
-
-# Fish
-shrug completions fish > ~/.config/fish/completions/shrug.fish
-
-# PowerShell
-shrug completions powershell >> $PROFILE
-```
 
 ## Configuration
 
@@ -139,10 +169,6 @@ shrug uses layered TOML configuration with this precedence:
 3. Project config (`.shrug.toml` in current directory or git root)
 4. User config (`~/.config/shrug/config.toml`)
 5. Built-in defaults (lowest)
-
-## Contributing
-
-See [CONTRIBUTING.md](CONTRIBUTING.md) for build instructions and contribution guidelines.
 
 ## Licence
 

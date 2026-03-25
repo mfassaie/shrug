@@ -23,7 +23,7 @@
 //!    - JSW:        `/rest/agile/1.0/<resource>`
 //!    - Confluence:  `/wiki/api/v2/<resource>`
 //!
-//! 3. **Run the CLI** via `env.cmd().args(&[...])`. The command is pre-configured
+//! 3. **Run the CLI** via `env.cmd().args([...])`. The command is pre-configured
 //!    with env-var credentials (`SHRUG_API_TOKEN`, `SHRUG_EMAIL`, `SHRUG_SITE`)
 //!    and the `SHRUG_PROFILE` pointing at the test profile.
 //!
@@ -114,7 +114,7 @@ impl MockEnv {
     fn create_profile(&self) {
         let output = Command::cargo_bin("shrug")
             .expect("Failed to find shrug binary")
-            .args(&[
+            .args([
                 "profile", "create", &self.profile_name,
                 "--site", &self.server.base_url(),
                 "--email", "test@example.com",
@@ -136,7 +136,7 @@ impl MockEnv {
     fn delete_profile(&self) {
         let _ = Command::cargo_bin("shrug")
             .expect("Failed to find shrug binary")
-            .args(&["profile", "delete", &self.profile_name])
+            .args(["profile", "delete", &self.profile_name])
             .timeout(Duration::from_secs(10))
             .output();
     }
