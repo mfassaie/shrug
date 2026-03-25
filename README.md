@@ -30,13 +30,13 @@ Download the latest binary from [GitHub Releases](https://github.com/mfassaie/sh
 **Linux/macOS (shell installer):**
 
 ```sh
-curl --proto '=https' --tlsv1.2 -LsSf https://github.com/mfassaie/shrug/releases/latest/download/shrug-installer.sh | sh
+curl -fsSL https://github.com/mfassaie/shrug/releases/latest/download/install.sh | sh
 ```
 
 **Windows (PowerShell installer):**
 
 ```powershell
-powershell -ExecutionPolicy ByPass -c "irm https://github.com/mfassaie/shrug/releases/latest/download/shrug-installer.ps1 | iex"
+powershell -ExecutionPolicy ByPass -c "irm https://github.com/mfassaie/shrug/releases/latest/download/install.ps1 | iex"
 ```
 
 ### From source
