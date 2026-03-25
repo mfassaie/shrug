@@ -1,8 +1,8 @@
 [package]
 name = "shrug"
-version = "1.0.0-alpha.1"
+version = "1.0.0-beta.1"
 edition = "2021"
-description = "A dynamic CLI for Atlassian Cloud"
+description = "A static CLI for Atlassian Cloud"
 license = "MIT"
 repository = "https://github.com/mfassaie/shrug"
 readme = "README.md"
