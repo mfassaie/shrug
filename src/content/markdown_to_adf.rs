@@ -6,7 +6,7 @@
 
 use pulldown_cmark::{Event, Options, Parser, Tag, TagEnd};
 
-use crate::error::ShrugError;
+use crate::core::error::ShrugError;
 
 /// Convert a Markdown string to an ADF JSON document.
 ///
@@ -554,7 +554,7 @@ mod tests {
     fn round_trip_fidelity() {
         let md = "# Title\n\nSome **bold** text.\n\n- Item one\n- Item two\n\n```\ncode here\n```";
         let adf = markdown_to_adf(md);
-        let rendered = crate::adf::render_adf(&adf, false);
+        let rendered = crate::content::adf::render_adf(&adf, false);
         assert!(rendered.contains("# Title"), "Heading preserved");
         assert!(rendered.contains("bold"), "Bold text preserved");
         assert!(rendered.contains("- Item one"), "List preserved");

@@ -12,8 +12,8 @@ use std::env;
 
 use shrug::auth::credentials::CredentialStore;
 use shrug::auth::profile::{Profile, ProfileStore};
-use shrug::config::{ShrugConfig, ShrugPaths};
-use shrug::error::ShrugError;
+use shrug::core::config::{ShrugConfig, ShrugPaths};
+use shrug::core::error::ShrugError;
 
 /// Resolve the active profile from the precedence chain:
 /// --profile flag > SHRUG_PROFILE env > config default_profile > .default file

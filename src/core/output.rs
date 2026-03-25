@@ -1,4 +1,4 @@
-use crate::adf;
+use crate::content::adf;
 use crate::cli::{ColorChoice, OutputFormat};
 
 /// Format an API response body according to the chosen output format.

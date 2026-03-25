@@ -3,13 +3,13 @@ source: tests/smoke/help_messages.rs
 assertion_line: 17
 expression: result.stdout
 ---
-A dynamic CLI for Atlassian Cloud
+A static CLI for Atlassian Cloud
 
 Usage: shrug.exe [OPTIONS] [COMMAND]
 
 Commands:
   jira           Jira Cloud operations [aliases: j]
-  jira-software  Jira Software operations (boards, sprints, backlogs) [aliases: jsw]
+  jira-software  Jira Software operations (boards, sprints) [aliases: jsw]
   confluence     Confluence operations [aliases: c, conf]
   auth           Authentication management (set-token, status)
   profile        Profile management (create, list, get, delete)

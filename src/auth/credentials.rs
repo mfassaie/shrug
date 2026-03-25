@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::auth::oauth::{self, OAuthConfig, OAuthTokens};
 use crate::auth::profile::{AuthType, Profile};
-use crate::error::ShrugError;
+use crate::core::error::ShrugError;
 
 /// Source of a resolved credential.
 #[derive(Debug, Clone, PartialEq)]

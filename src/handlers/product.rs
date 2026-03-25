@@ -1,10 +1,10 @@
 use shrug::auth::credentials::ResolvedCredential;
 use shrug::cli::{ColorChoice, OutputFormat};
 use shrug::cmd::router;
-use shrug::config::{ShrugConfig, ShrugPaths};
-use shrug::error::ShrugError;
+use shrug::core::config::{ShrugConfig, ShrugPaths};
+use shrug::core::error::ShrugError;
 use shrug::executor;
-use shrug::output;
+use shrug::core::output;
 use shrug::spec::registry::Product;
 use shrug::spec::SpecCache;
 use shrug::spec::SpecLoader;

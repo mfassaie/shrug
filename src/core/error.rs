@@ -1,4 +1,4 @@
-use crate::exit_codes;
+use crate::core::exit_codes;
 
 #[derive(Debug, thiserror::Error)]
 pub enum ShrugError {

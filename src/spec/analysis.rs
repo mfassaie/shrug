@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use crate::error::ShrugError;
+use crate::core::error::ShrugError;
 use crate::spec::model::{Operation, Parameter, ParameterLocation};
 
 /// Pagination style detected from operation parameters.

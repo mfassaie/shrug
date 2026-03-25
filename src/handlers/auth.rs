@@ -1,8 +1,8 @@
 use shrug::auth::credentials::CredentialStore;
 use shrug::auth::oauth;
 use shrug::auth::profile::{AuthType, Profile, ProfileStore};
-use shrug::cli::AuthCommands;
-use shrug::error::ShrugError;
+use shrug::cli::auth::AuthCommands;
+use shrug::core::error::ShrugError;
 
 /// Resolve profile name from explicit arg, or fall back to default.
 fn resolve_profile_name(

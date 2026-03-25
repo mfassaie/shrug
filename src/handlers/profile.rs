@@ -1,7 +1,7 @@
 use shrug::auth::credentials::CredentialStore;
 use shrug::auth::profile::ProfileStore;
-use shrug::cli::ProfileCommands;
-use shrug::error::ShrugError;
+use shrug::cli::profile::ProfileCommands;
+use shrug::core::error::ShrugError;
 
 use shrug::auth::profile::Profile;
 

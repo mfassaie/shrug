@@ -1,6 +1,6 @@
 use serde_json::Value;
 
-use crate::error::ShrugError;
+use crate::core::error::ShrugError;
 use crate::spec::model::*;
 
 /// Parse an OpenAPI 3.0.1 JSON spec into shrug's data model.

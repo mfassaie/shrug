@@ -4,7 +4,7 @@ use std::path::{Path, PathBuf};
 use clap::ValueEnum;
 use serde::{Deserialize, Serialize};
 
-use crate::error::ShrugError;
+use crate::core::error::ShrugError;
 
 /// Authentication type for a profile.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default, ValueEnum)]
@@ -454,7 +454,7 @@ mod tests {
         let err = store.get("nonexistent").unwrap_err();
         let msg = format!("{}", err);
         assert!(msg.contains("not found"), "Expected not found: {msg}");
-        assert_eq!(err.exit_code(), crate::exit_codes::ERROR);
+        assert_eq!(err.exit_code(), crate::core::exit_codes::ERROR);
     }
 
     #[test]
@@ -477,7 +477,7 @@ mod tests {
         let err = store.delete("nonexistent").unwrap_err();
         let msg = format!("{}", err);
         assert!(msg.contains("not found"), "Expected not found: {msg}");
-        assert_eq!(err.exit_code(), crate::exit_codes::ERROR);
+        assert_eq!(err.exit_code(), crate::core::exit_codes::ERROR);
     }
 
     #[test]
@@ -499,7 +499,7 @@ mod tests {
         let store = make_store(&dir);
 
         let err = store.set_default("nonexistent").unwrap_err();
-        assert_eq!(err.exit_code(), crate::exit_codes::ERROR);
+        assert_eq!(err.exit_code(), crate::core::exit_codes::ERROR);
     }
 
     #[test]

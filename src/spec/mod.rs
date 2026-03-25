@@ -9,7 +9,7 @@ pub use cache::SpecCache;
 pub use parser::parse_openapi_v3;
 pub use registry::{Product, SpecLoader};
 
-use crate::error::ShrugError;
+use crate::core::error::ShrugError;
 use model::ApiSpec;
 
 /// Parse an OpenAPI 3.x spec.

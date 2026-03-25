@@ -9,7 +9,7 @@ use clap::CommandFactory;
 use clap_complete::{generate, Shell};
 
 use crate::cli::Cli;
-use crate::error::ShrugError;
+use crate::core::error::ShrugError;
 
 const AVAILABLE_SHELLS: &[&str] = &["bash", "zsh", "fish", "powershell"];
 

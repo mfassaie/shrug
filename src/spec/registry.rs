@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 use std::time::Duration;
 
-use crate::error::ShrugError;
+use crate::core::error::ShrugError;
 use crate::spec::cache::SpecCache;
 use crate::spec::model::ApiSpec;
 use crate::spec::parse_spec;

@@ -4,7 +4,7 @@ use std::path::PathBuf;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
-use crate::error::ShrugError;
+use crate::core::error::ShrugError;
 use crate::spec::model::ApiSpec;
 
 /// Metadata stored alongside cached specs for TTL and version tracking.

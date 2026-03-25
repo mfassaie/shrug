@@ -1,10 +1,21 @@
-use clap::{Parser, Subcommand, ValueEnum};
-use serde::{Deserialize, Serialize};
+pub mod auth;
+pub mod confluence;
+pub mod global;
+pub mod jira;
+pub mod jsw;
+pub mod profile;
 
-use crate::auth::profile::AuthType;
+pub use auth::AuthCommands;
+pub use confluence::ConfluenceCommands;
+pub use global::{ColorChoice, OutputFormat};
+pub use jira::JiraCommands;
+pub use jsw::JswCommands;
+pub use profile::ProfileCommands;
+
+use clap::{Parser, Subcommand};
 
 #[derive(Parser)]
-#[command(name = "shrug", version, about = "A dynamic CLI for Atlassian Cloud")]
+#[command(name = "shrug", version, about = "A static CLI for Atlassian Cloud")]
 pub struct Cli {
     /// Output format
     #[arg(short = 'o', long, value_enum, default_value_t = OutputFormat::Table, global = true)]
@@ -38,42 +49,25 @@ pub struct Cli {
     pub command: Option<Commands>,
 }
 
-#[derive(Clone, Debug, PartialEq, ValueEnum, Serialize, Deserialize)]
-#[serde(rename_all = "lowercase")]
-pub enum OutputFormat {
-    Json,
-    Table,
-    Csv,
-}
-
-#[derive(Clone, Debug, PartialEq, ValueEnum, Serialize, Deserialize)]
-#[serde(rename_all = "lowercase")]
-pub enum ColorChoice {
-    Auto,
-    Always,
-    Never,
-}
-
 #[derive(Subcommand)]
 pub enum Commands {
     /// Jira Cloud operations
     #[command(visible_alias = "j")]
     Jira {
-        /// Arguments passed to the Jira subcommand
-        #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
-        args: Vec<String>,
+        #[command(subcommand)]
+        command: JiraCommands,
     },
-    /// Jira Software operations (boards, sprints, backlogs)
+    /// Jira Software operations (boards, sprints)
     #[command(name = "jira-software", visible_alias = "jsw")]
     JiraSoftware {
-        #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
-        args: Vec<String>,
+        #[command(subcommand)]
+        command: JswCommands,
     },
     /// Confluence operations
     #[command(visible_aliases = ["c", "conf"])]
     Confluence {
-        #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
-        args: Vec<String>,
+        #[command(subcommand)]
+        command: ConfluenceCommands,
     },
     /// Authentication management (set-token, status)
     Auth {
@@ -102,60 +96,6 @@ pub enum Commands {
 }
 
 #[derive(Subcommand)]
-pub enum ProfileCommands {
-    /// Create a new profile
-    Create {
-        /// Profile name (lowercase, alphanumeric, hyphens)
-        name: String,
-
-        /// Atlassian site URL (e.g., mysite.atlassian.net)
-        #[arg(long)]
-        site: String,
-
-        /// Email address for authentication
-        #[arg(long)]
-        email: String,
-
-        /// Authentication type
-        #[arg(long, value_enum, default_value_t = AuthType::BasicAuth)]
-        auth_type: AuthType,
-    },
-
-    /// List all profiles
-    List,
-
-    /// Show details of a profile
-    Get {
-        /// Profile name
-        name: String,
-    },
-
-    /// Update an existing profile
-    Update {
-        /// Profile name
-        name: String,
-
-        /// New site URL
-        #[arg(long)]
-        site: Option<String>,
-
-        /// New email address
-        #[arg(long)]
-        email: Option<String>,
-
-        /// New authentication type
-        #[arg(long, value_enum)]
-        auth_type: Option<AuthType>,
-    },
-
-    /// Delete a profile
-    Delete {
-        /// Profile name
-        name: String,
-    },
-}
-
-#[derive(Subcommand)]
 pub enum CacheCommands {
     /// Show cached API specs with age and status
     List,
@@ -173,33 +113,6 @@ pub enum CacheCommands {
         #[arg(long)]
         product: Option<String>,
     },
-}
-
-#[derive(Subcommand)]
-pub enum AuthCommands {
-    /// Store an API token for a profile
-    SetToken {
-        /// Profile name (uses default if not specified)
-        #[arg(long)]
-        profile: Option<String>,
-    },
-
-    /// Show credential status for a profile
-    Status {
-        /// Profile name (uses default if not specified)
-        #[arg(long)]
-        profile: Option<String>,
-    },
-
-    /// Authorize an OAuth 2.0 profile via browser flow
-    Login {
-        /// Profile name (uses default if not specified)
-        #[arg(long)]
-        profile: Option<String>,
-    },
-
-    /// Interactive setup wizard for first-time configuration
-    Setup,
 }
 
 #[cfg(test)]
@@ -265,7 +178,9 @@ mod tests {
     fn cli_parses_jira_subcommand() {
         let cli = Cli::try_parse_from(["shrug", "jira", "issues", "get-issue"]).unwrap();
         match cli.command {
-            Some(Commands::Jira { ref args }) => {
+            Some(Commands::Jira {
+                command: JiraCommands::External(ref args),
+            }) => {
                 assert_eq!(args, &["issues", "get-issue"]);
             }
             _ => panic!("Expected Jira command"),
@@ -323,14 +238,12 @@ mod tests {
 
     #[test]
     fn jql_flags_not_global() {
-        // After demotion, --project should be rejected as a global flag
         let result = Cli::try_parse_from(["shrug", "--project", "KAN"]);
         assert!(result.is_err(), "JQL flags should no longer be global");
     }
 
     #[test]
-    fn jql_flags_pass_through_trailing_args() {
-        // JQL flags after product subcommand should appear in trailing args
+    fn jql_flags_pass_through_external_subcommand() {
         let cli = Cli::try_parse_from([
             "shrug",
             "jira",
@@ -343,7 +256,9 @@ mod tests {
         ])
         .unwrap();
         match cli.command {
-            Some(Commands::Jira { ref args }) => {
+            Some(Commands::Jira {
+                command: JiraCommands::External(ref args),
+            }) => {
                 assert_eq!(
                     args,
                     &["issues", "list", "--project", "KAN", "--status", "Open"]
@@ -357,7 +272,9 @@ mod tests {
     fn cli_jira_alias_j() {
         let cli = Cli::try_parse_from(["shrug", "j", "issues", "list"]).unwrap();
         match cli.command {
-            Some(Commands::Jira { ref args }) => {
+            Some(Commands::Jira {
+                command: JiraCommands::External(ref args),
+            }) => {
                 assert_eq!(args, &["issues", "list"]);
             }
             _ => panic!("Expected Jira via alias 'j'"),
@@ -368,7 +285,9 @@ mod tests {
     fn cli_jira_software_alias_jsw() {
         let cli = Cli::try_parse_from(["shrug", "jsw", "board", "list"]).unwrap();
         match cli.command {
-            Some(Commands::JiraSoftware { ref args }) => {
+            Some(Commands::JiraSoftware {
+                command: JswCommands::External(ref args),
+            }) => {
                 assert_eq!(args, &["board", "list"]);
             }
             _ => panic!("Expected JiraSoftware via alias 'jsw'"),
@@ -379,7 +298,9 @@ mod tests {
     fn cli_confluence_alias_c() {
         let cli = Cli::try_parse_from(["shrug", "c", "page", "list"]).unwrap();
         match cli.command {
-            Some(Commands::Confluence { ref args }) => {
+            Some(Commands::Confluence {
+                command: ConfluenceCommands::External(ref args),
+            }) => {
                 assert_eq!(args, &["page", "list"]);
             }
             _ => panic!("Expected Confluence via alias 'c'"),
@@ -390,7 +311,9 @@ mod tests {
     fn cli_confluence_alias_conf() {
         let cli = Cli::try_parse_from(["shrug", "conf", "page", "get", "123"]).unwrap();
         match cli.command {
-            Some(Commands::Confluence { ref args }) => {
+            Some(Commands::Confluence {
+                command: ConfluenceCommands::External(ref args),
+            }) => {
                 assert_eq!(args, &["page", "get", "123"]);
             }
             _ => panic!("Expected Confluence via alias 'conf'"),

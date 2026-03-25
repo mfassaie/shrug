@@ -6,7 +6,7 @@ use directories::ProjectDirs;
 use serde::{Deserialize, Serialize};
 
 use crate::cli::{ColorChoice, OutputFormat};
-use crate::error::ShrugError;
+use crate::core::error::ShrugError;
 
 /// Fully resolved configuration with sensible defaults for all fields.
 #[derive(Debug, Clone, Serialize, Deserialize)]

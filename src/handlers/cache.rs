@@ -1,6 +1,6 @@
 use shrug::cli::CacheCommands;
-use shrug::config::{ShrugConfig, ShrugPaths};
-use shrug::error::ShrugError;
+use shrug::core::config::{ShrugConfig, ShrugPaths};
+use shrug::core::error::ShrugError;
 use shrug::spec::registry::Product;
 use shrug::spec::SpecCache;
 use shrug::spec::SpecLoader;

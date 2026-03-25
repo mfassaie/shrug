@@ -13,7 +13,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 use crate::auth::credentials::ResolvedCredential;
-use crate::error::ShrugError;
+use crate::core::error::ShrugError;
 
 /// Parse --key value pairs from args.
 fn parse_flag_args(args: &[String]) -> HashMap<String, String> {

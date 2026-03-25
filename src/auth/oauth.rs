@@ -5,7 +5,7 @@ use std::time::Duration;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
-use crate::error::ShrugError;
+use crate::core::error::ShrugError;
 
 /// Default scopes for Atlassian OAuth 2.0 3LO.
 const DEFAULT_SCOPES: &str = "read:jira-work write:jira-work read:jira-user \

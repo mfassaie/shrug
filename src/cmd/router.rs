@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use crate::cmd::crud::{self, CrudMapping};
 use crate::cmd::tree;
-use crate::error::ShrugError;
+use crate::core::error::ShrugError;
 use crate::spec::model::{ApiSpec, Operation};
 use crate::spec::registry::Product;
 
