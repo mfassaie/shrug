@@ -7,6 +7,35 @@
 //! Profile creation and deletion use the real `shrug profile` commands rather
 //! than writing files directly. This is cross-platform (the `directories` crate
 //! uses Windows API calls on Windows, not environment variables).
+//!
+//! # Pattern for writing new mocked tests
+//!
+//! Every mocked test follows the same four steps:
+//!
+//! 1. **Create a `MockEnv`** -- this starts an httpmock server and creates a
+//!    CLI profile pointing at `127.0.0.1:<port>`. The profile is deleted when
+//!    the `MockEnv` is dropped.
+//!
+//! 2. **Register mock(s)** on `env.server` -- specify the expected HTTP method,
+//!    path, optional headers/body matchers, and the canned response (status code,
+//!    JSON body). Use the full API path including the product prefix, e.g.:
+//!    - Jira:       `/rest/api/3/<resource>`
+//!    - JSW:        `/rest/agile/1.0/<resource>`
+//!    - Confluence:  `/wiki/api/v2/<resource>`
+//!
+//! 3. **Run the CLI** via `env.cmd().args(&[...])`. The command is pre-configured
+//!    with env-var credentials (`SHRUG_API_TOKEN`, `SHRUG_EMAIL`, `SHRUG_SITE`)
+//!    and the `SHRUG_PROFILE` pointing at the test profile.
+//!
+//! 4. **Assert** the mock was hit (`mock.assert()`), then check stdout/stderr
+//!    and the parsed JSON response using `assert_success` and `parse_json`.
+//!
+//! # Authentication
+//!
+//! `MockEnv::cmd()` injects credentials via environment variables, which take
+//! highest priority in shrug's credential resolution order. The `SHRUG_SITE`
+//! env var overrides the profile's stored site URL, redirecting all HTTP traffic
+//! to the httpmock server. No real Atlassian tokens are needed.
 
 use std::sync::atomic::{AtomicU32, Ordering};
 use std::time::Duration;

@@ -56,10 +56,6 @@ which = "7"
 unsafe_code = "forbid"
 
 [[test]]
-name = "smoke"
-path = "tests/smoke/main.rs"
-
-[[test]]
 name = "mocked"
 path = "tests/mocked/main.rs"
 
