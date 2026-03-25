@@ -187,21 +187,70 @@ fn run(config: &ShrugConfig, cli: &Cli) -> Result<(), ShrugError> {
             }
         }
         Some(Commands::JiraSoftware { command }) => {
+            let paths = handlers::get_paths()?;
+            let profile_store = handlers::get_profile_store(&paths)?;
+            let cred_store = handlers::get_credential_store(&paths)?;
+            let profile =
+                handlers::resolve_profile(&cli.profile, config, &profile_store)?;
+
+            if profile.is_none() && profile_store.list()?.is_empty() {
+                return Err(ShrugError::AuthError(
+                    "No profile configured. Run `shrug auth setup` to connect your Atlassian account.".into(),
+                ));
+            }
+
+            let credential = resolve_credential(&cred_store, profile.as_ref());
+
             match command {
+                JswCommands::Board { command: board_cmd } => {
+                    let cred = credential.ok_or_else(|| {
+                        ShrugError::AuthError(
+                            "No credentials found. Run `shrug auth setup` to configure.".into(),
+                        )
+                    })?;
+                    let client = shrug::core::http::create_client()?;
+                    shrug::jsw::board::execute(
+                        board_cmd,
+                        &cred,
+                        &client,
+                        &config.output_format,
+                        &config.color,
+                        cli.limit,
+                    )
+                }
+                JswCommands::Sprint { command: sprint_cmd } => {
+                    let cred = credential.ok_or_else(|| {
+                        ShrugError::AuthError(
+                            "No credentials found. Run `shrug auth setup` to configure.".into(),
+                        )
+                    })?;
+                    let client = shrug::core::http::create_client()?;
+                    shrug::jsw::sprint::execute(
+                        sprint_cmd,
+                        &cred,
+                        &client,
+                        &config.output_format,
+                        &config.color,
+                        cli.limit,
+                    )
+                }
+                JswCommands::Epic { command: epic_cmd } => {
+                    let cred = credential.ok_or_else(|| {
+                        ShrugError::AuthError(
+                            "No credentials found. Run `shrug auth setup` to configure.".into(),
+                        )
+                    })?;
+                    let client = shrug::core::http::create_client()?;
+                    shrug::jsw::epic::execute(
+                        epic_cmd,
+                        &cred,
+                        &client,
+                        &config.output_format,
+                        &config.color,
+                        cli.limit,
+                    )
+                }
                 JswCommands::External(args) => {
-                    let paths = handlers::get_paths()?;
-                    let profile_store = handlers::get_profile_store(&paths)?;
-                    let cred_store = handlers::get_credential_store(&paths)?;
-                    let profile =
-                        handlers::resolve_profile(&cli.profile, config, &profile_store)?;
-
-                    if profile.is_none() && profile_store.list()?.is_empty() {
-                        return Err(ShrugError::AuthError(
-                            "No profile configured. Run `shrug auth setup` to connect your Atlassian account.".into(),
-                        ));
-                    }
-
-                    let credential = resolve_credential(&cred_store, profile.as_ref());
                     let client = executor::create_client()?;
 
                     // JQL flag extraction for list verb

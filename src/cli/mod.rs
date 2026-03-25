@@ -337,11 +337,9 @@ mod tests {
         let cli = Cli::try_parse_from(["shrug", "jsw", "board", "list"]).unwrap();
         match cli.command {
             Some(Commands::JiraSoftware {
-                command: JswCommands::External(ref args),
-            }) => {
-                assert_eq!(args, &["board", "list"]);
-            }
-            _ => panic!("Expected JiraSoftware via alias 'jsw'"),
+                command: JswCommands::Board { .. },
+            }) => {}
+            _ => panic!("Expected JiraSoftware Board via alias 'jsw'"),
         }
     }
 

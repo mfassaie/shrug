@@ -7,4 +7,5 @@ pub mod core;        // NEW: config, error, exit_codes, logging, output, http, p
 pub mod dynamic_completions;
 pub mod executor;    // still exists, will be stripped later
 pub mod jira;        // NEW: static Jira entity modules (Phase 5)
+pub mod jsw;         // NEW: static JSW entity modules (Phase 6)
 pub mod spec;        // still exists, will be stripped later
