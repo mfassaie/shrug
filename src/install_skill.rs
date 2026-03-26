@@ -9,7 +9,7 @@ use crate::cli::install_skill::InstallSkillScope;
 use crate::core::error::ShrugError;
 
 /// The skill directory, embedded at compile time.
-static SKILL_DIR: Dir = include_dir!("$CARGO_MANIFEST_DIR/skills/jira-confluence-cli");
+static SKILL_DIR: Dir = include_dir!("$CARGO_MANIFEST_DIR/src/skills/jira-confluence-cli");
 
 /// Execute the install-skill command.
 pub fn execute(scope: &InstallSkillScope) -> Result<(), ShrugError> {
