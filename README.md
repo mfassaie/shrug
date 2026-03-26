@@ -9,9 +9,8 @@ A static CLI for Atlassian Cloud. Manage Jira issues, Jira Software boards, and 
 ## Features
 
 - **Static command tree**: `shrug <product> <entity> <verb>` with 37 entities and 140+ commands
-- **Three Atlassian products** with a single binary: Jira (16 entities), Jira Software (3 entities), Confluence (18 entities)
+- **Three Atlassian products** with a single binary: Jira , Jira Software , Confluence 
 - **Typed flags** for every command: `--summary`, `--project`, `--type`, `--status`, `--label`, etc.
-- **Three input tiers**: typed flags for common fields, `--body`/`--body-file` for descriptions, `--from-json` for full JSON control
 - **Three output formats**: JSON, table, CSV with TTY detection
 - **Template generation**: `shrug template` generates JSON scaffolds for `--from-json`
 - **Claude Code skill**: `shrug install-skill` installs an AI assistant skill for Atlassian workflows
@@ -23,41 +22,47 @@ A static CLI for Atlassian Cloud. Manage Jira issues, Jira Software boards, and 
 
 ## Installation
 
-### Homebrew (macOS/Linux)
+### macOS, Linux, WSL2
+
+**Homebrew:**
 
 ```sh
 brew tap mfassaie/tap
 brew install shrug
 ```
 
-### Scoop (Windows)
+**Shell installer:**
+
+```sh
+curl -fsSL https://github.com/mfassaie/shrug/releases/latest/download/install.sh | sh
+```
+
+### Windows
+
+**Scoop:**
 
 ```powershell
 scoop bucket add mfassaie https://github.com/mfassaie/scoop-bucket
 scoop install shrug
 ```
 
-### Shell installer (macOS/Linux)
-
-```sh
-curl -fsSL https://github.com/mfassaie/shrug/releases/latest/download/install.sh | sh
-```
-
-### PowerShell installer (Windows)
+**PowerShell installer:**
 
 ```powershell
 powershell -ExecutionPolicy ByPass -c "irm https://github.com/mfassaie/shrug/releases/latest/download/install.ps1 | iex"
 ```
 
-### From source
+### Download manually
+
+```sh
+Download the binary directly [GitHub Releases](https://github.com/mfassaie/shrug/releases)
+```
+
+### Build from source
 
 ```sh
 cargo install --git https://github.com/mfassaie/shrug
 ```
-
-### Manual download
-
-Grab the binary for your platform from [GitHub Releases](https://github.com/mfassaie/shrug/releases).
 
 ## Quick start
 
