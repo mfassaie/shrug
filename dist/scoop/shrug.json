@@ -1,6 +1,6 @@
 {
     "version": "VERSION",
-    "description": "A dynamic CLI for Atlassian Cloud",
+    "description": "A static CLI for Atlassian Cloud",
     "homepage": "https://github.com/mfassaie/shrug",
     "license": "MIT",
     "architecture": {

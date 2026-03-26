@@ -23,17 +23,27 @@ A static CLI for Atlassian Cloud. Manage Jira issues, Jira Software boards, and 
 
 ## Installation
 
-### From GitHub Releases (recommended)
+### Homebrew (macOS/Linux)
 
-Download the latest binary from [GitHub Releases](https://github.com/mfassaie/shrug/releases).
+```sh
+brew tap mfassaie/tap
+brew install shrug
+```
 
-**Linux/macOS (shell installer):**
+### Scoop (Windows)
+
+```powershell
+scoop bucket add mfassaie https://github.com/mfassaie/scoop-bucket
+scoop install shrug
+```
+
+### Shell installer (macOS/Linux)
 
 ```sh
 curl -fsSL https://github.com/mfassaie/shrug/releases/latest/download/install.sh | sh
 ```
 
-**Windows (PowerShell installer):**
+### PowerShell installer (Windows)
 
 ```powershell
 powershell -ExecutionPolicy ByPass -c "irm https://github.com/mfassaie/shrug/releases/latest/download/install.ps1 | iex"
@@ -44,6 +54,10 @@ powershell -ExecutionPolicy ByPass -c "irm https://github.com/mfassaie/shrug/rel
 ```sh
 cargo install --git https://github.com/mfassaie/shrug
 ```
+
+### Manual download
+
+Grab the binary for your platform from [GitHub Releases](https://github.com/mfassaie/shrug/releases).
 
 ## Quick start
 
