@@ -84,8 +84,21 @@ pub fn execute(
                     .and_then(|f| f.get("attachment"))
                     .cloned()
                     .unwrap_or(Value::Array(vec![]));
+                let display_val = if matches!(output_format, OutputFormat::Json) {
+                    attachments
+                } else {
+                    output::project_array(
+                        attachments.as_array().unwrap_or(&vec![]),
+                        &[
+                            ("ID", "/id"),
+                            ("Filename", "/filename"),
+                            ("Size", "/size"),
+                            ("MIME Type", "/mimeType"),
+                        ],
+                    )
+                };
                 let formatted = output::format_response(
-                    &attachments.to_string(),
+                    &display_val.to_string(),
                     output_format,
                     is_terminal::is_terminal(std::io::stdout()),
                     color_enabled,
@@ -225,8 +238,19 @@ pub fn execute(
             )?;
 
             if let Some(ref json_val) = result {
+                let display_val = if matches!(output_format, OutputFormat::Json) {
+                    json_val.clone()
+                } else {
+                    output::project(json_val, &[
+                        ("ID", "/id"),
+                        ("Filename", "/filename"),
+                        ("Size", "/size"),
+                        ("MIME Type", "/mimeType"),
+                        ("Created", "/created"),
+                    ])
+                };
                 let formatted = output::format_response(
-                    &json_val.to_string(),
+                    &display_val.to_string(),
                     output_format,
                     is_terminal::is_terminal(std::io::stdout()),
                     color_enabled,

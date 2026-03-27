@@ -220,8 +220,17 @@ pub fn execute(
             let results = http::execute_paginated_get(
                 client, &url_base, credential, &query_params, &[], limit, 50, false,
             )?;
-            let json_val = serde_json::Value::Array(results);
-            if !json_val.as_array().is_none_or(|a| a.is_empty()) {
+            if !results.is_empty() {
+                let json_val = if matches!(output_format, OutputFormat::Json) {
+                    serde_json::Value::Array(results)
+                } else {
+                    output::project_array(&results, &[
+                        ("Key", "/key"),
+                        ("Name", "/name"),
+                        ("Type", "/projectTypeKey"),
+                        ("Lead", "/lead"),
+                    ])
+                };
                 let formatted = output::format_response(
                     &json_val.to_string(),
                     output_format,
@@ -307,8 +316,19 @@ pub fn execute(
             )?;
 
             if let Some(ref json_val) = result {
+                let display_val = if matches!(output_format, OutputFormat::Json) {
+                    json_val.clone()
+                } else {
+                    output::project(json_val, &[
+                        ("Key", "/key"),
+                        ("Name", "/name"),
+                        ("Type", "/projectTypeKey"),
+                        ("Lead", "/lead"),
+                        ("Description", "/description"),
+                    ])
+                };
                 let formatted = output::format_response(
-                    &json_val.to_string(),
+                    &display_val.to_string(),
                     output_format,
                     is_terminal::is_terminal(std::io::stdout()),
                     color_enabled,

@@ -112,8 +112,21 @@ pub fn execute(
                     .and_then(|f| f.get("issuelinks"))
                     .cloned()
                     .unwrap_or(Value::Array(vec![]));
+                let display_val = if matches!(output_format, OutputFormat::Json) {
+                    links
+                } else {
+                    output::project_array(
+                        links.as_array().unwrap_or(&vec![]),
+                        &[
+                            ("ID", "/id"),
+                            ("Type", "/type"),
+                            ("Outward Issue", "/outwardIssue/key"),
+                            ("Inward Issue", "/inwardIssue/key"),
+                        ],
+                    )
+                };
                 let formatted = output::format_response(
-                    &links.to_string(),
+                    &display_val.to_string(),
                     output_format,
                     is_terminal::is_terminal(std::io::stdout()),
                     color_enabled,
@@ -181,8 +194,18 @@ pub fn execute(
             )?;
 
             if let Some(ref json_val) = result {
+                let display_val = if matches!(output_format, OutputFormat::Json) {
+                    json_val.clone()
+                } else {
+                    output::project(json_val, &[
+                        ("ID", "/id"),
+                        ("Type", "/type"),
+                        ("Outward Issue", "/outwardIssue/key"),
+                        ("Inward Issue", "/inwardIssue/key"),
+                    ])
+                };
                 let formatted = output::format_response(
-                    &json_val.to_string(),
+                    &display_val.to_string(),
                     output_format,
                     is_terminal::is_terminal(std::io::stdout()),
                     color_enabled,

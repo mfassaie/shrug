@@ -348,8 +348,17 @@ pub fn execute(
             let results = http::execute_paginated_get(
                 client, &url_base, credential, &query_params, &[], limit, 25, true,
             )?;
-            let json_val = serde_json::Value::Array(results);
-            if !json_val.as_array().is_none_or(|a| a.is_empty()) {
+            if !results.is_empty() {
+                let json_val = if matches!(output_format, OutputFormat::Json) {
+                    serde_json::Value::Array(results)
+                } else {
+                    output::project_array(&results, &[
+                        ("ID", "/id"),
+                        ("Title", "/title"),
+                        ("Status", "/status"),
+                        ("Space ID", "/spaceId"),
+                    ])
+                };
                 let formatted = output::format_response(
                     &json_val.to_string(), output_format,
                     is_terminal::is_terminal(std::io::stdout()), color_enabled, None,
@@ -436,8 +445,20 @@ pub fn execute(
             )?;
 
             if let Some(ref json_val) = result {
+                let display_val = if matches!(output_format, OutputFormat::Json) {
+                    json_val.clone()
+                } else {
+                    output::project(json_val, &[
+                        ("ID", "/id"),
+                        ("Title", "/title"),
+                        ("Status", "/status"),
+                        ("Space ID", "/spaceId"),
+                        ("Created", "/createdAt"),
+                        ("Version", "/version/number"),
+                    ])
+                };
                 let formatted = output::format_response(
-                    &json_val.to_string(),
+                    &display_val.to_string(),
                     output_format,
                     is_terminal::is_terminal(std::io::stdout()),
                     color_enabled,

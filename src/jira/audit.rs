@@ -91,8 +91,17 @@ pub fn execute(
             let results = http::execute_paginated_get(
                 client, &url_base, credential, &query_params, &[], limit, 50, false,
             )?;
-            let json_val = serde_json::Value::Array(results);
-            if !json_val.as_array().is_none_or(|a| a.is_empty()) {
+            if !results.is_empty() {
+                let json_val = if matches!(output_format, OutputFormat::Json) {
+                    serde_json::Value::Array(results)
+                } else {
+                    output::project_array(&results, &[
+                        ("ID", "/id"),
+                        ("Summary", "/summary"),
+                        ("Category", "/category"),
+                        ("Created", "/created"),
+                    ])
+                };
                 let formatted = output::format_response(
                     &json_val.to_string(), output_format,
                     is_terminal::is_terminal(std::io::stdout()), color_enabled, None,

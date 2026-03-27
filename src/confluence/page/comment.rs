@@ -152,8 +152,19 @@ pub fn execute(
             )?;
 
             if let Some(ref json_val) = result {
+                let display_val = if matches!(output_format, OutputFormat::Json) {
+                    json_val.clone()
+                } else if let Some(results) = json_val.get("results").and_then(|r| r.as_array()) {
+                    output::project_array(results, &[
+                        ("ID", "/id"),
+                        ("Status", "/status"),
+                        ("Created", "/createdAt"),
+                    ])
+                } else {
+                    json_val.clone()
+                };
                 let formatted = output::format_response(
-                    &json_val.to_string(),
+                    &display_val.to_string(),
                     output_format,
                     is_terminal::is_terminal(std::io::stdout()),
                     color_enabled,
@@ -232,8 +243,18 @@ pub fn execute(
             )?;
 
             if let Some(ref json_val) = result {
+                let display_val = if matches!(output_format, OutputFormat::Json) {
+                    json_val.clone()
+                } else {
+                    output::project(json_val, &[
+                        ("ID", "/id"),
+                        ("Status", "/status"),
+                        ("Created", "/createdAt"),
+                        ("Version", "/version/number"),
+                    ])
+                };
                 let formatted = output::format_response(
-                    &json_val.to_string(),
+                    &display_val.to_string(),
                     output_format,
                     is_terminal::is_terminal(std::io::stdout()),
                     color_enabled,

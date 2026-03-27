@@ -265,6 +265,9 @@ pub fn execute(
             query_params.push(("jql".to_string(), jql));
             if let Some(ref f) = fields {
                 query_params.push(("fields".to_string(), f.join(",")));
+            } else {
+                // Request fields needed for default table columns
+                query_params.push(("fields".to_string(), "summary,status,priority,issuetype,assignee".to_string()));
             }
 
             if dry_run {
@@ -315,8 +318,19 @@ pub fn execute(
                 start_at += count as u64;
             }
 
-            let json_val = serde_json::Value::Array(all_issues);
-            if !json_val.as_array().is_none_or(|a| a.is_empty()) {
+            if !all_issues.is_empty() {
+                let json_val = if fields.is_some() || matches!(output_format, OutputFormat::Json) {
+                    serde_json::Value::Array(all_issues)
+                } else {
+                    output::project_array(&all_issues, &[
+                        ("Key", "/key"),
+                        ("Summary", "/fields/summary"),
+                        ("Status", "/fields/status"),
+                        ("Priority", "/fields/priority"),
+                        ("Type", "/fields/issuetype"),
+                        ("Assignee", "/fields/assignee"),
+                    ])
+                };
                 let formatted = output::format_response(
                     &json_val.to_string(), output_format,
                     is_terminal::is_terminal(std::io::stdout()), color_enabled,
@@ -429,8 +443,25 @@ pub fn execute(
             )?;
 
             if let Some(ref json_val) = result {
+                let display_val = if matches!(output_format, OutputFormat::Json) {
+                    json_val.clone()
+                } else {
+                    output::project(json_val, &[
+                        ("Key", "/key"),
+                        ("Summary", "/fields/summary"),
+                        ("Status", "/fields/status"),
+                        ("Priority", "/fields/priority"),
+                        ("Type", "/fields/issuetype"),
+                        ("Assignee", "/fields/assignee"),
+                        ("Reporter", "/fields/reporter"),
+                        ("Labels", "/fields/labels"),
+                        ("Created", "/fields/created"),
+                        ("Updated", "/fields/updated"),
+                        ("Description", "/fields/description"),
+                    ])
+                };
                 let formatted = output::format_response(
-                    &json_val.to_string(),
+                    &display_val.to_string(),
                     output_format,
                     is_terminal::is_terminal(std::io::stdout()),
                     color_enabled,

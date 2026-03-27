@@ -163,8 +163,21 @@ pub fn execute(
             let json_val = result
                 .unwrap_or_else(|| serde_json::Value::Array(Vec::new()));
             if !json_val.as_array().is_none_or(|a| a.is_empty()) {
+                let display_val = if matches!(output_format, OutputFormat::Json) {
+                    json_val
+                } else {
+                    output::project_array(
+                        json_val.as_array().unwrap_or(&vec![]),
+                        &[
+                            ("ID", "/id"),
+                            ("Name", "/name"),
+                            ("Project", "/project"),
+                            ("Description", "/description"),
+                        ],
+                    )
+                };
                 let formatted = output::format_response(
-                    &json_val.to_string(), output_format,
+                    &display_val.to_string(), output_format,
                     is_terminal::is_terminal(std::io::stdout()), color_enabled, None,
                 );
                 println!("{}", formatted);
@@ -247,8 +260,19 @@ pub fn execute(
             )?;
 
             if let Some(ref json_val) = result {
+                let display_val = if matches!(output_format, OutputFormat::Json) {
+                    json_val.clone()
+                } else {
+                    output::project(json_val, &[
+                        ("ID", "/id"),
+                        ("Name", "/name"),
+                        ("Project", "/project"),
+                        ("Description", "/description"),
+                        ("Lead", "/lead"),
+                    ])
+                };
                 let formatted = output::format_response(
-                    &json_val.to_string(),
+                    &display_val.to_string(),
                     output_format,
                     is_terminal::is_terminal(std::io::stdout()),
                     color_enabled,

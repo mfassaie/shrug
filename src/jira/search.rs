@@ -148,6 +148,8 @@ pub fn execute(
             query_params.push(("jql".to_string(), jql));
             if let Some(ref f) = fields {
                 query_params.push(("fields".to_string(), f.join(",")));
+            } else {
+                query_params.push(("fields".to_string(), "summary,status,priority,issuetype,assignee".to_string()));
             }
             if let Some(ref e) = expand {
                 query_params.push(("expand".to_string(), e.clone()));
@@ -200,8 +202,19 @@ pub fn execute(
                 start_at += count as u64;
             }
 
-            let json_val = serde_json::Value::Array(all_issues);
-            if !json_val.as_array().is_none_or(|a| a.is_empty()) {
+            if !all_issues.is_empty() {
+                let json_val = if fields.is_some() || matches!(output_format, OutputFormat::Json) {
+                    serde_json::Value::Array(all_issues)
+                } else {
+                    output::project_array(&all_issues, &[
+                        ("Key", "/key"),
+                        ("Summary", "/fields/summary"),
+                        ("Status", "/fields/status"),
+                        ("Priority", "/fields/priority"),
+                        ("Type", "/fields/issuetype"),
+                        ("Assignee", "/fields/assignee"),
+                    ])
+                };
                 let formatted = output::format_response(
                     &json_val.to_string(), output_format,
                     is_terminal::is_terminal(std::io::stdout()), color_enabled,

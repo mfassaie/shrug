@@ -248,8 +248,17 @@ pub fn execute(
                 start += count as u64;
             }
 
-            let json_val = serde_json::Value::Array(all_results);
-            if !json_val.as_array().is_none_or(|a| a.is_empty()) {
+            if !all_results.is_empty() {
+                let json_val = if matches!(output_format, OutputFormat::Json) {
+                    serde_json::Value::Array(all_results)
+                } else {
+                    output::project_array(&all_results, &[
+                        ("Title", "/content/title"),
+                        ("Type", "/content/type"),
+                        ("ID", "/content/id"),
+                        ("Space", "/resultGlobalContainer/title"),
+                    ])
+                };
                 let formatted = output::format_response(
                     &json_val.to_string(), output_format,
                     is_terminal::is_terminal(std::io::stdout()), color_enabled, None,

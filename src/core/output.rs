@@ -317,6 +317,58 @@ fn truncate_value(value: &serde_json::Value) -> String {
     }
 }
 
+/// Project a JSON object to a flat map using column specs.
+///
+/// Each column spec is `(display_name, json_pointer)` where the pointer
+/// follows RFC 6901 syntax (e.g. "/fields/status/name"). The result is
+/// a flat JSON object with display names as keys and resolved leaf values.
+pub fn project(obj: &serde_json::Value, columns: &[(&str, &str)]) -> serde_json::Value {
+    let mut map = serde_json::Map::new();
+    for (display_name, pointer) in columns {
+        let val = obj.pointer(pointer).cloned().unwrap_or(serde_json::Value::Null);
+        map.insert(display_name.to_string(), flatten_leaf(val));
+    }
+    serde_json::Value::Object(map)
+}
+
+/// Project an array of objects using column specs.
+///
+/// Convenience wrapper: applies `project()` to each element. When the
+/// output format is JSON, callers should skip projection and pass the
+/// raw API response instead, so this is only used for table/CSV paths.
+pub fn project_array(arr: &[serde_json::Value], columns: &[(&str, &str)]) -> serde_json::Value {
+    let projected: Vec<serde_json::Value> = arr.iter().map(|item| project(item, columns)).collect();
+    serde_json::Value::Array(projected)
+}
+
+/// Extract a human-readable leaf value from a JSON value.
+///
+/// Objects with a "name" or "displayName" key are collapsed to that
+/// string (common Atlassian pattern for status, priority, user, etc.).
+/// Arrays of strings are joined with ", ". Everything else passes through.
+fn flatten_leaf(val: serde_json::Value) -> serde_json::Value {
+    match &val {
+        serde_json::Value::Object(m) => {
+            if let Some(s) = m.get("displayName").and_then(|v| v.as_str()) {
+                return serde_json::Value::String(s.to_string());
+            }
+            if let Some(s) = m.get("name").and_then(|v| v.as_str()) {
+                return serde_json::Value::String(s.to_string());
+            }
+            val
+        }
+        serde_json::Value::Array(arr) => {
+            let strings: Vec<&str> = arr.iter().filter_map(|v| v.as_str()).collect();
+            if strings.len() == arr.len() {
+                serde_json::Value::String(strings.join(", "))
+            } else {
+                val
+            }
+        }
+        _ => val,
+    }
+}
+
 /// Convert a JSON value to a CSV cell string.
 fn value_to_csv_cell(value: &serde_json::Value) -> String {
     match value {
@@ -628,5 +680,99 @@ mod tests {
             header, "b,a",
             "CSV should respect --fields order, not alphabetical"
         );
+    }
+
+    // --- project / flatten_leaf tests ---
+
+    #[test]
+    fn project_resolves_dot_paths() {
+        let obj = serde_json::json!({
+            "key": "TEST-1",
+            "fields": {
+                "summary": "Fix the bug",
+                "status": {"name": "In Progress"},
+                "priority": {"name": "High"}
+            }
+        });
+        let result = project(&obj, &[
+            ("Key", "/key"),
+            ("Summary", "/fields/summary"),
+            ("Status", "/fields/status/name"),
+        ]);
+        let map = result.as_object().unwrap();
+        assert_eq!(map.get("Key").unwrap(), "TEST-1");
+        assert_eq!(map.get("Summary").unwrap(), "Fix the bug");
+        assert_eq!(map.get("Status").unwrap(), "In Progress");
+    }
+
+    #[test]
+    fn project_returns_null_for_missing_paths() {
+        let obj = serde_json::json!({"key": "TEST-1"});
+        let result = project(&obj, &[
+            ("Key", "/key"),
+            ("Missing", "/fields/nonexistent"),
+        ]);
+        let map = result.as_object().unwrap();
+        assert_eq!(map.get("Key").unwrap(), "TEST-1");
+        assert!(map.get("Missing").unwrap().is_null());
+    }
+
+    #[test]
+    fn flatten_leaf_extracts_name() {
+        let val = serde_json::json!({"name": "High", "id": "2"});
+        let result = flatten_leaf(val);
+        assert_eq!(result, serde_json::json!("High"));
+    }
+
+    #[test]
+    fn flatten_leaf_prefers_display_name() {
+        let val = serde_json::json!({"displayName": "Mehdi Fassaie", "name": "mfassaie"});
+        let result = flatten_leaf(val);
+        assert_eq!(result, serde_json::json!("Mehdi Fassaie"));
+    }
+
+    #[test]
+    fn flatten_leaf_joins_string_arrays() {
+        let val = serde_json::json!(["bug", "urgent", "frontend"]);
+        let result = flatten_leaf(val);
+        assert_eq!(result, serde_json::json!("bug, urgent, frontend"));
+    }
+
+    #[test]
+    fn flatten_leaf_passes_through_scalars() {
+        assert_eq!(flatten_leaf(serde_json::json!("hello")), serde_json::json!("hello"));
+        assert_eq!(flatten_leaf(serde_json::json!(42)), serde_json::json!(42));
+        assert_eq!(flatten_leaf(serde_json::json!(true)), serde_json::json!(true));
+        assert_eq!(flatten_leaf(serde_json::Value::Null), serde_json::Value::Null);
+    }
+
+    #[test]
+    fn project_flattens_nested_objects_with_name() {
+        let obj = serde_json::json!({
+            "fields": {
+                "priority": {"name": "High", "id": "2"},
+                "assignee": {"displayName": "Alice", "accountId": "abc123"}
+            }
+        });
+        let result = project(&obj, &[
+            ("Priority", "/fields/priority"),
+            ("Assignee", "/fields/assignee"),
+        ]);
+        let map = result.as_object().unwrap();
+        assert_eq!(map.get("Priority").unwrap(), "High");
+        assert_eq!(map.get("Assignee").unwrap(), "Alice");
+    }
+
+    #[test]
+    fn project_array_projects_all_elements() {
+        let arr = vec![
+            serde_json::json!({"key": "A-1", "fields": {"summary": "First"}}),
+            serde_json::json!({"key": "A-2", "fields": {"summary": "Second"}}),
+        ];
+        let result = project_array(&arr, &[("Key", "/key"), ("Summary", "/fields/summary")]);
+        let items = result.as_array().unwrap();
+        assert_eq!(items.len(), 2);
+        assert_eq!(items[0].as_object().unwrap().get("Key").unwrap(), "A-1");
+        assert_eq!(items[1].as_object().unwrap().get("Summary").unwrap(), "Second");
     }
 }
