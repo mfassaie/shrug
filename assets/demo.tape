@@ -20,13 +20,13 @@ Set TypingSpeed 35ms
 Set CursorBlink false
 
 # ── Jira: Create a bug ──
-Type "shrug jira issue create -s 'Login page times out after 30s' --project TEST --type Bug --priority High"
+Type "shrug jira issue create -s 'SSO login hangs on slow IdP response' --project TEST --type Bug --priority High"
 Enter
 Sleep 3s
 Ctrl+L
 
 # ── Jira: View the issue ──
-Type "shrug --output json jira issue view TEST-132"
+Type "shrug jira issue view TEST-132"
 Enter
 Sleep 3s
 Ctrl+L
@@ -43,26 +43,26 @@ Enter
 Sleep 3s
 Ctrl+L
 
-# ── Jira: List issues with JQL shorthand ──
-Type "shrug --output json jira issue list --project TEST --limit 3"
+# ── Jira: List issues ──
+Type "shrug jira issue list --project TEST --limit 5"
 Enter
 Sleep 3s
 Ctrl+L
 
-# ── Jira: Search with JQL ──
-Type "shrug --output json jira search list --project TEST --type Bug --status 'To Do'"
+# ── Jira: Search with JQL shorthand ──
+Type "shrug jira search list --project TEST --type Bug --status 'To Do'"
 Enter
 Sleep 3s
 Ctrl+L
 
 # ── Confluence: Create a page with markdown ──
-Type@45ms "shrug --output json confluence page create --space-id 12910596 --title 'Sprint 12 Retro' --body '## What went well'"
+Type@45ms "shrug confluence page create --space-id 12910596 --title 'Sprint 14 Planning' --body '## Goals for this sprint'"
 Enter
 Sleep 3s
 Ctrl+L
 
 # ── Confluence: View a page ──
-Type "shrug --output json confluence page view 14516225"
+Type "shrug confluence page view 14516225"
 Enter
 Sleep 3s
 Ctrl+L
@@ -74,19 +74,19 @@ Sleep 3s
 Ctrl+L
 
 # ── Confluence: List pages in a space ──
-Type "shrug --output json confluence page list --space-id 12910596 --limit 5"
+Type "shrug confluence page list --space-id 12910596 --limit 5"
 Enter
 Sleep 3s
 Ctrl+L
 
 # ── Confluence: Create a blog post ──
-Type@45ms "shrug --output json confluence blogpost create --space-id 12910596 --title 'v1.0 Released' --body '## Highlights'"
+Type@45ms "shrug confluence blogpost create --space-id 12910596 --title 'v1.1 Release Notes' --body '## What changed'"
 Enter
 Sleep 3s
 Ctrl+L
 
 # ── Confluence: Search ──
-Type "shrug --output json confluence search list --cql 'space = TEST' --limit 3"
+Type "shrug confluence search list --cql 'space = TEST' --limit 3"
 Enter
 Sleep 3s
 

@@ -1,10 +1,13 @@
-<p align="center">
-  <img src="assets/logo.svg" alt="shrug logo" width="128" height="128">
-</p>
+![shrug logo](assets/logo.svg)
 
-<h1 align="center">shrug</h1>
+# shrug
 
-A static CLI for Atlassian Cloud. Manage Jira issues, Jira Software boards, and Confluence pages from your terminal with typed flags and curated commands, without learning the API.
+
+A fast, token-efficient CLI for Atlassian Cloud. 140+ typed commands across Jira, Jira Software, and Confluence so AI agents can work without burning tokens on API discovery.
+
+
+
+![shrug demo](assets/demo.gif)
 
 ## Features
 
