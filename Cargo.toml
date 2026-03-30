@@ -21,7 +21,7 @@ toml = "0.8"
 thiserror = "2"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
-directories = "5"
+directories = "6"
 owo-colors = "4"
 enable-ansi-support = "0.2"
 ctrlc = "3"
